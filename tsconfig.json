@@ -4,8 +4,8 @@
     "module": "ESNext", // ★ 'bundler'가 허용되는 값
     "moduleResolution": "bundler", // ★ 에러 원인 해결 포인트
     "jsx": "react-jsx",
-    "baseUrl": ".",
-    "paths": { "@/*": ["src/*"] },
+    "baseUrl": "src",
+    "paths": { "@/*": ["*"], "@login": ["pages/auth/Login"] },
     "types": ["vite/client"],
     "skipLibCheck": true,
     "resolveJsonModule": true,

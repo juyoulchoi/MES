@@ -10,7 +10,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { useAuth } from '@/app/auth';
+import { login, resolveRedirect } from '@/app/auth';
 
 /**
  * Login 페이지 (React Router + Tailwind v4 + shadcn/ui)
@@ -24,91 +24,27 @@ import { useAuth } from '@/app/auth';
  * - '@/app/auth'의 AuthProvider/useAuth 구성
  */
 
-// ===== 환경 설정 =====
-const CONFIG = {
-  authMode: 'session' as 'session' | 'token', // 토큰 모드이면 "token"
-  loginApi: '/api/login',
-  defaultRedirect: '/dashboard',
-};
-
-function getCookie(name: string) {
-  const safe = name.replace(/([.$?*|{}()[\]/+^])/g, '\\$1');
-  const m = document.cookie.match(new RegExp(`(?:^|; )${safe}=([^;]*)`));
-  return m ? decodeURIComponent(m[1]) : undefined;
-}
-function getCsrfToken(): string | undefined {
-  const meta = document.querySelector(
-    'meta[name="csrf-token"]'
-  ) as HTMLMetaElement | null;
-  if (meta?.content) return meta.content;
-  return getCookie('XSRF-TOKEN');
-}
-
-export default function Login() {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const auth = useAuth();
-
-  const [username, setUsername] = useState('');
+export default function LoginPage() {
+  const [userId, setUserId] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const navigate = useNavigate();
+  const location = useLocation();
+  const from = (location.state as { from?: Location })?.from?.pathname; // optional
 
-  const canSubmit = useMemo(
-    () => username.trim().length > 0 && password.length > 0 && !submitting,
-    [username, password, submitting]
-  );
-
-  const resolveRedirect = () => {
-    const p = new URLSearchParams(location.search).get('redirect');
-    return p || CONFIG.defaultRedirect;
-  };
-
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    if (!canSubmit) return;
-
+  const onLogin = async () => {
+    if (!userId || !password || submitting) return;
     setSubmitting(true);
-    try {
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-      };
-      const csrf = getCsrfToken();
-      if (csrf) headers['X-CSRF-Token'] = csrf;
-
-      const res = await fetch(CONFIG.loginApi, {
-        method: 'POST',
-        headers,
-        credentials: CONFIG.authMode === 'session' ? 'include' : 'same-origin',
-        body: JSON.stringify({ username: username.trim(), password }),
-      });
-
-      //   if (!res.ok) {
-      //     const text = await res.text().catch(() => '');
-      //     throw new Error(text || `로그인 실패 (${res.status})`);
-      //   }
-
-      const contentType = res.headers.get('content-type');
-      const payload = contentType?.includes('application/json')
-        ? await res.json()
-        : {};
-
-      if (CONFIG.authMode === 'token') {
-        // 응답 스키마 예: { user, accessToken, refreshToken }
-        auth.signIn(payload?.user ?? null, payload?.accessToken);
-      } else {
-        // 세션 모드: 서버 세션에 의해 인증됨
-        auth.signIn(payload?.user ?? null);
-      }
-
-      navigate(resolveRedirect(), { replace: true });
-    } catch (err: any) {
-      setError(err?.message || '로그인 처리 중 오류가 발생했습니다.');
-    } finally {
-      setSubmitting(false);
+    setError(null);
+    const res = await login({ userId, password });
+    setSubmitting(false);
+    if ('error' in res) {
+      setError(res.error ?? '로그인 처리 중 오류가 발생했습니다.');
+      return;
     }
-  }
+    navigate(resolveRedirect(from), { replace: true });
+  };
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50 text-gray-900">
@@ -128,19 +64,19 @@ export default function Login() {
                 )}
               </div>
 
-              <form onSubmit={onSubmit} className="grid gap-4" noValidate>
+              <form onSubmit={onLogin} className="grid gap-4" noValidate>
                 <div className="grid gap-1.5">
-                  <Label htmlFor="username">아이디</Label>
+                  <Label htmlFor="userId">아이디</Label>
                   <Input
-                    id="username"
-                    name="username"
+                    id="userId"
+                    name="userId"
                     type="text"
                     placeholder="아이디"
-                    autoComplete="username"
+                    autoComplete="userId"
                     maxLength={64}
                     required
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
+                    value={userId}
+                    onChange={(e) => setUserId(e.target.value)}
                   />
                 </div>
 
@@ -162,7 +98,7 @@ export default function Login() {
                 <div className="pt-2 flex items-center justify-center">
                   <Button
                     type="submit"
-                    disabled={!canSubmit}
+                    disabled={submitting}
                     className="px-5 disabled:opacity-100"
                   >
                     {submitting ? '로그인 중...' : '로그인'}

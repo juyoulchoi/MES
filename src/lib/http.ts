@@ -32,5 +32,5 @@ export async function http<T>(url: string, opt: HttpOptions = {}): Promise<T> {
   const ct = res.headers.get('content-type');
   return ct?.includes('application/json')
     ? await res.json()
-    : ((await res.text()) as boolean);
+    : ((await res.text()) as T);
 }
