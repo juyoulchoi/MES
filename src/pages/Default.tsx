@@ -1,6 +1,5 @@
-import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import {
-  BrowserRouter,
   Routes,
   Route,
   NavLink,
@@ -14,8 +13,6 @@ import { Separator } from '@/components/ui/separator';
 import { AlertCircle, ChevronDown, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { MenuItem, NavPayload, TreeNode, UserPayload } from '@/lib/types';
-import { http } from '@/lib/http';
-import { sanitizeNavPayload } from '@/lib/guards';
 
 /**
  * 목적

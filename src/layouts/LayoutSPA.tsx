@@ -1,11 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Routes, Route, useNavigate, NavLink } from 'react-router-dom';
+import {
+  Routes,
+  Route,
+  useNavigate,
+  NavLink,
+  Navigate,
+} from 'react-router-dom';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import TopMenu from '@/layouts/TopMenu';
-import { CONFIG } from '@/app/config';
+import PageRenderer from '@/routes/PageRenderer';
 import type { NavPayload, UserPayload, TreeNode, UINode } from '@/lib/types';
 import { http } from '@/lib/http';
 import { filterMenuByRole, filterTreeByRole } from '@/lib/acl';
@@ -206,18 +212,19 @@ export default function LayoutSPA() {
         <Panel minSize={40} defaultSize={80}>
           {/* 상대 경로 선언으로 /app/* 중첩 라우팅 처리 */}
           <Routes>
-            <Route index element={<div className="p-4">인트로</div>} />{' '}
-            {/* /app */}
+            {/* /app → /app/default 로 리다이렉트 */}
+            <Route index element={<Navigate to="default" replace />} />
+            {/* 파일 기반 라우팅: /app/* → src/pages/* */}
             <Route
-              path="dashboard"
-              element={<div className="p-4">대시보드</div>}
-            />{' '}
-            {/* /app/dashboard */}
-            <Route
-              path="reports"
-              element={<div className="p-4">리포트</div>}
-            />{' '}
-            {/* /app/reports */}
+              path="*"
+              element={
+                <PageRenderer
+                  base="/app"
+                  pagesDir="/src/pages"
+                  fallback="default"
+                />
+              }
+            />
           </Routes>
         </Panel>
       </PanelGroup>

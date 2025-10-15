@@ -35,18 +35,18 @@ export async function login({
     const csrf = getCsrfToken();
     if (csrf) headers['X-CSRF-Token'] = csrf;
 
-    const res = await fetch(CONFIG.loginApi, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ userId, password }),
-      credentials: 'include', // 세션 모드 시 필요
-      cache: 'no-store',
-    });
+    // const res = await fetch(CONFIG.loginApi, {
+    //   method: 'POST',
+    //   headers,
+    //   body: JSON.stringify({ userId, password }),
+    //   credentials: 'include', // 세션 모드 시 필요
+    //   cache: 'no-store',
+    // });
 
-    if (!res.ok) {
-      const msg = await res.text().catch(() => '');
-      return { ok: false, error: msg || `HTTP ${res.status}` };
-    }
+    // if (!res.ok) {
+    //   const msg = await res.text().catch(() => '');
+    //   return { ok: false, error: msg || `HTTP ${res.status}` };
+    // }
 
     if (CONFIG.authMode === 'token') {
       const data = (await res.json().catch(() => ({}))) as { token?: string };

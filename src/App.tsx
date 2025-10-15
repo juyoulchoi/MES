@@ -1,11 +1,5 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import {
-  BrowserRouter,
-  Routes,
-  Route,
-  Navigate,
-  useLocation,
-} from 'react-router-dom';
+import React from 'react';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 // 로그인 페이지는 캔버스의 Login 컴포넌트를 경로에 맞게 import
 import LoginPage from '@login'; // ← 파일 위치에 맞게 조정
 import LayoutSPA from '@/layouts/LayoutSPA'; // ← 파일 위치에 맞게 조정
@@ -55,7 +49,6 @@ export default function App() {
 
       {/* 그 외 → 로그인 */}
       <Route path="*" element={<Navigate to="/login" replace />} />
-      <Route path="auth" element={<div className="p-4">Auth</div>} />
     </Routes>
   );
 }

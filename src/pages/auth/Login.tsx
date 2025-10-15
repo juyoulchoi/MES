@@ -64,7 +64,14 @@ export default function LoginPage() {
                 )}
               </div>
 
-              <form onSubmit={onLogin} className="grid gap-4" noValidate>
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  void onLogin();
+                }}
+                className="grid gap-4"
+                noValidate
+              >
                 <div className="grid gap-1.5">
                   <Label htmlFor="userId">아이디</Label>
                   <Input
