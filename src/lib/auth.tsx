@@ -1,4 +1,4 @@
-import { CONFIG } from '@/app/config';
+import { CONFIG } from '@/lib/config';
 
 type LoginArgs = { userId: string; password: string };
 
@@ -15,7 +15,10 @@ export function getCsrfToken(): string | null {
 
 export function resolveRedirect(from?: string): string {
   // from이 /app로 시작하면 그대로, 아니면 CONFIG.defaultRedirect
-  if (from && from.startsWith('/app')) return from;
+  if (from && from.startsWith('/pages')) {
+    if (from === '/pages' || from === '/pages/') return CONFIG.defaultRedirect;
+    return from;
+  }
   return CONFIG.defaultRedirect;
 }
 
@@ -35,6 +38,7 @@ export async function login({
     const csrf = getCsrfToken();
     if (csrf) headers['X-CSRF-Token'] = csrf;
 
+    const res = await fetch('', {});
     // const res = await fetch(CONFIG.loginApi, {
     //   method: 'POST',
     //   headers,

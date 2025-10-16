@@ -10,7 +10,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { login, resolveRedirect } from '@/app/auth';
+import { login, resolveRedirect } from '@/lib/auth';
 
 /**
  * Login 페이지 (React Router + Tailwind v4 + shadcn/ui)

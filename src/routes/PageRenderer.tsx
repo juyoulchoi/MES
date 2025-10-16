@@ -9,7 +9,7 @@ import { Suspense, lazy, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 
 // Vite의 import.meta.glob로 pages 디렉토리 전체를 동적 import 매핑
-const modules = import.meta.glob('/src/pages/**/*.tsx', { eager: false });
+const modules = import.meta.glob('@/pages/**/*.tsx', { eager: false });
 
 function normalizeKey(k: string) {
   // 예: "/src/pages/M00/a.tsx" → "m00/a"
@@ -21,7 +21,7 @@ function normalizeKey(k: string) {
 
 export default function PageRenderer({
   base = '/app',
-  pagesDir = '/src/pages',
+  pagesDir = '@/pages',
   fallback = 'default',
 }: {
   base?: string;

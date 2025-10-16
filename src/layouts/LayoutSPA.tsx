@@ -156,7 +156,7 @@ export default function LayoutSPA() {
     <div className="h-[100vh] w-full bg-background text-foreground">
       <header className="border-b">
         <div className="h-12 flex items-center justify-between px-3">
-          <NavLink to="/app" className="font-semibold tracking-tight">
+          <NavLink to="/app/default" className="font-semibold tracking-tight">
             SSMH
           </NavLink>
           <div className="flex items-center gap-3 text-sm">
@@ -220,7 +220,7 @@ export default function LayoutSPA() {
               element={
                 <PageRenderer
                   base="/app"
-                  pagesDir="/src/pages"
+                  pagesDir="/app/default"
                   fallback="default"
                 />
               }

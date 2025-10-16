@@ -1,7 +1,7 @@
 import React from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 // 로그인 페이지는 캔버스의 Login 컴포넌트를 경로에 맞게 import
-import LoginPage from '@login'; // ← 파일 위치에 맞게 조정
+import LoginPage from '@/pages/M00/Login'; // ← 파일 위치에 맞게 조정
 import LayoutSPA from '@/layouts/LayoutSPA'; // ← 파일 위치에 맞게 조정
 
 /* -------- 인증 가드 -------- */
@@ -19,7 +19,7 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
 // index → /login, 로그인 성공 → /app
 function PublicOnlyRoute({ children }: { children: React.ReactNode }) {
   const token = localStorage.getItem('token');
-  return token ? <Navigate to="/app" replace /> : <>{children}</>;
+  return token ? <Navigate to="/app/default" replace /> : <>{children}</>;
 }
 
 export default function App() {
@@ -37,7 +37,7 @@ export default function App() {
         }
       />
 
-      {/* 보호 라우트: /app/* (LayoutSPA는 파일명 Default.tsx여도 상관없음) */}
+      {/* 보호 라우트: /pages/* (LayoutSPA는 파일명 Default.tsx여도 상관없음) */}
       <Route
         path="/app/*"
         element={
