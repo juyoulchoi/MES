@@ -3,7 +3,6 @@ import { CONFIG } from '@/lib/config';
 type LoginArgs = { userId: string; password: string };
 
 export function getCsrfToken(): string | null {
-  // 1) meta 태그 → <meta name="csrf-token" content="...">
   const meta = document.querySelector(
     'meta[name="csrf-token"]'
   ) as HTMLMetaElement | null;
@@ -14,11 +13,19 @@ export function getCsrfToken(): string | null {
 }
 
 export function resolveRedirect(from?: string): string {
-  // from이 /app로 시작하면 그대로, 아니면 CONFIG.defaultRedirect
-  if (from && from.startsWith('/pages')) {
-    if (from === '/pages' || from === '/pages/') return CONFIG.defaultRedirect;
-    return from;
-  }
+  // 절대경로만 허용
+  if (!from || !from.startsWith('/')) return CONFIG.defaultRedirect;
+
+  // 공개/인증 분리 설계라면 필요시 '/auth' 차단
+  if (from.startsWith('/auth')) return CONFIG.defaultRedirect;
+
+  // 우리 앱의 보호 영역만 허용
+  if (from.startsWith('/app/')) return from;
+
+  // 과거 호환: /pages/* 사용 중이면 그대로 허용
+  // if (from.startsWith('/pages/')) return from;
+
+  // 나머지는 기본 경로
   return CONFIG.defaultRedirect;
 }
 

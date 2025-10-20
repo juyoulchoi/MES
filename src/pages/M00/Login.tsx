@@ -43,7 +43,8 @@ export default function LoginPage() {
       setError(res.error ?? '로그인 처리 중 오류가 발생했습니다.');
       return;
     }
-    navigate(resolveRedirect(from), { replace: true });
+
+    navigate(resolveRedirect(from), { replace: true }); // 기본은 CONFIG.defaultRedirect로 수렴
   };
 
   return (

@@ -32,3 +32,18 @@ export type NavPayload = {
 export type UserPayload = {
   user: { name: string; roles: string[] };
 };
+
+export type MenuRow = {
+  MENU_ID: string;
+  TOP_MENU: string; // 부모 MENU_ID, 루트는 "*"
+  MENU_GB: string; // "WEB" 등
+  MENU_NM: string; // 표시명
+  PGM_ID?: string | null;
+  PGM_URL?: string | null;
+  LVL?: string | number | null; // "1" 루트 등
+};
+
+export type AuthRow = {
+  MENU_ID: string;
+  SER_AUTH: 'Y' | 'N';
+};

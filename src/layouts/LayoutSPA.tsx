@@ -10,23 +10,23 @@ import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
-import TopMenu from '@/layouts/TopMenu';
 import PageRenderer from '@/routes/PageRenderer';
 import type { NavPayload, UserPayload, TreeNode, UINode } from '@/lib/types';
 import { http } from '@/lib/http';
-import { filterMenuByRole, filterTreeByRole } from '@/lib/acl';
 import { sanitizeNavPayload, toSafeTree } from '@/lib/guards';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { filterMenuByRole, filterTreeByRole } from '@/lib/acl';
+import TopMenu from '@/layouts/TopMenu';
 
 // 로딩/에러 컴포넌트
-const LoadingBlock = ({ text = '불러오는 중...' }) => (
+export const LoadingBlock = ({ text = '불러오는 중...' }) => (
   <div className="flex items-center gap-2 text-muted-foreground text-sm p-3">
     <div className="animate-spin h-4 w-4 rounded-full border-2 border-muted-foreground/40 border-t-transparent" />
     <span>{text}</span>
   </div>
 );
-const ErrorBlock = ({
+export const ErrorBlock = ({
   error,
   onRetry,
 }: {
@@ -47,7 +47,7 @@ const ErrorBlock = ({
 );
 
 // 좌측 트리 (문자열 강제 변환으로 #130 방지)
-function Tree({
+export function Tree({
   nodes,
   onOpen,
 }: {
@@ -63,7 +63,7 @@ function Tree({
     </div>
   );
 }
-function TreeItem({
+export function TreeItem({
   node,
   onOpen,
 }: {
@@ -107,6 +107,21 @@ function TreeItem({
   );
 }
 
+export function useSmartNav() {
+  const navigate = useNavigate();
+  return (url?: string | null) => {
+    if (!url) return;
+    if (url.startsWith('/app/')) {
+      navigate(url);
+    } else if (/^(https?:)?\/\//i.test(url) || url.startsWith('/')) {
+      window.open(url, '_self'); // 필요 시 _blank
+    } else {
+      // 상대경로 등: 필요에 따라 조정
+      window.open(url, '_self');
+    }
+  };
+}
+
 // 레이아웃
 export default function LayoutSPA() {
   const [user, setUser] = useState<UserPayload['user'] | null>(null);
@@ -139,18 +154,14 @@ export default function LayoutSPA() {
   const filtered = useMemo(() => {
     const roles = user?.roles ?? [];
     return {
-      menu: filterMenuByRole(nav?.menu, roles),
-      tree: filterTreeByRole(nav?.tree, roles),
+      menu: '', //filterMenuByRole(nav?.menu, roles),
+      tree: '', //filterTreeByRole(nav?.tree, roles),
     };
   }, [nav, user]);
 
   const onOpenPath = (path?: string) => {
     if (path) navigate(path);
   };
-  // (옵션) 첫 진입 시 /app로 라우팅 보정
-  useEffect(() => {
-    // /app로 접근했지만 index면 그대로, 그 외 별도 처리 필요 시 여기에
-  }, []); // 절대 경로 이동
 
   return (
     <div className="h-[100vh] w-full bg-background text-foreground">
@@ -184,7 +195,7 @@ export default function LayoutSPA() {
             <ErrorBlock error={error} onRetry={load} />
           </div>
         ) : (
-          <TopMenu items={filtered.menu} />
+          <TopMenu />
         )}
       </header>
 
@@ -202,7 +213,7 @@ export default function LayoutSPA() {
                 </div>
               ) : (
                 <ScrollArea className="flex-1">
-                  <Tree nodes={toSafeTree(filtered.tree)} onOpen={onOpenPath} />
+                  {/* <Tree nodes={toSafeTree(filtered.tree)} onOpen={onOpenPath} /> */}
                 </ScrollArea>
               )}
             </div>
@@ -220,7 +231,7 @@ export default function LayoutSPA() {
               element={
                 <PageRenderer
                   base="/app"
-                  pagesDir="/app/default"
+                  pagesDir="/app/Default"
                   fallback="default"
                 />
               }
