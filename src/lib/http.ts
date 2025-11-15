@@ -2,7 +2,7 @@
 export type HttpOptions = {
   method?: string;
   headers?: Record<string, string>;
-  body?: boolean;
+  body?: unknown; // JSON 직렬화 대상 또는 문자열
   authToken?: string; // JWT 모드
   withCredentials?: boolean; // 세션 쿠키 모드
   csrfToken?: string;
@@ -22,7 +22,11 @@ export async function http<T>(url: string, opt: HttpOptions = {}): Promise<T> {
     method: opt.method || 'GET',
     headers,
     credentials: opt.withCredentials ? 'include' : 'same-origin',
-    body: opt.body ? JSON.stringify(opt.body) : undefined,
+    body: opt.body
+      ? typeof opt.body === 'string'
+        ? opt.body
+        : JSON.stringify(opt.body)
+      : undefined,
   });
 
   if (!res.ok) {
