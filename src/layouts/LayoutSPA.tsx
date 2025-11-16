@@ -12,7 +12,13 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import PageRenderer from '@/routes/PageRenderer';
-import type { NavPayload, UserPayload, TreeNode, UINode } from '@/lib/types';
+import type {
+  NavPayload,
+  UserPayload,
+  TreeNode,
+  UINode,
+  MenuItem,
+} from '@/lib/types';
 import { http } from '@/lib/http';
 import { sanitizeNavPayload, toSafeTree } from '@/lib/guards';
 import { ChevronDown, ChevronRight } from 'lucide-react';
@@ -22,6 +28,7 @@ import {
   setMaskedPage,
   getMaskedPage,
 } from '@/app/routeMask';
+import TopMenu from './TopMenu';
 
 // 로딩/에러 컴포넌트
 export const LoadingBlock = ({ text = '불러오는 중...' }) => (
@@ -54,15 +61,17 @@ export const ErrorBlock = ({
 export function Tree({
   nodes,
   onOpen,
+  masked,
 }: {
   nodes?: UINode[];
   onOpen?: (path?: string) => void;
+  masked?: string;
 }) {
   const list = Array.isArray(nodes) ? nodes : [];
   return (
     <div className="text-sm">
       {list.map((n) => (
-        <TreeItem key={n.id} node={n} onOpen={onOpen} />
+        <TreeItem key={n.id} node={n} onOpen={onOpen} masked={masked} />
       ))}
     </div>
   );
@@ -70,9 +79,11 @@ export function Tree({
 export function TreeItem({
   node,
   onOpen,
+  masked,
 }: {
   node: UINode;
   onOpen?: (path?: string) => void;
+  masked?: string;
 }) {
   const [open, setOpen] = useState(!!node.defaultExpanded);
   const hasChildren = Array.isArray(node.children) && node.children.length > 0;
@@ -80,12 +91,21 @@ export function TreeItem({
     if (hasChildren) setOpen((o) => !o);
     else if (node.path) onOpen?.(node.path);
   };
+  const getBaseName = (p?: string) =>
+    (p || '').replace(/^.*\//, '').replace(/\.ts$/i, '');
+  const isActive =
+    !hasChildren && masked && node.path
+      ? getBaseName(node.path) === masked
+      : false;
   return (
     <div className="select-none">
       <div
         className={cn(
-          'flex items-center gap-1 py-1 px-2 rounded-md hover:bg-muted cursor-pointer',
-          !hasChildren && 'pl-6'
+          'flex items-center gap-1 py-1 px-2 rounded-md cursor-pointer',
+          !hasChildren && 'pl-6',
+          isActive
+            ? 'bg-accent text-accent-foreground font-semibold'
+            : 'hover:bg-muted'
         )}
         onClick={handleClick}
       >
@@ -175,14 +195,6 @@ export default function LayoutSPA() {
   const tempTree: TreeNode[] = useMemo(
     () => [
       {
-        id: 'home',
-        label: 'Home',
-        defaultExpanded: true,
-        children: [
-          { id: 'default', label: '임시 메뉴', path: '/app/default.ts' },
-        ],
-      },
-      {
         id: 'M04',
         label: 'M04',
         defaultExpanded: true,
@@ -267,6 +279,188 @@ export default function LayoutSPA() {
     []
   );
 
+  // 임시 TOP 메뉴 (하위 메뉴 포함)
+  const topMenuItems = useMemo(
+    () =>
+      [
+        { id: 'home', label: 'Home', path: '/app/default.ts' },
+        {
+          id: 'M04',
+          label: 'M04',
+          path: '/app/MMSM04001S.ts',
+          children: [
+            {
+              id: 'MMSM04001S',
+              label: 'MMSM04001S',
+              path: '/app/MMSM04001S.ts',
+            },
+            {
+              id: 'MMSM04002E',
+              label: 'MMSM04002E',
+              path: '/app/MMSM04002E.ts',
+            },
+            {
+              id: 'MMSM04003S',
+              label: 'MMSM04003S',
+              path: '/app/MMSM04003S.ts',
+            },
+            {
+              id: 'MMSM04004E',
+              label: 'MMSM04004E',
+              path: '/app/MMSM04004E.ts',
+            },
+            {
+              id: 'MMSM04005E',
+              label: 'MMSM04005E',
+              path: '/app/MMSM04005E.ts',
+            },
+            {
+              id: 'MMSM04006E',
+              label: 'MMSM04006E',
+              path: '/app/MMSM04006E.ts',
+            },
+            {
+              id: 'MMSM04007S',
+              label: 'MMSM04007S',
+              path: '/app/MMSM04007S.ts',
+            },
+            {
+              id: 'MMSM04008S',
+              label: 'MMSM04008S',
+              path: '/app/MMSM04008S.ts',
+            },
+            {
+              id: 'MMSM04009E',
+              label: 'MMSM04009E',
+              path: '/app/MMSM04009E.ts',
+            },
+          ],
+        },
+        {
+          id: 'M06',
+          label: 'M06',
+          path: '/app/MMSM06001E.ts',
+          children: [
+            {
+              id: 'MMSM06001E',
+              label: 'MMSM06001E',
+              path: '/app/MMSM06001E.ts',
+            },
+            {
+              id: 'MMSM06003E',
+              label: 'MMSM06003E',
+              path: '/app/MMSM06003E.ts',
+            },
+            {
+              id: 'MMSM06004E',
+              label: 'MMSM06004E',
+              path: '/app/MMSM06004E.ts',
+            },
+            {
+              id: 'MMSM06005E',
+              label: 'MMSM06005E',
+              path: '/app/MMSM06005E.ts',
+            },
+            {
+              id: 'MMSM06007E',
+              label: 'MMSM06007E',
+              path: '/app/MMSM06007E.ts',
+            },
+            {
+              id: 'MMSM06008E',
+              label: 'MMSM06008E',
+              path: '/app/MMSM06008E.ts',
+            },
+            {
+              id: 'MMSM06009E',
+              label: 'MMSM06009E',
+              path: '/app/MMSM06009E.ts',
+            },
+            {
+              id: 'MMSM06010E',
+              label: 'MMSM06010E',
+              path: '/app/MMSM06010E.ts',
+            },
+          ],
+        },
+        {
+          id: 'M07',
+          label: 'M07',
+          path: '/app/MMSM07001E.ts',
+          children: [
+            {
+              id: 'MMSM07001E',
+              label: 'MMSM07001E',
+              path: '/app/MMSM07001E.ts',
+            },
+            {
+              id: 'MMSM07002E',
+              label: 'MMSM07002E',
+              path: '/app/MMSM07002E.ts',
+            },
+            {
+              id: 'MMSM07003E',
+              label: 'MMSM07003E',
+              path: '/app/MMSM07003E.ts',
+            },
+            {
+              id: 'MMSM07004E',
+              label: 'MMSM07004E',
+              path: '/app/MMSM07004E.ts',
+            },
+            {
+              id: 'MMSM07005S',
+              label: 'MMSM07005S',
+              path: '/app/MMSM07005S.ts',
+            },
+            {
+              id: 'MMSM07006S',
+              label: 'MMSM07006S',
+              path: '/app/MMSM07006S.ts',
+            },
+          ],
+        },
+        {
+          id: 'M08',
+          label: 'M08',
+          path: '/app/MMSM08002S.ts',
+          children: [
+            {
+              id: 'MMSM08002S',
+              label: 'MMSM08002S (원자재)',
+              path: '/app/MMSM08002S.ts',
+            },
+            {
+              id: 'MMSM08003S',
+              label: 'MMSM08003S (거래처)',
+              path: '/app/MMSM08003S.ts',
+            },
+            {
+              id: 'MMSM08004S',
+              label: 'MMSM08004S (프로그램)',
+              path: '/app/MMSM08004S.ts',
+            },
+            {
+              id: 'MMSM08005S',
+              label: 'MMSM08005S (호기)',
+              path: '/app/MMSM08005S.ts',
+            },
+            {
+              id: 'MMSM08006S',
+              label: 'MMSM08006S (부서)',
+              path: '/app/MMSM08006S.ts',
+            },
+            {
+              id: 'MMSM08008E',
+              label: 'MMSM08008E (사용자 그룹)',
+              path: '/app/MMSM08008E.ts',
+            },
+          ],
+        },
+      ] as Array<MenuItem & { children?: MenuItem[] }>,
+    []
+  );
+
   // 주소 마스킹: /app/<page>.ts 접근 시 항상 /app/default.ts로 표시
   useEffect(() => {
     const p = location.pathname;
@@ -316,6 +510,13 @@ export default function LayoutSPA() {
       );
   }, []);
 
+  const maskedPage = useMemo(() => {
+    return (
+      ((location.state as any)?.maskedPage as string | undefined) ||
+      getMaskedPage()
+    );
+  }, [location.state, maskVersion]);
+
   return (
     <div className="h-[100vh] w-full bg-background text-foreground">
       <header className="border-b">
@@ -344,6 +545,9 @@ export default function LayoutSPA() {
             </Button>
           </div>
         </div>
+        <div className="w-full flex justify-center">
+          <TopMenu items={topMenuItems} />
+        </div>
         {loading ? (
           <LoadingBlock text="메뉴 불러오는 중..." />
         ) : error ? (
@@ -357,7 +561,6 @@ export default function LayoutSPA() {
         <Panel defaultSize={20} minSize={12} collapsible>
           <div className="h-full bg-muted/30">
             <div className="p-1 h-full flex flex-col">
-              <div className="text-sm font-medium px-2 py-1">메뉴</div>
               <Separator />
               {loading ? (
                 <LoadingBlock text="트리 불러오는 중..." />
@@ -367,7 +570,11 @@ export default function LayoutSPA() {
                 </div>
               ) : (
                 <ScrollArea className="flex-1">
-                  <Tree nodes={toSafeTree(tempTree)} onOpen={onOpenPath} />
+                  <Tree
+                    nodes={toSafeTree(tempTree)}
+                    onOpen={onOpenPath}
+                    masked={maskedPage}
+                  />
                 </ScrollArea>
               )}
             </div>
