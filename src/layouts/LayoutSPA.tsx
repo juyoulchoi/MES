@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Routes,
   Route,
   useNavigate,
   NavLink,
   Navigate,
+  useLocation,
 } from 'react-router-dom';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -16,8 +17,11 @@ import { http } from '@/lib/http';
 import { sanitizeNavPayload, toSafeTree } from '@/lib/guards';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { filterMenuByRole, filterTreeByRole } from '@/lib/acl';
-import TopMenu from '@/layouts/TopMenu';
+import {
+  ensureMaskedPage,
+  setMaskedPage,
+  getMaskedPage,
+} from '@/app/routeMask';
 
 // 로딩/에러 컴포넌트
 export const LoadingBlock = ({ text = '불러오는 중...' }) => (
@@ -46,7 +50,7 @@ export const ErrorBlock = ({
   </div>
 );
 
-// 좌측 트리 (문자열 강제 변환으로 #130 방지)
+// 좌측 트리
 export function Tree({
   nodes,
   onOpen,
@@ -74,7 +78,7 @@ export function TreeItem({
   const hasChildren = Array.isArray(node.children) && node.children.length > 0;
   const handleClick = () => {
     if (hasChildren) setOpen((o) => !o);
-    else onOpen?.(node.path);
+    else if (node.path) onOpen?.(node.path);
   };
   return (
     <div className="select-none">
@@ -114,9 +118,8 @@ export function useSmartNav() {
     if (url.startsWith('/app/')) {
       navigate(url);
     } else if (/^(https?:)?\/\//i.test(url) || url.startsWith('/')) {
-      window.open(url, '_self'); // 필요 시 _blank
+      window.open(url, '_self');
     } else {
-      // 상대경로 등: 필요에 따라 조정
       window.open(url, '_self');
     }
   };
@@ -124,6 +127,9 @@ export function useSmartNav() {
 
 // 레이아웃
 export default function LayoutSPA() {
+  const location = useLocation();
+  const [maskVersion, setMaskVersion] = useState(0);
+  const lastMaskedRef = useRef<string | undefined>(undefined);
   const [user, setUser] = useState<UserPayload['user'] | null>(null);
   const [nav, setNav] = useState<NavPayload | null>(null);
   const [loading, setLoading] = useState(true);
@@ -136,7 +142,7 @@ export default function LayoutSPA() {
     try {
       const [me, n] = await Promise.all([
         http<UserPayload>('/api/me'),
-        http<unknown>('/api/nav'), // unknown → sanitizeNavPayload 로 안전화
+        http<unknown>('/api/nav'),
       ]);
       setUser(me.user);
       setNav(sanitizeNavPayload(n));
@@ -154,20 +160,170 @@ export default function LayoutSPA() {
   const filtered = useMemo(() => {
     const roles = user?.roles ?? [];
     return {
-      menu: '', //filterMenuByRole(nav?.menu, roles),
-      tree: '', //filterTreeByRole(nav?.tree, roles),
+      menu: '',
+      tree: '',
     };
   }, [nav, user]);
 
   const onOpenPath = (path?: string) => {
-    if (path) navigate(path);
+    if (!path) return;
+    const pageId = path.replace(/^\/app\//, '').replace(/\.ts$/i, '');
+    setMaskedPage(pageId, navigate, { replace: false });
   };
+
+  // 임시 좌측 트리
+  const tempTree: TreeNode[] = useMemo(
+    () => [
+      {
+        id: 'home',
+        label: 'Home',
+        defaultExpanded: true,
+        children: [
+          { id: 'default', label: '임시 메뉴', path: '/app/default.ts' },
+        ],
+      },
+      {
+        id: 'M04',
+        label: 'M04',
+        defaultExpanded: true,
+        children: [
+          { id: 'MMSM04001S', label: 'MMSM04001S', path: '/app/MMSM04001S.ts' },
+          { id: 'MMSM04002E', label: 'MMSM04002E', path: '/app/MMSM04002E.ts' },
+          { id: 'MMSM04003S', label: 'MMSM04003S', path: '/app/MMSM04003S.ts' },
+          { id: 'MMSM04004E', label: 'MMSM04004E', path: '/app/MMSM04004E.ts' },
+          { id: 'MMSM04005E', label: 'MMSM04005E', path: '/app/MMSM04005E.ts' },
+          { id: 'MMSM04006E', label: 'MMSM04006E', path: '/app/MMSM04006E.ts' },
+          { id: 'MMSM04007S', label: 'MMSM04007S', path: '/app/MMSM04007S.ts' },
+          { id: 'MMSM04008S', label: 'MMSM04008S', path: '/app/MMSM04008S.ts' },
+          { id: 'MMSM04009E', label: 'MMSM04009E', path: '/app/MMSM04009E.ts' },
+        ],
+      },
+      {
+        id: 'M06',
+        label: 'M06',
+        defaultExpanded: true,
+        children: [
+          { id: 'MMSM06001E', label: 'MMSM06001E', path: '/app/MMSM06001E.ts' },
+          { id: 'MMSM06003E', label: 'MMSM06003E', path: '/app/MMSM06003E.ts' },
+          { id: 'MMSM06004E', label: 'MMSM06004E', path: '/app/MMSM06004E.ts' },
+          { id: 'MMSM06005E', label: 'MMSM06005E', path: '/app/MMSM06005E.ts' },
+          { id: 'MMSM06007E', label: 'MMSM06007E', path: '/app/MMSM06007E.ts' },
+          { id: 'MMSM06008E', label: 'MMSM06008E', path: '/app/MMSM06008E.ts' },
+          { id: 'MMSM06009E', label: 'MMSM06009E', path: '/app/MMSM06009E.ts' },
+          { id: 'MMSM06010E', label: 'MMSM06010E', path: '/app/MMSM06010E.ts' },
+        ],
+      },
+      {
+        id: 'M07',
+        label: 'M07',
+        defaultExpanded: true,
+        children: [
+          { id: 'MMSM07001E', label: 'MMSM07001E', path: '/app/MMSM07001E.ts' },
+          { id: 'MMSM07002E', label: 'MMSM07002E', path: '/app/MMSM07002E.ts' },
+          { id: 'MMSM07003E', label: 'MMSM07003E', path: '/app/MMSM07003E.ts' },
+          { id: 'MMSM07004E', label: 'MMSM07004E', path: '/app/MMSM07004E.ts' },
+          { id: 'MMSM07005S', label: 'MMSM07005S', path: '/app/MMSM07005S.ts' },
+          { id: 'MMSM07006S', label: 'MMSM07006S', path: '/app/MMSM07006S.ts' },
+        ],
+      },
+      {
+        id: 'M08',
+        label: 'M08',
+        defaultExpanded: true,
+        children: [
+          {
+            id: 'MMSM08002S',
+            label: 'MMSM08002S (원자재)',
+            path: '/app/MMSM08002S.ts',
+          },
+          {
+            id: 'MMSM08003S',
+            label: 'MMSM08003S (거래처)',
+            path: '/app/MMSM08003S.ts',
+          },
+          {
+            id: 'MMSM08004S',
+            label: 'MMSM08004S (프로그램)',
+            path: '/app/MMSM08004S.ts',
+          },
+          {
+            id: 'MMSM08005S',
+            label: 'MMSM08005S (호기)',
+            path: '/app/MMSM08005S.ts',
+          },
+          {
+            id: 'MMSM08006S',
+            label: 'MMSM08006S (부서)',
+            path: '/app/MMSM08006S.ts',
+          },
+          {
+            id: 'MMSM08008E',
+            label: 'MMSM08008E (사용자 그룹)',
+            path: '/app/MMSM08008E.ts',
+          },
+        ],
+      },
+    ],
+    []
+  );
+
+  // 주소 마스킹: /app/<page>.ts 접근 시 항상 /app/default.ts로 표시
+  useEffect(() => {
+    const p = location.pathname;
+    if (p === '/app' || p === '/app/') {
+      ensureMaskedPage(navigate, 'default', true);
+      return;
+    }
+    if (p.startsWith('/app/') && /\.ts$/i.test(p) && p !== '/app/default.ts') {
+      const pageId = p.replace(/^\/app\//, '').replace(/\.ts$/i, '');
+      setMaskedPage(pageId, navigate, { replace: true });
+      return;
+    }
+    if (p === '/app/default.ts') {
+      const masked = (location.state as any)?.maskedPage || getMaskedPage();
+      if (!masked) {
+        ensureMaskedPage(navigate, 'default', true);
+      }
+    }
+  }, [location.pathname, navigate]);
+
+  // 마스크 페이지 변경 시 렌더 강제 갱신 (동일 경로 내 상태 변경 대응)
+  useEffect(() => {
+    const masked = (location.state as any)?.maskedPage as string | undefined;
+    if (masked !== undefined && masked !== lastMaskedRef.current) {
+      lastMaskedRef.current = masked;
+      setMaskVersion((v) => v + 1);
+    }
+  }, [location.state]);
+
+  // 세션 변경 이벤트 수신 (state 미변경 케이스 보완)
+  useEffect(() => {
+    const onMaskedChange = (e: Event) => {
+      const pageId = (e as CustomEvent).detail?.pageId as string | undefined;
+      if (pageId && pageId !== lastMaskedRef.current) {
+        lastMaskedRef.current = pageId;
+        setMaskVersion((v) => v + 1);
+      }
+    };
+    window.addEventListener(
+      'maskedpagechange',
+      onMaskedChange as EventListener
+    );
+    return () =>
+      window.removeEventListener(
+        'maskedpagechange',
+        onMaskedChange as EventListener
+      );
+  }, []);
 
   return (
     <div className="h-[100vh] w-full bg-background text-foreground">
       <header className="border-b">
         <div className="h-12 flex items-center justify-between px-3">
-          <NavLink to="/app/default" className="font-semibold tracking-tight">
+          <NavLink
+            to="/app/default.ts"
+            className="font-semibold tracking-tight"
+          >
             SSMH
           </NavLink>
           <div className="flex items-center gap-3 text-sm">
@@ -194,9 +350,7 @@ export default function LayoutSPA() {
           <div className="px-3">
             <ErrorBlock error={error} onRetry={load} />
           </div>
-        ) : (
-          <TopMenu />
-        )}
+        ) : null}
       </header>
 
       <PanelGroup direction="horizontal" className="h-[calc(100vh-88px)]">
@@ -213,7 +367,7 @@ export default function LayoutSPA() {
                 </div>
               ) : (
                 <ScrollArea className="flex-1">
-                  {/* <Tree nodes={toSafeTree(filtered.tree)} onOpen={onOpenPath} /> */}
+                  <Tree nodes={toSafeTree(tempTree)} onOpen={onOpenPath} />
                 </ScrollArea>
               )}
             </div>
@@ -221,18 +375,17 @@ export default function LayoutSPA() {
         </Panel>
         <PanelResizeHandle className="w-[1px] bg-border" />
         <Panel minSize={40} defaultSize={80}>
-          {/* 상대 경로 선언으로 /app/* 중첩 라우팅 처리 */}
           <Routes>
-            {/* /app → /app/default 로 리다이렉트 */}
-            <Route index element={<Navigate to="default" replace />} />
-            {/* 파일 기반 라우팅: /app/* → src/pages/* */}
+            <Route index element={<Navigate to="default.ts" replace />} />
             <Route
               path="*"
               element={
                 <PageRenderer
+                  key={location.pathname.toLowerCase()}
                   base="/app"
                   pagesDir="/app/Default"
                   fallback="default"
+                  maskVersion={maskVersion}
                 />
               }
             />

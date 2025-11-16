@@ -22,28 +22,44 @@ function normalizeKey(k: string) {
 
 // 3) URL 경로 정규화
 function normalizeUrlPath(p: string) {
-  return p.replace(/^[\/]+|[\/]+$/g, '').toLowerCase(); // 앞/뒤 슬래시 제거 + 소문자
+  return p
+    .replace(/^[\/]+|[\/]+$/g, '') // 앞/뒤 슬래시 제거
+    .replace(/\.ts$/i, '') // 표시용 .ts 확장자 제거
+    .toLowerCase(); // 소문자화
 }
 
 export default function PageRenderer({
   base = '/app',
   pagesDir = '@/pages',
   fallback = 'Default',
+  maskVersion = 0,
 }: {
   base?: string;
   pagesDir?: string;
   fallback?: string;
+  maskVersion?: number;
 }) {
-  const { pathname } = useLocation();
+  const location = useLocation();
+  const { pathname, state } = location as { pathname: string; state?: any };
 
   // URL → pages 하위 파일 경로 계산
   const sub = useMemo(() => {
+    // 기본 계산
     const raw = pathname.startsWith(base)
       ? pathname.slice(base.length)
       : pathname;
     const trimmed = normalizeUrlPath(raw);
-    return trimmed.length === 0 ? fallback : trimmed;
-  }, [pathname, base, fallback]);
+    const baseSub = trimmed.length === 0 ? fallback : trimmed;
+    // 마스킹: /app/default.ts & sessionStorage.maskedPage 존재 시 실제 페이지로 교체
+    if (/\/default\.ts$/i.test(pathname)) {
+      const stateMasked: string | undefined = state?.maskedPage;
+      const masked = stateMasked ?? sessionStorage.getItem('maskedPage');
+      if (masked && masked !== 'default') {
+        return masked.toLowerCase();
+      }
+    }
+    return baseSub;
+  }, [pathname, base, fallback, maskVersion, state]);
 
   // 케이스 불일치 대비: 전체 매핑을 소문자 키로 정규화
   const map = useMemo(() => {
@@ -53,11 +69,28 @@ export default function PageRenderer({
     });
     return m;
   }, []);
-  console.log(sub);
+
+  // basename → fullKey 매핑 (폴더 숨김용)
+  const baseNameMap = useMemo(() => {
+    const b: Record<string, string> = {};
+    Object.keys(map).forEach((full) => {
+      const parts = full.split('/');
+      const name = parts[parts.length - 1];
+      // 중복 basename은 첫 번째만 유지 (필요시 충돌 처리 확장 가능)
+      if (!b[name]) b[name] = full;
+    });
+    return b;
+  }, [map]);
   // 요청된 경로에 대응하는 파일을 찾아 Lazy 컴포넌트 생성
   const key = sub; // 이미 소문자/슬래시정리 완료
   const candidates = [key, `${key}/index`];
-  const filePath = candidates.find((c) => c in map);
+  let filePath = candidates.find((c) => c in map);
+
+  // 폴더명 숨김: /app/mmsm08002s → m08/mmsm08002s 매핑 (basename 검색)
+  if (!filePath && !key.includes('/')) {
+    const byBase = baseNameMap[key];
+    if (byBase) filePath = byBase;
+  }
 
   if (!filePath) {
     // 비슷한 경로 힌트 (선택)
@@ -104,7 +137,8 @@ export default function PageRenderer({
         </div>
       }
     >
-      <LazyComp />
+      {/* key로 경로 변경 시 강제 remount → 화면 교체 확실화 */}
+      <LazyComp key={filePath} />
     </Suspense>
   );
 }
