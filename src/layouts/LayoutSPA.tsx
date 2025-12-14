@@ -195,52 +195,199 @@ export default function LayoutSPA() {
   const tempTree: TreeNode[] = useMemo(
     () => [
       {
-        id: 'M04',
-        label: 'M04',
+        id: 'M01',
+        label: '원자재 관리',
+        path: '/app/MMSM01002S.ts',
         defaultExpanded: true,
         children: [
-          { id: 'MMSM04001S', label: 'MMSM04001S', path: '/app/MMSM04001S.ts' },
-          { id: 'MMSM04002E', label: 'MMSM04002E', path: '/app/MMSM04002E.ts' },
-          { id: 'MMSM04003S', label: 'MMSM04003S', path: '/app/MMSM04003S.ts' },
-          { id: 'MMSM04004E', label: 'MMSM04004E', path: '/app/MMSM04004E.ts' },
-          { id: 'MMSM04005E', label: 'MMSM04005E', path: '/app/MMSM04005E.ts' },
-          { id: 'MMSM04006E', label: 'MMSM04006E', path: '/app/MMSM04006E.ts' },
-          { id: 'MMSM04007S', label: 'MMSM04007S', path: '/app/MMSM04007S.ts' },
-          { id: 'MMSM04008S', label: 'MMSM04008S', path: '/app/MMSM04008S.ts' },
-          { id: 'MMSM04009E', label: 'MMSM04009E', path: '/app/MMSM04009E.ts' },
+          {
+            id: 'MMSM01002S',
+            label: '원자재 발주 현황',
+            path: '/app/MMSM01002S.ts',
+          },
+          {
+            id: 'MMSM01003E',
+            label: '원자재 입고 등록',
+            path: '/app/MMSM01003E.ts',
+          },
+          {
+            id: 'MMSM01004S',
+            label: '원자재 입고 현황',
+            path: '/app/MMSM01004S.ts',
+          },
+          {
+            id: 'MMSM01005S',
+            label: '원자재 출고 현황',
+            path: '/app/MMSM01005S.ts',
+          },
+          {
+            id: 'MMSM01006S',
+            label: '원자재 재고 현황',
+            path: '/app/MMSM01006S.ts',
+          },
+          {
+            id: 'MMSM01007E',
+            label: '원자재 재고 조정',
+            path: '/app/MMSM01007E.ts',
+          },
+          {
+            id: 'MMSM01008E',
+            label: '원자재 발주 등록',
+            path: '/app/MMSM01008E.ts',
+          },
+          {
+            id: 'MMSM01009S',
+            label: '원자재 투입 이력 현황',
+            path: '/app/MMSM01009S.ts',
+          },
+          {
+            id: 'MMSM01010E',
+            label: '원자재 거래처 관리',
+            path: '/app/MMSM01010E.ts',
+          },
+          {
+            id: 'MMSM01011S',
+            label: '원자재 재고실사 현황',
+            path: '/app/MMSM01011S.ts',
+          },
+        ],
+      },
+      {
+        id: 'M02',
+        label: '수주 관리',
+        path: '/app/MMSM02001E.ts',
+        defaultExpanded: true,
+        children: [
+          { id: 'MMSM02001E', label: '수주 등록', path: '/app/MMSM02001E.ts' },
+          {
+            id: 'MMSM02002E',
+            label: '생산계획 생성',
+            path: '/app/MMSM02002E.ts',
+          },
+          { id: 'MMSM02003S', label: '생산 현황', path: '/app/MMSM02003S.ts' },
+          {
+            id: 'MMSM02004E',
+            label: '작업 지시서',
+            path: '/app/MMSM02004E.ts',
+          },
+          { id: 'MMSM02005S', label: '모니터링', path: '/app/MMSM02005S.ts' },
+          {
+            id: 'MMSM02006E',
+            label: '외주입출고관리',
+            path: '/app/MMSM02006E.ts',
+          },
+          { id: 'MMSM02007S', label: '수주 현황', path: '/app/MMSM02007S.ts' },
+        ],
+      },
+      {
+        id: 'M04',
+        label: '제품 관리',
+        path: '/app/MMSM04001S.ts',
+        defaultExpanded: true,
+        children: [
+          {
+            id: 'MMSM04001S',
+            label: '제품출고 지시현황',
+            path: '/app/MMSM04001S.ts',
+          },
+          {
+            id: 'MMSM04002E',
+            label: '제품 출고 지시 등록',
+            path: '/app/MMSM04002E.ts',
+          },
+          {
+            id: 'MMSM04003S',
+            label: '제품 출고 현황',
+            path: '/app/MMSM04003S.ts',
+          },
+          {
+            id: 'MMSM04004E',
+            label: '제품 재고 조정 등록',
+            path: '/app/MMSM04004E.ts',
+          },
+          {
+            id: 'MMSM04005E',
+            label: '제품 거래처 관리',
+            path: '/app/MMSM04005E.ts',
+          },
+          {
+            id: 'MMSM04006E',
+            label: '제품 출고 지시',
+            path: '/app/MMSM04006E.ts',
+          },
+          {
+            id: 'MMSM04007S',
+            label: '생산 로트 추적 관리',
+            path: '/app/MMSM04007S.ts',
+          },
         ],
       },
       {
         id: 'M06',
-        label: 'M06',
+        label: '기초 정보 관리',
+        path: '/app/MMSM06001E.ts',
         defaultExpanded: true,
         children: [
-          { id: 'MMSM06001E', label: 'MMSM06001E', path: '/app/MMSM06001E.ts' },
-          { id: 'MMSM06003E', label: 'MMSM06003E', path: '/app/MMSM06003E.ts' },
-          { id: 'MMSM06004E', label: 'MMSM06004E', path: '/app/MMSM06004E.ts' },
-          { id: 'MMSM06005E', label: 'MMSM06005E', path: '/app/MMSM06005E.ts' },
-          { id: 'MMSM06007E', label: 'MMSM06007E', path: '/app/MMSM06007E.ts' },
-          { id: 'MMSM06008E', label: 'MMSM06008E', path: '/app/MMSM06008E.ts' },
-          { id: 'MMSM06009E', label: 'MMSM06009E', path: '/app/MMSM06009E.ts' },
-          { id: 'MMSM06010E', label: 'MMSM06010E', path: '/app/MMSM06010E.ts' },
+          { id: 'MMSM06001E', label: '기초 코드', path: '/app/MMSM06001E.ts' },
+          {
+            id: 'MMSM06003E',
+            label: '제품 마스터',
+            path: '/app/MMSM06003E.ts',
+          },
+          {
+            id: 'MMSM06004E',
+            label: '거래처 관리',
+            path: '/app/MMSM06004E.ts',
+          },
+          {
+            id: 'MMSM06005E',
+            label: '라우팅 관리',
+            path: '/app/MMSM06005E.ts',
+          },
+          {
+            id: 'MMSM06007E',
+            label: '작업장 관리',
+            path: '/app/MMSM06007E.ts',
+          },
         ],
       },
       {
         id: 'M07',
-        label: 'M07',
+        label: '시스템 관리',
+        path: '/app/MMSM07001E.ts',
         defaultExpanded: true,
         children: [
-          { id: 'MMSM07001E', label: 'MMSM07001E', path: '/app/MMSM07001E.ts' },
-          { id: 'MMSM07002E', label: 'MMSM07002E', path: '/app/MMSM07002E.ts' },
-          { id: 'MMSM07003E', label: 'MMSM07003E', path: '/app/MMSM07003E.ts' },
-          { id: 'MMSM07004E', label: 'MMSM07004E', path: '/app/MMSM07004E.ts' },
-          { id: 'MMSM07005S', label: 'MMSM07005S', path: '/app/MMSM07005S.ts' },
-          { id: 'MMSM07006S', label: 'MMSM07006S', path: '/app/MMSM07006S.ts' },
+          {
+            id: 'MMSM07001E',
+            label: '사용자 관리',
+            path: '/app/MMSM07001E.ts',
+          },
+          {
+            id: 'MMSM07002E',
+            label: '프로그램 관리',
+            path: '/app/MMSM07002E.ts',
+          },
+          {
+            id: 'MMSM07003E',
+            label: '프로그램 메뉴 관리',
+            path: '/app/MMSM07003E.ts',
+          },
+          { id: 'MMSM07004E', label: '권한 관리', path: '/app/MMSM07004E.ts' },
+          {
+            id: 'MMSM07005S',
+            label: '시스템 사용현황 조회',
+            path: '/app/MMSM07005S.ts',
+          },
+          {
+            id: 'MMSM07006S',
+            label: '시스템 LOG 조회',
+            path: '/app/MMSM07006S.ts',
+          },
         ],
       },
       {
         id: 'M08',
-        label: 'M08',
+        label: '기타 관리',
         defaultExpanded: true,
         children: [
           {
