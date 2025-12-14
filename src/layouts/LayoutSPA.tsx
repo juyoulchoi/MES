@@ -192,7 +192,7 @@ export default function LayoutSPA() {
   };
 
   // 임시 좌측 트리
-  const tempTree: TreeNode[] = useMemo(
+  const menuData: TreeNode[] = useMemo(
     () => [
       {
         id: 'M01',
@@ -429,183 +429,17 @@ export default function LayoutSPA() {
   // 임시 TOP 메뉴 (하위 메뉴 포함)
   const topMenuItems = useMemo(
     () =>
-      [
-        { id: 'home', label: 'Home', path: '/app/default.ts' },
-        {
-          id: 'M04',
-          label: 'M04',
-          path: '/app/MMSM04001S.ts',
-          children: [
-            {
-              id: 'MMSM04001S',
-              label: 'MMSM04001S',
-              path: '/app/MMSM04001S.ts',
-            },
-            {
-              id: 'MMSM04002E',
-              label: 'MMSM04002E',
-              path: '/app/MMSM04002E.ts',
-            },
-            {
-              id: 'MMSM04003S',
-              label: 'MMSM04003S',
-              path: '/app/MMSM04003S.ts',
-            },
-            {
-              id: 'MMSM04004E',
-              label: 'MMSM04004E',
-              path: '/app/MMSM04004E.ts',
-            },
-            {
-              id: 'MMSM04005E',
-              label: 'MMSM04005E',
-              path: '/app/MMSM04005E.ts',
-            },
-            {
-              id: 'MMSM04006E',
-              label: 'MMSM04006E',
-              path: '/app/MMSM04006E.ts',
-            },
-            {
-              id: 'MMSM04007S',
-              label: 'MMSM04007S',
-              path: '/app/MMSM04007S.ts',
-            },
-            {
-              id: 'MMSM04008S',
-              label: 'MMSM04008S',
-              path: '/app/MMSM04008S.ts',
-            },
-            {
-              id: 'MMSM04009E',
-              label: 'MMSM04009E',
-              path: '/app/MMSM04009E.ts',
-            },
-          ],
-        },
-        {
-          id: 'M06',
-          label: 'M06',
-          path: '/app/MMSM06001E.ts',
-          children: [
-            {
-              id: 'MMSM06001E',
-              label: 'MMSM06001E',
-              path: '/app/MMSM06001E.ts',
-            },
-            {
-              id: 'MMSM06003E',
-              label: 'MMSM06003E',
-              path: '/app/MMSM06003E.ts',
-            },
-            {
-              id: 'MMSM06004E',
-              label: 'MMSM06004E',
-              path: '/app/MMSM06004E.ts',
-            },
-            {
-              id: 'MMSM06005E',
-              label: 'MMSM06005E',
-              path: '/app/MMSM06005E.ts',
-            },
-            {
-              id: 'MMSM06007E',
-              label: 'MMSM06007E',
-              path: '/app/MMSM06007E.ts',
-            },
-            {
-              id: 'MMSM06008E',
-              label: 'MMSM06008E',
-              path: '/app/MMSM06008E.ts',
-            },
-            {
-              id: 'MMSM06009E',
-              label: 'MMSM06009E',
-              path: '/app/MMSM06009E.ts',
-            },
-            {
-              id: 'MMSM06010E',
-              label: 'MMSM06010E',
-              path: '/app/MMSM06010E.ts',
-            },
-          ],
-        },
-        {
-          id: 'M07',
-          label: 'M07',
-          path: '/app/MMSM07001E.ts',
-          children: [
-            {
-              id: 'MMSM07001E',
-              label: 'MMSM07001E',
-              path: '/app/MMSM07001E.ts',
-            },
-            {
-              id: 'MMSM07002E',
-              label: 'MMSM07002E',
-              path: '/app/MMSM07002E.ts',
-            },
-            {
-              id: 'MMSM07003E',
-              label: 'MMSM07003E',
-              path: '/app/MMSM07003E.ts',
-            },
-            {
-              id: 'MMSM07004E',
-              label: 'MMSM07004E',
-              path: '/app/MMSM07004E.ts',
-            },
-            {
-              id: 'MMSM07005S',
-              label: 'MMSM07005S',
-              path: '/app/MMSM07005S.ts',
-            },
-            {
-              id: 'MMSM07006S',
-              label: 'MMSM07006S',
-              path: '/app/MMSM07006S.ts',
-            },
-          ],
-        },
-        {
-          id: 'M08',
-          label: 'M08',
-          path: '/app/MMSM08002S.ts',
-          children: [
-            {
-              id: 'MMSM08002S',
-              label: 'MMSM08002S (원자재)',
-              path: '/app/MMSM08002S.ts',
-            },
-            {
-              id: 'MMSM08003S',
-              label: 'MMSM08003S (거래처)',
-              path: '/app/MMSM08003S.ts',
-            },
-            {
-              id: 'MMSM08004S',
-              label: 'MMSM08004S (프로그램)',
-              path: '/app/MMSM08004S.ts',
-            },
-            {
-              id: 'MMSM08005S',
-              label: 'MMSM08005S (호기)',
-              path: '/app/MMSM08005S.ts',
-            },
-            {
-              id: 'MMSM08006S',
-              label: 'MMSM08006S (부서)',
-              path: '/app/MMSM08006S.ts',
-            },
-            {
-              id: 'MMSM08008E',
-              label: 'MMSM08008E (사용자 그룹)',
-              path: '/app/MMSM08008E.ts',
-            },
-          ],
-        },
-      ] as Array<MenuItem & { children?: MenuItem[] }>,
-    []
+      menuData.map(({ id, label, path, children }) => ({
+        id,
+        label,
+        path,
+        children: children?.map((c) => ({
+          id: c.id,
+          label: c.label,
+          path: c.path,
+        })),
+      })),
+    [menuData]
   );
 
   // 주소 마스킹: /app/<page>.ts 접근 시 항상 /app/default.ts로 표시
@@ -718,7 +552,7 @@ export default function LayoutSPA() {
               ) : (
                 <ScrollArea className="flex-1">
                   <Tree
-                    nodes={toSafeTree(tempTree)}
+                    nodes={toSafeTree(menuData)}
                     onOpen={onOpenPath}
                     masked={maskedPage}
                   />
