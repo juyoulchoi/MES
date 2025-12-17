@@ -16,6 +16,10 @@ export default function MMSM08006S() {
   // Filters
   const [deptCd, setDeptCd] = useState('');
   const [deptNm, setDeptNm] = useState('');
+  const [captionCode, setCaptionCode] = useState('');
+  const [captionName, setCaptionName] = useState('');
+  const [typeCode, setTypeCode] = useState('');
+  const [title, setTitle] = useState('');
 
   // Data & UI
   const [rows, setRows] = useState<Row[]>([]);
@@ -28,12 +32,24 @@ export default function MMSM08006S() {
   }, []);
 
   async function onSearch() {
-    setLoading(true); setError(null);
+    setLoading(true);
+    setError(null);
     try {
       const params = new URLSearchParams();
       if (deptCd) params.set('dept_cd', deptCd);
       if (deptNm) params.set('dept_nm', deptNm);
-      const url = `/api/m08/mmsm08006/list` + (params.toString() ? `?${params.toString()}` : '');
+
+      setTypeCode(params.get('typecode'));
+      setTitle(params.get('title'));
+
+      if (typeCode === 'customer') {
+        setCaptionCode('부서코드');
+        setCaptionName('부서명');
+      }
+
+      const url =
+        `/api/m08/mmsm08006/list` +
+        (params.toString() ? `?${params.toString()}` : '');
       const data = await http<Row[]>(url);
       const list = (Array.isArray(data) ? data : []).map((r, i) => ({
         SERL: r.SERL ?? i + 1,
@@ -44,7 +60,9 @@ export default function MMSM08006S() {
       setFocused(list.length > 0 ? 0 : -1);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   }
 
   function onRowClick(i: number) {
@@ -59,10 +77,21 @@ export default function MMSM08006S() {
       DEPT_NM: r.DEPT_NM ?? '',
     };
     // CustomEvent for same-window listeners
-    try { window.dispatchEvent(new CustomEvent('picker:select', { detail: payload })); } catch {}
+    try {
+      window.dispatchEvent(
+        new CustomEvent('picker:select', { detail: payload })
+      );
+    } catch {}
     // postMessage for opener/parent contexts
-    try { window.opener && window.opener.postMessage({ type: 'MMSM08006S_SELECT', payload }, '*'); } catch {}
-    try { window.parent && window.parent !== window && window.parent.postMessage({ type: 'MMSM08006S_SELECT', payload }, '*'); } catch {}
+    try {
+      window.opener &&
+        window.opener.postMessage({ type: 'MMSM08006S_SELECT', payload }, '*');
+    } catch {}
+    try {
+      window.parent &&
+        window.parent !== window &&
+        window.parent.postMessage({ type: 'MMSM08006S_SELECT', payload }, '*');
+    } catch {}
   }
 
   function onConfirm() {
@@ -70,55 +99,96 @@ export default function MMSM08006S() {
   }
 
   function onExportCsv() {
-    const headers = ['No.','부서코드','부서명'];
-    const lines = rows.map((r, i) => [
-      r.SERL ?? i + 1,
-      r.DEPT_CD ?? '',
-      r.DEPT_NM ?? '',
-    ].map(v => (v ?? '').toString().replace(/"/g, '""')).map(v => `"${v}"`).join(','));
+    const headers = ['No.', '부서코드', '부서명'];
+    const lines = rows.map((r, i) =>
+      [r.SERL ?? i + 1, r.DEPT_CD ?? '', r.DEPT_NM ?? '']
+        .map((v) => (v ?? '').toString().replace(/"/g, '""'))
+        .map((v) => `"${v}"`)
+        .join(',')
+    );
     const csv = [headers.join(','), ...lines].join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = 'MMSM08006S_departments.csv';
-    document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'MMSM08006S_departments.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   }
 
   return (
     <div className="p-3 space-y-3" style={{ width: 640 }}>
-      <div className="text-base font-semibold">정보 조회</div>
+      <div className="text-base font-semibold">{title}</div>
 
       {/* Filters & Buttons */}
       <div className="flex flex-wrap items-end gap-3">
         <label className="flex flex-col text-sm">
-          <span className="mb-1">부서코드</span>
-          <input className="h-8 border rounded px-2 w-48" value={deptCd} onChange={e=>setDeptCd(e.target.value)} />
+          <span className="mb-1">{captionCode}</span>
+          <input
+            className="h-8 border rounded px-2 w-48"
+            value={deptCd}
+            onChange={(e) => setDeptCd(e.target.value)}
+          />
         </label>
         <label className="flex flex-col text-sm">
-          <span className="mb-1">부서명</span>
-          <input className="h-8 border rounded px-2 w-48" value={deptNm} onChange={e=>setDeptNm(e.target.value)} />
+          <span className="mb-1">{captionName}</span>
+          <input
+            className="h-8 border rounded px-2 w-48"
+            value={deptNm}
+            onChange={(e) => setDeptNm(e.target.value)}
+          />
         </label>
         <div className="ml-auto flex gap-2">
-          <button onClick={onSearch} disabled={loading} className="h-8 px-3 border rounded bg-primary text-primary-foreground disabled:opacity-50">조회</button>
-          <button onClick={onExportCsv} className="h-8 px-3 border rounded">엑셀</button>
-          <button onClick={onConfirm} disabled={focused<0} className="h-8 px-3 border rounded">확인</button>
+          <button
+            onClick={onSearch}
+            disabled={loading}
+            className="h-8 px-3 border rounded bg-primary text-primary-foreground disabled:opacity-50"
+          >
+            조회
+          </button>
+          <button onClick={onExportCsv} className="h-8 px-3 border rounded">
+            엑셀
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={focused < 0}
+            className="h-8 px-3 border rounded"
+          >
+            확인
+          </button>
         </div>
       </div>
 
-      {error && <div className="text-sm text-destructive border border-destructive/30 rounded p-2">{error}</div>}
+      {error && (
+        <div className="text-sm text-destructive border border-destructive/30 rounded p-2">
+          {error}
+        </div>
+      )}
 
       {/* Grid */}
-      <div className="border rounded overflow-auto max-h-[70vh]" style={{ height: 320 }}>
+      <div
+        className="border rounded overflow-auto max-h-[70vh]"
+        style={{ height: 320 }}
+      >
         <table className="w-full text-sm">
           <thead className="sticky top-0 bg-background">
             <tr className="border-b">
               <th className="w-12 p-2 text-center">No.</th>
-              <th className="w-48 p-2 text-center">부서코드</th>
-              <th className="w-56 p-2 text-left">부서명</th>
+              <th className="w-48 p-2 text-center">{captionCode}</th>
+              <th className="w-56 p-2 text-left">{captionName}</th>
             </tr>
           </thead>
           <tbody>
             {rows.map((r, i) => (
-              <tr key={i} className={`border-b hover:bg-muted/30 cursor-pointer ${focused===i? 'bg-muted/40': ''}`} onClick={() => onRowClick(i)}>
+              <tr
+                key={i}
+                className={`border-b hover:bg-muted/30 cursor-pointer ${
+                  focused === i ? 'bg-muted/40' : ''
+                }`}
+                onClick={() => onRowClick(i)}
+              >
                 <td className="p-2 text-center">{r.SERL ?? i + 1}</td>
                 <td className="p-2 text-center">{r.DEPT_CD ?? ''}</td>
                 <td className="p-2 text-left">{r.DEPT_NM ?? ''}</td>
@@ -126,7 +196,12 @@ export default function MMSM08006S() {
             ))}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={3} className="p-3 text-center text-muted-foreground">데이터가 없습니다. 조건을 입력하고 조회하세요.</td>
+                <td
+                  colSpan={3}
+                  className="p-3 text-center text-muted-foreground"
+                >
+                  데이터가 없습니다. 조건을 입력하고 조회하세요.
+                </td>
               </tr>
             )}
           </tbody>

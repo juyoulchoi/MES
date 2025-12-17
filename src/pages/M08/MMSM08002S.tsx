@@ -19,9 +19,12 @@ type Row = {
 
 export default function MMSM08002S() {
   // Filters
-  const [itemNm, setItemNm] = useState('');
   const [itemCd, setItemCd] = useState('');
-
+  const [itemNm, setItemNm] = useState('');
+  const [typecode, setTypecode] = useState('');
+  const [title, setTitle] = useState('');
+  const [captionCode, setCaptionCode] = useState('');
+  const [captionName, setCaptionName] = useState('');
   // Data & UI
   const [rows, setRows] = useState<Row[]>([]);
   const [focused, setFocused] = useState<number>(-1);
@@ -33,12 +36,30 @@ export default function MMSM08002S() {
   }, []);
 
   async function onSearch() {
-    setLoading(true); setError(null);
+    setLoading(true);
+    setError(null);
+
     try {
       const params = new URLSearchParams();
-      if (itemNm) params.set('item_nm', itemNm);
+
       if (itemCd) params.set('item_cd', itemCd);
-      const url = `/api/m08/mmsm08002/list` + (params.toString() ? `?${params.toString()}` : '');
+      if (itemNm) params.set('item_nm', itemNm);
+
+      setTypecode(params.get('typecode'));
+      setTitle(params.get('title'));
+
+      if (typecode === 'product') {
+        setCaptionCode('제품코드');
+        setCaptionName('제품명');
+      } else {
+        setCaptionCode('원자재코드');
+        setCaptionName('원자재명');
+      }
+
+      const url =
+        `/api/m08/mmsm08002/search` +
+        (params.toString() ? `?${params.toString()}` : '');
+
       const data = await http<Row[]>(url);
       const list = (Array.isArray(data) ? data : []).map((r, i) => ({
         RNUM: r.RNUM ?? i + 1,
@@ -50,11 +71,14 @@ export default function MMSM08002S() {
         PRT_CNT: r.PRT_CNT ?? '',
         UNIT_CD: r.UNIT_CD ?? '',
       }));
+
       setRows(list);
       setFocused(list.length > 0 ? 0 : -1);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   }
 
   function onRowClick(i: number) {
@@ -73,10 +97,21 @@ export default function MMSM08002S() {
       UNIT_CD: r.UNIT_CD ?? '',
     };
     // CustomEvent for same-window listeners
-    try { window.dispatchEvent(new CustomEvent('picker:select', { detail: payload })); } catch {}
+    try {
+      window.dispatchEvent(
+        new CustomEvent('picker:select', { detail: payload })
+      );
+    } catch {}
     // postMessage for opener/parent contexts
-    try { window.opener && window.opener.postMessage({ type: 'MMSM08002S_SELECT', payload }, '*'); } catch {}
-    try { window.parent && window.parent !== window && window.parent.postMessage({ type: 'MMSM08002S_SELECT', payload }, '*'); } catch {}
+    try {
+      window.opener &&
+        window.opener.postMessage({ type: 'MMSM08002S_SELECT', payload }, '*');
+    } catch {}
+    try {
+      window.parent &&
+        window.parent !== window &&
+        window.parent.postMessage({ type: 'MMSM08002S_SELECT', payload }, '*');
+    } catch {}
   }
 
   function onConfirm() {
@@ -84,46 +119,91 @@ export default function MMSM08002S() {
   }
 
   function onExportCsv() {
-    const headers = ['No.','원자재코드','원자재명','종류','가로','세로','도수','단위'];
-    const lines = rows.map((r, i) => [
-      r.RNUM ?? i + 1,
-      r.ITEM_CD ?? '',
-      r.ITEM_NM ?? '',
-      r.ITEM_TP ?? '',
-      r.WID ?? '',
-      r.HGT ?? '',
-      r.PRT_CNT ?? '',
-      r.UNIT_CD ?? '',
-    ].map(v => (v ?? '').toString().replace(/"/g, '""')).map(v => `"${v}"`).join(','));
+    const headers = [
+      'No.',
+      '원자재코드',
+      '원자재명',
+      '종류',
+      '가로',
+      '세로',
+      '도수',
+      '단위',
+    ];
+    const lines = rows.map((r, i) =>
+      [
+        r.RNUM ?? i + 1,
+        r.ITEM_CD ?? '',
+        r.ITEM_NM ?? '',
+        r.ITEM_TP ?? '',
+        r.WID ?? '',
+        r.HGT ?? '',
+        r.PRT_CNT ?? '',
+        r.UNIT_CD ?? '',
+      ]
+        .map((v) => (v ?? '').toString().replace(/"/g, '""'))
+        .map((v) => `"${v}"`)
+        .join(',')
+    );
     const csv = [headers.join(','), ...lines].join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = 'MMSM08002S_items.csv';
-    document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'MMSM08002S_items.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   }
 
   return (
     <div className="p-3 space-y-3">
-      <div className="text-base font-semibold">정보 조회</div>
+      <div className="text-base font-semibold">{title}</div>
 
       {/* Filters & Buttons */}
       <div className="flex flex-wrap items-end gap-3">
         <label className="flex flex-col text-sm">
-          <span className="mb-1">원자재명</span>
-          <input className="h-8 border rounded px-2 w-48" value={itemNm} onChange={e=>setItemNm(e.target.value)} />
+          <span className="mb-1">{captionName}</span>
+          <input
+            className="h-8 border rounded px-2 w-48"
+            value={itemNm}
+            onChange={(e) => setItemNm(e.target.value)}
+          />
         </label>
         <label className="flex flex-col text-sm">
-          <span className="mb-1">원자재코드</span>
-          <input className="h-8 border rounded px-2 w-40" value={itemCd} onChange={e=>setItemCd(e.target.value)} />
+          <span className="mb-1">{captionCode}</span>
+          <input
+            className="h-8 border rounded px-2 w-40"
+            value={itemCd}
+            onChange={(e) => setItemCd(e.target.value)}
+          />
         </label>
         <div className="ml-auto flex gap-2">
-          <button onClick={onSearch} disabled={loading} className="h-8 px-3 border rounded bg-primary text-primary-foreground disabled:opacity-50">조회</button>
-          <button onClick={onExportCsv} className="h-8 px-3 border rounded">엑셀</button>
-          <button onClick={onConfirm} disabled={focused<0} className="h-8 px-3 border rounded">확인</button>
+          <button
+            onClick={onSearch}
+            disabled={loading}
+            className="h-8 px-3 border rounded bg-primary text-primary-foreground disabled:opacity-50"
+          >
+            조회
+          </button>
+          <button onClick={onExportCsv} className="h-8 px-3 border rounded">
+            엑셀
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={focused < 0}
+            className="h-8 px-3 border rounded"
+          >
+            확인
+          </button>
         </div>
       </div>
 
-      {error && <div className="text-sm text-destructive border border-destructive/30 rounded p-2">{error}</div>}
+      {error && (
+        <div className="text-sm text-destructive border border-destructive/30 rounded p-2">
+          {error}
+        </div>
+      )}
 
       {/* Grid */}
       <div className="border rounded overflow-auto max-h-[70vh]">
@@ -131,8 +211,8 @@ export default function MMSM08002S() {
           <thead className="sticky top-0 bg-background">
             <tr className="border-b">
               <th className="w-12 p-2 text-center">No.</th>
-              <th className="w-28 p-2 text-center">원자재코드</th>
-              <th className="w-44 p-2 text-left">원자재명</th>
+              <th className="w-28 p-2 text-center">{captionCode}</th>
+              <th className="w-44 p-2 text-left">{captionName}</th>
               <th className="w-24 p-2 text-center">종류</th>
               <th className="w-24 p-2 text-center">가로</th>
               <th className="w-24 p-2 text-center">세로</th>
@@ -142,7 +222,13 @@ export default function MMSM08002S() {
           </thead>
           <tbody>
             {rows.map((r, i) => (
-              <tr key={i} className={`border-b hover:bg-muted/30 cursor-pointer ${focused===i? 'bg-muted/40': ''}`} onClick={() => onRowClick(i)}>
+              <tr
+                key={i}
+                className={`border-b hover:bg-muted/30 cursor-pointer ${
+                  focused === i ? 'bg-muted/40' : ''
+                }`}
+                onClick={() => onRowClick(i)}
+              >
                 <td className="p-2 text-center">{r.RNUM ?? i + 1}</td>
                 <td className="p-2 text-center">{r.ITEM_CD ?? ''}</td>
                 <td className="p-2 text-left">{r.ITEM_NM ?? ''}</td>
@@ -155,7 +241,12 @@ export default function MMSM08002S() {
             ))}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={8} className="p-3 text-center text-muted-foreground">데이터가 없습니다. 조건을 입력하고 조회하세요.</td>
+                <td
+                  colSpan={8}
+                  className="p-3 text-center text-muted-foreground"
+                >
+                  데이터가 없습니다. 조건을 입력하고 조회하세요.
+                </td>
               </tr>
             )}
           </tbody>

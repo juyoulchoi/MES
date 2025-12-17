@@ -17,6 +17,9 @@ export default function MMSM08005S() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [title, setTitle] = useState('');
+  const [code, setCode] = useState('');
+
   useEffect(() => {
     onSearch();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -31,6 +34,7 @@ export default function MMSM08005S() {
         LINE_CD: r.LINE_CD ?? '',
         LINE_NM: r.LINE_NM ?? '',
       }));
+
       setRows(list);
       setFocused(list.length > 0 ? 0 : -1);
     } catch (e) {
