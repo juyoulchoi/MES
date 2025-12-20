@@ -12,13 +12,15 @@ type Row = {
 };
 
 export default function MMSM08005S() {
+  const lineCode = '호기코드';
+  const lineName = '호기명';
+  const useStatus = 'Active';
+
   const [rows, setRows] = useState<Row[]>([]);
   const [focused, setFocused] = useState<number>(-1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const [title, setTitle] = useState('');
-  const [code, setCode] = useState('');
+  const [lineCd, setLineCd] = useState('');
 
   useEffect(() => {
     onSearch();
@@ -26,9 +28,10 @@ export default function MMSM08005S() {
   }, []);
 
   async function onSearch() {
-    setLoading(true); setError(null);
+    setLoading(true);
+    setError(null);
     try {
-      const url = `/api/m08/mmsm08005/list`;
+      const url = `/api/v1/common/line/search`;
       const data = await http<Row[]>(url);
       const list = (Array.isArray(data) ? data : []).map((r) => ({
         LINE_CD: r.LINE_CD ?? '',
@@ -39,7 +42,9 @@ export default function MMSM08005S() {
       setFocused(list.length > 0 ? 0 : -1);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   }
 
   function onRowClick(i: number) {
@@ -55,10 +60,21 @@ export default function MMSM08005S() {
       PROC_NM: r.LINE_NM ?? '',
     };
     // CustomEvent for same-window listeners
-    try { window.dispatchEvent(new CustomEvent('picker:select', { detail: payload })); } catch {}
+    try {
+      window.dispatchEvent(
+        new CustomEvent('picker:select', { detail: payload })
+      );
+    } catch {}
     // postMessage for opener/parent contexts
-    try { window.opener && window.opener.postMessage({ type: 'MMSM08005S_SELECT', payload }, '*'); } catch {}
-    try { window.parent && window.parent !== window && window.parent.postMessage({ type: 'MMSM08005S_SELECT', payload }, '*'); } catch {}
+    try {
+      window.opener &&
+        window.opener.postMessage({ type: 'MMSM08005S_SELECT', payload }, '*');
+    } catch {}
+    try {
+      window.parent &&
+        window.parent !== window &&
+        window.parent.postMessage({ type: 'MMSM08005S_SELECT', payload }, '*');
+    } catch {}
   }
 
   function onConfirm() {
@@ -66,17 +82,23 @@ export default function MMSM08005S() {
   }
 
   function onExportCsv() {
-    const headers = ['No.','호기코드','호기명'];
-    const lines = rows.map((r, i) => [
-      (i + 1).toString(),
-      r.LINE_CD ?? '',
-      r.LINE_NM ?? '',
-    ].map(v => (v ?? '').toString().replace(/"/g, '""')).map(v => `"${v}"`).join(','));
+    const headers = ['No.', '호기코드', '호기명'];
+    const lines = rows.map((r, i) =>
+      [(i + 1).toString(), r.LINE_CD ?? '', r.LINE_NM ?? '']
+        .map((v) => (v ?? '').toString().replace(/"/g, '""'))
+        .map((v) => `"${v}"`)
+        .join(',')
+    );
     const csv = [headers.join(','), ...lines].join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = 'MMSM08005S_lines.csv';
-    document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'MMSM08005S_lines.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   }
 
   return (
@@ -85,25 +107,46 @@ export default function MMSM08005S() {
 
       {/* Buttons (ASPX엔 조회 버튼 없음, 자동조회) */}
       <div className="flex gap-2 justify-end">
-        <button onClick={onExportCsv} className="h-8 px-3 border rounded">엑셀</button>
-        <button onClick={onConfirm} disabled={focused<0} className="h-8 px-3 border rounded">확인</button>
+        <button onClick={onExportCsv} className="h-8 px-3 border rounded">
+          엑셀
+        </button>
+        <button
+          onClick={onConfirm}
+          disabled={focused < 0}
+          className="h-8 px-3 border rounded"
+        >
+          확인
+        </button>
       </div>
 
-      {error && <div className="text-sm text-destructive border border-destructive/30 rounded p-2">{error}</div>}
+      {error && (
+        <div className="text-sm text-destructive border border-destructive/30 rounded p-2">
+          {error}
+        </div>
+      )}
 
       {/* Grid */}
-      <div className="border rounded overflow-auto max-h-[70vh]" style={{ height: 320 }}>
+      <div
+        className="border rounded overflow-auto max-h-[70vh]"
+        style={{ height: 320 }}
+      >
         <table className="w-full text-sm">
           <thead className="sticky top-0 bg-background">
             <tr className="border-b">
               <th className="w-12 p-2 text-center">No.</th>
-              <th className="w-40 p-2 text-center">호기코드</th>
-              <th className="w-56 p-2 text-left">호기명</th>
+              <th className="w-40 p-2 text-center">{lineCode}</th>
+              <th className="w-56 p-2 text-left">{lineName}</th>
             </tr>
           </thead>
           <tbody>
             {rows.map((r, i) => (
-              <tr key={i} className={`border-b hover:bg-muted/30 cursor-pointer ${focused===i? 'bg-muted/40': ''}`} onClick={() => onRowClick(i)}>
+              <tr
+                key={i}
+                className={`border-b hover:bg-muted/30 cursor-pointer ${
+                  focused === i ? 'bg-muted/40' : ''
+                }`}
+                onClick={() => onRowClick(i)}
+              >
                 <td className="p-2 text-center">{i + 1}</td>
                 <td className="p-2 text-center">{r.LINE_CD ?? ''}</td>
                 <td className="p-2 text-left">{r.LINE_NM ?? ''}</td>
@@ -111,7 +154,12 @@ export default function MMSM08005S() {
             ))}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={3} className="p-3 text-center text-muted-foreground">데이터가 없습니다.</td>
+                <td
+                  colSpan={3}
+                  className="p-3 text-center text-muted-foreground"
+                >
+                  데이터가 없습니다.
+                </td>
               </tr>
             )}
           </tbody>

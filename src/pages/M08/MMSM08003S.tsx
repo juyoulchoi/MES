@@ -34,6 +34,7 @@ export default function MMSM08003S() {
   async function onSearch() {
     setLoading(true);
     setError(null);
+
     try {
       const params = new URLSearchParams();
       if (cstCd) params.set('cst_cd', cstCd);
@@ -43,6 +44,7 @@ export default function MMSM08003S() {
       setTitle(params.get('title'));
 
       if (typeCode === 'customer') {
+        
         setCaptionCode('고객사ID');
         setCaptionName('고객사명');
       } else {

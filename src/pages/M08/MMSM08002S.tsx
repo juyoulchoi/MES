@@ -57,7 +57,7 @@ export default function MMSM08002S() {
       }
 
       const url =
-        `/api/m08/mmsm08002/search` +
+        `/api/v1/mdm/iteminfo/search` +
         (params.toString() ? `?${params.toString()}` : '');
 
       const data = await http<Row[]>(url);

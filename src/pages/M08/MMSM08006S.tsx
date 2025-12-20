@@ -14,8 +14,13 @@ type Row = {
 
 export default function MMSM08006S() {
   // Filters
-  const [deptCd, setDeptCd] = useState('');
-  const [deptNm, setDeptNm] = useState('');
+  const bscGrpCd = '0100'; // 부서 그룹코드
+  const [bscCd, setBscCd] = useState(''); // DEPT_CD
+  const [bscNm, setBscNm] = useState(''); // DEPT_NM
+  // const [page, setPage] = useState('0');
+  // const pageSize = '20';
+  // const sort = encodeURIComponent('bsccd asc');
+
   const [captionCode, setCaptionCode] = useState('');
   const [captionName, setCaptionName] = useState('');
   const [typeCode, setTypeCode] = useState('');
@@ -34,10 +39,17 @@ export default function MMSM08006S() {
   async function onSearch() {
     setLoading(true);
     setError(null);
+
     try {
       const params = new URLSearchParams();
-      if (deptCd) params.set('dept_cd', deptCd);
-      if (deptNm) params.set('dept_nm', deptNm);
+
+      if (bscGrpCd) params.set('bsc_grp_cd', bscGrpCd);
+      if (bscCd) params.set('bsc_cd', bscCd);
+      if (bscNm) params.set('bsc_nm', bscNm);
+
+      // if (page) params.set('page', page);
+      // if (pageSize) params.set('page_size', pageSize);
+      // if (sort) params.set('sort', sort);
 
       setTypeCode(params.get('typecode'));
       setTitle(params.get('title'));
@@ -48,14 +60,16 @@ export default function MMSM08006S() {
       }
 
       const url =
-        `/api/m08/mmsm08006/list` +
+        `/api/v1/common/bsc/search` +
         (params.toString() ? `?${params.toString()}` : '');
+
       const data = await http<Row[]>(url);
       const list = (Array.isArray(data) ? data : []).map((r, i) => ({
         SERL: r.SERL ?? i + 1,
         DEPT_CD: r.DEPT_CD ?? '',
         DEPT_NM: r.DEPT_NM ?? '',
       }));
+
       setRows(list);
       setFocused(list.length > 0 ? 0 : -1);
     } catch (e) {
@@ -106,6 +120,7 @@ export default function MMSM08006S() {
         .map((v) => `"${v}"`)
         .join(',')
     );
+
     const csv = [headers.join(','), ...lines].join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -118,6 +133,12 @@ export default function MMSM08006S() {
     URL.revokeObjectURL(url);
   }
 
+  function handlePageChange(newPage: string) {
+    // setPage(newPage);
+    // page가 변경된 후 검색 실행
+    onSearch();
+  }
+
   return (
     <div className="p-3 space-y-3" style={{ width: 640 }}>
       <div className="text-base font-semibold">{title}</div>
@@ -128,16 +149,16 @@ export default function MMSM08006S() {
           <span className="mb-1">{captionCode}</span>
           <input
             className="h-8 border rounded px-2 w-48"
-            value={deptCd}
-            onChange={(e) => setDeptCd(e.target.value)}
+            value={bscCd}
+            onChange={(e) => setBscCd(e.target.value)}
           />
         </label>
         <label className="flex flex-col text-sm">
           <span className="mb-1">{captionName}</span>
           <input
             className="h-8 border rounded px-2 w-48"
-            value={deptNm}
-            onChange={(e) => setDeptNm(e.target.value)}
+            value={bscNm}
+            onChange={(e) => setBscNm(e.target.value)}
           />
         </label>
         <div className="ml-auto flex gap-2">

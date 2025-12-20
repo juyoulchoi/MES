@@ -19,6 +19,7 @@ type Row = {
 
 export default function MMSM08008E() {
   // Filters
+  const bscGrpCd = 'USER_GROUP';
   const [searchName, setSearchName] = useState('');
   const [searchUseYn, setSearchUseYn] = useState<'*' | 'Y' | 'N'>('*');
 
@@ -39,13 +40,14 @@ export default function MMSM08008E() {
 
     try {
       const paramObj = {
-        usr_grp_nm: searchName,
+        bsc_grp_cd: bscGrpCd,
+        bsc_nm: searchName,
         use_yn: searchUseYn !== '*' ? searchUseYn : undefined,
       };
       const params = toParams(paramObj);
 
       const url =
-        `/api/m08/mmsm08008/list` +
+        `/api/v1/common/bsc/search` +
         (params.toString() ? `?${params.toString()}` : '');
 
       const data = await http<Row[]>(url);
@@ -59,6 +61,7 @@ export default function MMSM08008E() {
         _isNew: false,
         _dirty: false,
       }));
+
       setRows(list);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -137,7 +140,7 @@ export default function MMSM08008E() {
         USE_YN: r.USE_YN ?? 'Y',
         _isNew: !!r._isNew,
       }));
-      const res = await http<any>(`/api/m08/mmsm08008/save`, {
+      const res = await http<any>(`/api/v1/common/bsc`, {
         method: 'POST',
         body: { rows: payload },
       });
@@ -168,8 +171,8 @@ export default function MMSM08008E() {
       setRows(next);
       if (persisted.length > 0) {
         const keys = persisted.map((r) => ({ USR_GRP_CD: r.USR_GRP_CD }));
-        const res = await http<any>(`/api/m08/mmsm08008/delete`, {
-          method: 'POST',
+        const res = await http<any>(`/api/v1/common/bsc`, {
+          method: 'DELETE',
           body: { rows: keys },
         });
         void res;

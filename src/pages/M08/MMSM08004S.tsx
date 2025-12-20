@@ -16,10 +16,11 @@ type Row = {
 };
 
 export default function MMSM08004S() {
+  const useStatus = 'Active';
+  const title = '프로그램';
   // Filters
   const [pgmId, setPgmId] = useState('');
   const [pgmNm, setPgmNm] = useState('');
-  const [title, setTitle] = useState('');
 
   // Data & UI
   const [rows, setRows] = useState<Row[]>([]);
@@ -39,11 +40,12 @@ export default function MMSM08004S() {
       if (pgmId) params.set('pgm_id', pgmId);
       if (pgmNm) params.set('pgm_nm', pgmNm);
 
-      setTitle(params.get('title'));
+      params.set('status', useStatus);
 
       const url =
-        `/api/m08/mmsm08004/list` +
+        `/api/v1/common/pgminfo` +
         (params.toString() ? `?${params.toString()}` : '');
+
       const data = await http<Row[]>(url);
       const list = (Array.isArray(data) ? data : []).map((r, i) => ({
         SERL: r.SERL ?? i + 1,
