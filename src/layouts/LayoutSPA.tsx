@@ -167,11 +167,16 @@ export default function LayoutSPA() {
       setUser(me.user);
       setNav(sanitizeNavPayload(n));
     } catch (e) {
+      if (e instanceof Error && /\b(401|403)\b/.test(e.message)) {
+        localStorage.removeItem('token');
+        navigate('/login', { replace: true });
+        return;
+      }
       setError(e);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [navigate]);
 
   useEffect(() => {
     void load();
