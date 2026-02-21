@@ -1,3 +1,5 @@
+import { CONFIG, resolveApiUrl } from '@/lib/config';
+
 // 간단한 fetch 래퍼: 쿠키 세션 or JWT 지원
 export type HttpOptions = {
   method?: string;
@@ -18,10 +20,15 @@ export async function http<T>(url: string, opt: HttpOptions = {}): Promise<T> {
   if (opt.authToken) headers.Authorization = `Bearer ${opt.authToken}`;
   if (opt.csrfToken) headers['X-CSRF-Token'] = opt.csrfToken;
 
-  const res = await fetch(url, {
+  const useCredentials =
+    opt.withCredentials !== undefined
+      ? opt.withCredentials
+      : CONFIG.authMode === 'session';
+
+  const res = await fetch(resolveApiUrl(url), {
     method: opt.method || 'GET',
     headers,
-    credentials: opt.withCredentials ? 'include' : 'same-origin',
+    credentials: useCredentials ? 'include' : 'same-origin',
     body: opt.body
       ? typeof opt.body === 'string'
         ? opt.body

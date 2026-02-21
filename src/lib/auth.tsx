@@ -39,8 +39,6 @@ export async function login({
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
-      'Cache-Control': 'no-store',
-      'Pragma': 'no-cache',
     };
     const csrf = getCsrfToken();
     if (csrf) headers['X-CSRF-Token'] = csrf;
