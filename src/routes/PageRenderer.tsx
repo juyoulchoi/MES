@@ -9,7 +9,11 @@ import { Suspense, lazy, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 
 // Vite의 import.meta.glob로 pages 디렉토리 전체를 동적 import 매핑
-const modules = import.meta.glob('@/pages/**/*.tsx', { eager: false });
+// Login 페이지는 App.tsx에서 정적 라우팅하므로 동적 매핑에서 제외한다.
+const modules = import.meta.glob(
+  ['@/pages/**/*.tsx', '!@/pages/M00/Login.tsx'],
+  { eager: false }
+);
 
 // 2) 모듈 키 정규화: /src/pages/..., @/pages/... 모두 커버
 function normalizeKey(k: string) {

@@ -1,22 +1,22 @@
 {
-  "$schema": "https://ui.shadcn.com/schema.json",
-  "style": "new-york",
-  "rsc": false,
-  "tsx": true,
-  "tailwind": {
-    "config": "",
-    "css": "src/index.css",
-    "baseColor": "neutral",
-    "cssVariables": true,
-    "prefix": ""
+  "uiLibrary": "material-ui",
+  "version": 7,
+  "typescript": true,
+  "styling": {
+    "engine": "@emotion/styled",
+    "themeFile": null,
+    "cssBaseline": true
   },
-  "iconLibrary": "lucide",
+  "icons": "@mui/icons-material",
   "aliases": {
     "components": "@/components",
-    "utils": "@/lib/utils",
-    "ui": "@/components/ui",
     "lib": "@/lib",
-    "hooks": "@/hooks"
+    "hooks": "@/hooks",
+    "app": "@/app"
   },
-  "registries": {}
+  "notes": [
+    "This project uses MUI components instead of shadcn/ui generators.",
+    "Use @mui/material and sx/theme-based styling for new UI work.",
+    "Set styling.themeFile when a central MUI theme file is added."
+  ]
 }

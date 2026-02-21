@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
-// 로그인 페이지는 캔버스의 Login 컴포넌트를 경로에 맞게 import
-import LoginPage from '@/pages/M00/Login'; // ← 파일 위치에 맞게 조정
 import LayoutSPA from '@/layouts/LayoutSPA'; // ← 파일 위치에 맞게 조정
+
+const LoginPage = lazy(() => import('@/pages/M00/Login'));
 
 /* -------- 인증 가드 -------- */
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -32,7 +32,9 @@ export default function App() {
         path="/login"
         element={
           <PublicOnlyRoute>
-            <LoginPage />
+            <Suspense fallback={<div className="p-4 text-sm">로딩 중...</div>}>
+              <LoginPage />
+            </Suspense>
           </PublicOnlyRoute>
         }
       />

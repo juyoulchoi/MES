@@ -13,7 +13,6 @@ import {
 import { login, resolveRedirect } from '@/lib/auth';
 
 /**
- * Login 페이지 (React Router + Tailwind v4 + shadcn/ui)
  * - 세션/토큰 모드 모두 지원
  * - CSRF 토큰 자동 첨부(meta[name="csrf-token"] 또는 XSRF-TOKEN 쿠키)
  * - 로그인 성공 시 ?redirect= 또는 /dashboard 로 이동
