@@ -94,7 +94,7 @@ export default function LoginPage() {
                     name="password"
                     type="password"
                     placeholder="비밀번호"
-                    autoComplete="current-password"
+                    autoComplete="password"
                     maxLength={128}
                     required
                     value={password}
