@@ -11,8 +11,8 @@ import { useLocation } from 'react-router-dom';
 // Vite의 import.meta.glob로 pages 디렉토리 전체를 동적 import 매핑
 // Login 페이지는 App.tsx에서 정적 라우팅하므로 동적 매핑에서 제외한다.
 const modules = import.meta.glob(
-  ['@/pages/**/*.tsx', '!@/pages/M00/Login.tsx'],
-  { eager: false }
+  ['@/pages/**/*.tsx', '!@/pages/M00/Login.tsx', '!@/pages/M00/LoginMUI.tsx'],
+  { eager: false },
 );
 
 // 2) 모듈 키 정규화: /src/pages/..., @/pages/... 모두 커버
@@ -29,6 +29,7 @@ function normalizeUrlPath(p: string) {
   return p
     .replace(/^[\/]+|[\/]+$/g, '') // 앞/뒤 슬래시 제거
     .replace(/\.ts$/i, '') // 표시용 .ts 확장자 제거
+    .replace(/\.js$/i, '')
     .toLowerCase(); // 소문자화
 }
 
@@ -109,7 +110,6 @@ export default function PageRenderer({
         {key.endsWith('/') ? ' (끝의 "/"를 제거해 보세요)' : null}
         {hints.length > 0 && (
           <div className="mt-2 text-muted-foreground">
-            혹시 아래 파일이 있나요?
             <ul className="list-disc ml-4">
               {hints.map((h) => (
                 <li key={h}>

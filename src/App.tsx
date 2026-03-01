@@ -2,7 +2,7 @@ import React, { Suspense, lazy } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import LayoutSPA from '@/layouts/LayoutSPA'; // ← 파일 위치에 맞게 조정
 
-const LoginPage = lazy(() => import('@/pages/M00/Login'));
+const LoginPage = lazy(() => import('@/pages/M00/LoginMUI'));
 
 /* -------- 인증 가드 -------- */
 function PrivateRoute({ children }: { children: React.ReactNode }) {
