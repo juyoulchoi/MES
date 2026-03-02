@@ -52,4 +52,10 @@ export type AuthRow = {
   SER_AUTH: 'Y' | 'N';
 };
 
-export type MathGb = 'ALL' | 'A' | 'B' | 'C';  // 원자재 구분, ALL: 전체, A: 원자재, B: 반제품, C: 제품
+export const MathGb = {
+  ALL: 'ALL',
+  A: 'A',
+  B: 'B',
+  C: 'C',
+} as const;
+export type MathGb = (typeof MathGb)[keyof typeof MathGb]; // 원자재 구분, ALL: 전체, A: 원자재, B: 반제품, C: 제품
