@@ -19,5 +19,18 @@ export default defineConfig([
       ecmaVersion: 2020,
       globals: globals.browser,
     },
+    rules: {
+      'padding-line-between-statements': [
+        'error',
+        { blankLine: 'always', prev: ['const', 'let', 'var'], next: '*' },
+        {
+          blankLine: 'any',
+          prev: ['const', 'let', 'var'],
+          next: ['const', 'let', 'var'],
+        },
+        { blankLine: 'always', prev: '*', next: 'return' },
+      ],
+      'no-multiple-empty-lines': ['error', { max: 1, maxEOF: 1 }],
+    },
   },
 ])
