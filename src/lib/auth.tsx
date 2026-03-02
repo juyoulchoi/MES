@@ -1,10 +1,20 @@
 import { CONFIG } from '@/lib/config';
 
 type LoginArgs = { userId: string; password: string };
+type LoginApiResponse = {
+  success?: boolean;
+  message?: string;
+  data?: {
+    accessToken?: string;
+    token?: string;
+  };
+  accessToken?: string;
+  token?: string;
+};
 
 export function getCsrfToken(): string | null {
   const meta = document.querySelector(
-    'meta[name="csrf-token"]'
+    'meta[name="csrf-token"]',
   ) as HTMLMetaElement | null;
   if (meta?.content) return meta.content;
   // 2) 쿠키(XSRF-TOKEN) 사용 시
@@ -56,11 +66,21 @@ export async function login({
       return { ok: false, error: msg || `HTTP ${res.status}` };
     }
 
+    const payload = (await res.json().catch(() => ({}))) as LoginApiResponse;
+    if (payload.success !== true) {
+      return { ok: false, error: payload.message || '로그인에 실패했습니다.' };
+    }
+
     if (CONFIG.authMode === 'token') {
-      const data = (await res.json().catch(() => ({}))) as { token?: string };
-      if (!data.token) return { ok: false, error: '토큰이 응답에 없습니다.' };
-      localStorage.setItem('token', data.token);
-      return { ok: true, token: data.token };
+      const token =
+        payload.data?.accessToken ||
+        payload.data?.token ||
+        payload.accessToken ||
+        payload.token;
+      if (!token) return { ok: false, error: '토큰이 응답에 없습니다.' };
+      localStorage.setItem('token', token);
+      localStorage.setItem('token_expiry', String(Date.now() + 60 * 60 * 1000));
+      return { ok: true, token };
     }
 
     // session 모드: 쿠키로 인증됨
