@@ -11,13 +11,23 @@ export type HttpOptions = {
 };
 
 const defaultHeaders = { 'Content-Type': 'application/json' };
+type ApiEnvelope<T> = {
+  success?: boolean;
+  message?: string;
+  data?: T;
+};
 
 export async function http<T>(url: string, opt: HttpOptions = {}): Promise<T> {
   const headers: Record<string, string> = {
     ...defaultHeaders,
     ...(opt.headers || {}),
   };
-  if (opt.authToken) headers.Authorization = `Bearer ${opt.authToken}`;
+  const resolvedToken =
+    opt.authToken ??
+    (CONFIG.authMode === 'token'
+      ? localStorage.getItem('token') ?? undefined
+      : undefined);
+  if (resolvedToken) headers.Authorization = `Bearer ${resolvedToken}`;
   if (opt.csrfToken) headers['X-CSRF-Token'] = opt.csrfToken;
 
   const useCredentials =
@@ -36,12 +46,37 @@ export async function http<T>(url: string, opt: HttpOptions = {}): Promise<T> {
       : undefined,
   });
 
+  const ct = res.headers.get('content-type');
+  const isJson = ct?.includes('application/json');
+
   if (!res.ok) {
+    if (isJson) {
+      const payload = (await res.json().catch(() => null)) as ApiEnvelope<unknown> | null;
+      const message =
+        (payload && typeof payload.message === 'string' && payload.message) || '';
+      throw new Error(message || `HTTP ${res.status}`);
+    }
     const text = await res.text().catch(() => '');
     throw new Error(text || `HTTP ${res.status}`);
   }
-  const ct = res.headers.get('content-type');
-  return ct?.includes('application/json')
-    ? await res.json()
-    : ((await res.text()) as T);
+
+  if (!isJson) {
+    return (await res.text()) as T;
+  }
+
+  const payload = (await res.json()) as ApiEnvelope<T> | T;
+  if (
+    payload &&
+    typeof payload === 'object' &&
+    'success' in payload &&
+    'data' in payload
+  ) {
+    const envelope = payload as ApiEnvelope<T>;
+    if (envelope.success === false) {
+      throw new Error(envelope.message || '요청 처리에 실패했습니다.');
+    }
+    return envelope.data as T;
+  }
+
+  return payload as T;
 }
