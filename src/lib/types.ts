@@ -51,3 +51,5 @@ export type AuthRow = {
   MENU_ID: string;
   SER_AUTH: 'Y' | 'N';
 };
+
+export type MathGb = 'ALL' | 'A' | 'B' | 'C';  // 원자재 구분, ALL: 전체, A: 원자재, B: 반제품, C: 제품
