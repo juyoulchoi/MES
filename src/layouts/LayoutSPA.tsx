@@ -21,6 +21,7 @@ import type {
 } from '@/lib/types';
 import { http } from '@/lib/http';
 import { sanitizeNavPayload, toSafeTree } from '@/lib/guards';
+import { filterTreeByRole } from '@/lib/acl';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -71,7 +72,7 @@ export function Tree({
   return (
     <div className="text-sm">
       {list.map((n) => (
-        <TreeItem key={n.id} node={n} onOpen={onOpen} masked={masked} />
+        <TreeItem key={n.menuId} node={n} onOpen={onOpen} masked={masked} />
       ))}
     </div>
   );
@@ -105,7 +106,7 @@ export function TreeItem({
           !hasChildren && 'pl-6',
           isActive
             ? 'bg-accent text-accent-foreground font-semibold'
-            : 'hover:bg-muted'
+            : 'hover:bg-muted',
         )}
         onClick={handleClick}
       >
@@ -118,12 +119,12 @@ export function TreeItem({
         ) : (
           <span className="inline-block w-4" />
         )}
-        <span>{String(node.label)}</span>
+        <span>{String(node.menuNm)}</span>
       </div>
       {hasChildren && open && (
         <div className="ml-4 border-l pl-2">
           {node.children!.map((c) => (
-            <TreeItem key={c.id} node={c} onOpen={onOpen} />
+            <TreeItem key={c.menuId} node={c} onOpen={onOpen} />
           ))}
         </div>
       )}
@@ -150,6 +151,7 @@ export default function LayoutSPA() {
   const location = useLocation();
   const [maskVersion, setMaskVersion] = useState(0);
   const lastMaskedRef = useRef<string | undefined>(undefined);
+  const initLoadedRef = useRef(false);
   const [user, setUser] = useState<UserPayload['user'] | null>(null);
   const [nav, setNav] = useState<NavPayload | null>(null);
   const [loading, setLoading] = useState(true);
@@ -161,8 +163,8 @@ export default function LayoutSPA() {
     setError(null);
     try {
       const [me, n] = await Promise.all([
-        http<UserPayload>('/api/me'),
-        http<unknown>('/api/nav'),
+        http<UserPayload>('/api/v1/auth/me'),
+        http<unknown>('/api/v1/auth/menu/searchMenuPgmInfoList'),
       ]);
       setUser(me.user);
       setNav(sanitizeNavPayload(n));
@@ -179,15 +181,14 @@ export default function LayoutSPA() {
   }, [navigate]);
 
   useEffect(() => {
+    if (initLoadedRef.current) return;
+    initLoadedRef.current = true;
     void load();
   }, [load]);
 
-  const filtered = useMemo(() => {
+  const menuData = useMemo<TreeNode[]>(() => {
     const roles = user?.roles ?? [];
-    return {
-      menu: '',
-      tree: '',
-    };
+    return filterTreeByRole(nav?.tree ?? [], roles);
   }, [nav, user]);
 
   const onOpenPath = (path?: string) => {
@@ -196,255 +197,30 @@ export default function LayoutSPA() {
     setMaskedPage(pageId, navigate, { replace: false });
   };
 
-  // 임시 좌측 트리
-  const menuData: TreeNode[] = useMemo(
-    () => [
-      {
-        id: 'M01',
-        label: '원자재 관리',
-        path: '/app/MMSM01002S.ts',
-        defaultExpanded: true,
-        children: [
-          {
-            id: 'MMSM01002S',
-            label: '원자재 발주 현황',
-            path: '/app/MMSM01002S.ts',
-          },
-          {
-            id: 'MMSM01003E',
-            label: '원자재 입고 등록',
-            path: '/app/MMSM01003E.ts',
-          },
-          {
-            id: 'MMSM01004S',
-            label: '원자재 입고 현황',
-            path: '/app/MMSM01004S.ts',
-          },
-          {
-            id: 'MMSM01005S',
-            label: '원자재 출고 현황',
-            path: '/app/MMSM01005S.ts',
-          },
-          {
-            id: 'MMSM01006S',
-            label: '원자재 재고 현황',
-            path: '/app/MMSM01006S.ts',
-          },
-          {
-            id: 'MMSM01007E',
-            label: '원자재 재고 조정',
-            path: '/app/MMSM01007E.ts',
-          },
-          {
-            id: 'MMSM01008E',
-            label: '원자재 발주 등록',
-            path: '/app/MMSM01008E.ts',
-          },
-          {
-            id: 'MMSM01009S',
-            label: '원자재 투입 이력 현황',
-            path: '/app/MMSM01009S.ts',
-          },
-          {
-            id: 'MMSM01010E',
-            label: '원자재 거래처 관리',
-            path: '/app/MMSM01010E.ts',
-          },
-          {
-            id: 'MMSM01011S',
-            label: '원자재 재고실사 현황',
-            path: '/app/MMSM01011S.ts',
-          },
-        ],
-      },
-      {
-        id: 'M02',
-        label: '수주 관리',
-        path: '/app/MMSM02001E.ts',
-        defaultExpanded: true,
-        children: [
-          { id: 'MMSM02001E', label: '수주 등록', path: '/app/MMSM02001E.ts' },
-          {
-            id: 'MMSM02002E',
-            label: '생산계획 생성',
-            path: '/app/MMSM02002E.ts',
-          },
-          { id: 'MMSM02003S', label: '생산 현황', path: '/app/MMSM02003S.ts' },
-          {
-            id: 'MMSM02004E',
-            label: '작업 지시서',
-            path: '/app/MMSM02004E.ts',
-          },
-          { id: 'MMSM02005S', label: '모니터링', path: '/app/MMSM02005S.ts' },
-          {
-            id: 'MMSM02006E',
-            label: '외주입출고관리',
-            path: '/app/MMSM02006E.ts',
-          },
-          { id: 'MMSM02007S', label: '수주 현황', path: '/app/MMSM02007S.ts' },
-        ],
-      },
-      {
-        id: 'M04',
-        label: '제품 관리',
-        path: '/app/MMSM04001S.ts',
-        defaultExpanded: true,
-        children: [
-          {
-            id: 'MMSM04001S',
-            label: '제품출고 지시현황',
-            path: '/app/MMSM04001S.ts',
-          },
-          {
-            id: 'MMSM04002E',
-            label: '제품 출고 지시 등록',
-            path: '/app/MMSM04002E.ts',
-          },
-          {
-            id: 'MMSM04003S',
-            label: '제품 출고 현황',
-            path: '/app/MMSM04003S.ts',
-          },
-          {
-            id: 'MMSM04004E',
-            label: '제품 재고 조정 등록',
-            path: '/app/MMSM04004E.ts',
-          },
-          {
-            id: 'MMSM04005E',
-            label: '제품 거래처 관리',
-            path: '/app/MMSM04005E.ts',
-          },
-          {
-            id: 'MMSM04006E',
-            label: '제품 출고 지시',
-            path: '/app/MMSM04006E.ts',
-          },
-          {
-            id: 'MMSM04007S',
-            label: '생산 로트 추적 관리',
-            path: '/app/MMSM04007S.ts',
-          },
-        ],
-      },
-      {
-        id: 'M06',
-        label: '기초 정보 관리',
-        path: '/app/MMSM06001E.ts',
-        defaultExpanded: true,
-        children: [
-          { id: 'MMSM06001E', label: '기초 코드', path: '/app/MMSM06001E.ts' },
-          {
-            id: 'MMSM06003E',
-            label: '제품 마스터',
-            path: '/app/MMSM06003E.ts',
-          },
-          {
-            id: 'MMSM06004E',
-            label: '거래처 관리',
-            path: '/app/MMSM06004E.ts',
-          },
-          {
-            id: 'MMSM06005E',
-            label: '라우팅 관리',
-            path: '/app/MMSM06005E.ts',
-          },
-          {
-            id: 'MMSM06007E',
-            label: '작업장 관리',
-            path: '/app/MMSM06007E.ts',
-          },
-        ],
-      },
-      {
-        id: 'M07',
-        label: '시스템 관리',
-        path: '/app/MMSM07001E.ts',
-        defaultExpanded: true,
-        children: [
-          {
-            id: 'MMSM07001E',
-            label: '사용자 관리',
-            path: '/app/MMSM07001E.ts',
-          },
-          {
-            id: 'MMSM07002E',
-            label: '프로그램 관리',
-            path: '/app/MMSM07002E.ts',
-          },
-          {
-            id: 'MMSM07003E',
-            label: '프로그램 메뉴 관리',
-            path: '/app/MMSM07003E.ts',
-          },
-          { id: 'MMSM07004E', label: '권한 관리', path: '/app/MMSM07004E.ts' },
-          {
-            id: 'MMSM07005S',
-            label: '시스템 사용현황 조회',
-            path: '/app/MMSM07005S.ts',
-          },
-          {
-            id: 'MMSM07006S',
-            label: '시스템 LOG 조회',
-            path: '/app/MMSM07006S.ts',
-          },
-        ],
-      },
-      {
-        id: 'M08',
-        label: '기타 관리',
-        defaultExpanded: true,
-        children: [
-          {
-            id: 'MMSM08002S',
-            label: 'MMSM08002S (원자재)',
-            path: '/app/MMSM08002S.ts',
-          },
-          {
-            id: 'MMSM08003S',
-            label: 'MMSM08003S (거래처)',
-            path: '/app/MMSM08003S.ts',
-          },
-          {
-            id: 'MMSM08004S',
-            label: 'MMSM08004S (프로그램)',
-            path: '/app/MMSM08004S.ts',
-          },
-          {
-            id: 'MMSM08005S',
-            label: 'MMSM08005S (호기)',
-            path: '/app/MMSM08005S.ts',
-          },
-          {
-            id: 'MMSM08006S',
-            label: 'MMSM08006S (부서)',
-            path: '/app/MMSM08006S.ts',
-          },
-          {
-            id: 'MMSM08008E',
-            label: 'MMSM08008E (사용자 그룹)',
-            path: '/app/MMSM08008E.ts',
-          },
-        ],
-      },
-    ],
-    []
-  );
-
-  // 임시 TOP 메뉴 (하위 메뉴 포함)
+  // DB tree 기반 TOP 메뉴(하위 드롭다운 유지)
   const topMenuItems = useMemo(
     () =>
-      menuData.map(({ id, label, path, children }) => ({
-        id,
-        label,
-        path,
-        children: children?.map((c) => ({
-          id: c.id,
-          label: c.label,
-          path: c.path,
+      menuData.map((m, idx) => ({
+        menuId: m.menuId,
+        menuNm: m.menuNm,
+        path: m.path ?? '',
+        pgmId: m.menuId,
+        lvl: 1,
+        topMenu: '*',
+        dspSeq: idx,
+        pgmUrl: m.path ?? '',
+        children: m.children?.map((c, cIdx) => ({
+          menuId: c.menuId,
+          menuNm: c.menuNm,
+          path: c.path ?? '',
+          pgmId: c.menuId,
+          lvl: 2,
+          topMenu: m.menuId,
+          dspSeq: cIdx,
+          pgmUrl: c.path ?? '',
         })),
       })),
-    [menuData]
+    [menuData],
   );
 
   // 주소 마스킹: /app/<page>.ts 접근 시 항상 /app/default.ts로 표시
@@ -487,12 +263,12 @@ export default function LayoutSPA() {
     };
     window.addEventListener(
       'maskedpagechange',
-      onMaskedChange as EventListener
+      onMaskedChange as EventListener,
     );
     return () =>
       window.removeEventListener(
         'maskedpagechange',
-        onMaskedChange as EventListener
+        onMaskedChange as EventListener,
       );
   }, []);
 
@@ -515,7 +291,7 @@ export default function LayoutSPA() {
           </NavLink>
           <div className="flex items-center gap-3 text-sm">
             {user ? (
-              <span className="font-semibold">{String(user.name)} 님</span>
+              <span className="font-semibold">{String(user.usrNm)} 님</span>
             ) : (
               <span className="text-muted-foreground">게스트</span>
             )}
@@ -532,7 +308,7 @@ export default function LayoutSPA() {
           </div>
         </div>
         <div className="w-full flex justify-center">
-          <TopMenu items={topMenuItems} />
+          <TopMenu />
         </div>
         {loading ? (
           <LoadingBlock text="메뉴 불러오는 중..." />

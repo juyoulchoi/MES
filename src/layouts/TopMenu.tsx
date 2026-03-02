@@ -39,7 +39,7 @@ export default function TopMenu({ items }: { items?: MenuEntry[] }) {
 
   const isTopActive = (m: MenuEntry, isActiveRoute: boolean) => {
     if (isActiveRoute) return true;
-    if (openId === m.id) return true; // 드롭다운이 열려있으면 활성 표시
+    if (openId === m.menuId) return true; // 드롭다운이 열려있으면 활성 표시
     const self = getBaseName(m.path);
     if (masked && self && self === masked) return true;
     if (Array.isArray(m.children) && m.children.length > 0) {
@@ -51,7 +51,7 @@ export default function TopMenu({ items }: { items?: MenuEntry[] }) {
   // 드롭다운 포털 렌더링 (JSX 바깥에서)
   let dropdownPortal: React.ReactPortal | null = null;
   if (openId && anchorPos) {
-    const current = list.find((x) => x.id === openId);
+    const current = list.find((x) => x.menuId === openId);
     if (current && current.children && current.children.length > 0) {
       const dropdownWidth = Math.max(220, anchorPos.width);
       let left = anchorPos.left + anchorPos.width / 2 - dropdownWidth / 2;
@@ -83,7 +83,7 @@ export default function TopMenu({ items }: { items?: MenuEntry[] }) {
         >
           <ul className="py-1 text-sm">
             {current.children.map((c) => (
-              <li key={c.id}>
+              <li key={c.menuId}>
                 <NavLink
                   to={c.path}
                   className={({ isActive }) =>
@@ -102,7 +102,7 @@ export default function TopMenu({ items }: { items?: MenuEntry[] }) {
                     setAnchorPos(null);
                   }}
                 >
-                  {String(c.label)}
+                  {String(c.menuNm)}
                 </NavLink>
               </li>
             ))}
@@ -121,11 +121,11 @@ export default function TopMenu({ items }: { items?: MenuEntry[] }) {
       {list.map((m) => {
         const hasChildren = Array.isArray(m.children) && m.children.length > 0;
         return (
-          <div key={m.id} className="relative">
+          <div key={m.menuId} className="relative">
             <button
               type="button"
               ref={(el) => {
-                anchorRefs.current[m.id] = el;
+                anchorRefs.current[m.menuId] = el;
               }}
               className={cn(
                 'px-4 py-2 rounded-md font-medium transition-colors',
@@ -136,7 +136,7 @@ export default function TopMenu({ items }: { items?: MenuEntry[] }) {
               )}
               onMouseEnter={(e) => {
                 if (hasChildren) {
-                  const el = anchorRefs.current[m.id];
+                  const el = anchorRefs.current[m.menuId];
                   if (el) {
                     const r = el.getBoundingClientRect();
                     setAnchorPos({
@@ -146,7 +146,7 @@ export default function TopMenu({ items }: { items?: MenuEntry[] }) {
                       height: r.height,
                     });
                   }
-                  setOpenId(m.id);
+                  setOpenId(m.menuId);
                 }
               }}
               onMouseLeave={(e) => {
@@ -165,9 +165,9 @@ export default function TopMenu({ items }: { items?: MenuEntry[] }) {
               onClick={() => {
                 if (hasChildren) {
                   setOpenId((id) => {
-                    const next = id === m.id ? null : m.id;
+                    const next = id === m.menuId ? null : m.menuId;
                     if (next) {
-                      const el = anchorRefs.current[m.id];
+                      const el = anchorRefs.current[m.menuId];
                       if (el) {
                         const r = el.getBoundingClientRect();
                         setAnchorPos({
@@ -189,7 +189,7 @@ export default function TopMenu({ items }: { items?: MenuEntry[] }) {
                 }
               }}
             >
-              {String(m.label)}
+              {String(m.menuNm)}
             </button>
           </div>
         );
