@@ -12,24 +12,17 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import PageRenderer from '@/routes/PageRenderer';
-import type {
-  NavPayload,
-  UserPayload,
-  TreeNode,
-  UINode,
-  MenuItem,
-} from '@/lib/types';
+import type { NavPayload, UserPayload, TreeNode } from '@/lib/types';
 import { http } from '@/lib/http';
 import { sanitizeNavPayload, toSafeTree } from '@/lib/guards';
 import { filterTreeByRole } from '@/lib/acl';
-import { ChevronDown, ChevronRight } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import {
   ensureMaskedPage,
   setMaskedPage,
   getMaskedPage,
 } from '@/app/routeMask';
 import TopMenu from './TopMenu';
+import TreeMenu from './TreeMenu';
 
 // 로딩/에러 컴포넌트
 export const LoadingBlock = ({ text = '불러오는 중...' }) => (
@@ -57,80 +50,6 @@ export const ErrorBlock = ({
     )}
   </div>
 );
-
-// 좌측 트리
-export function Tree({
-  nodes,
-  onOpen,
-  masked,
-}: {
-  nodes?: UINode[];
-  onOpen?: (path?: string) => void;
-  masked?: string;
-}) {
-  const list = Array.isArray(nodes) ? nodes : [];
-  return (
-    <div className="text-sm">
-      {list.map((n) => (
-        <TreeItem key={n.menuId} node={n} onOpen={onOpen} masked={masked} />
-      ))}
-    </div>
-  );
-}
-export function TreeItem({
-  node,
-  onOpen,
-  masked,
-}: {
-  node: UINode;
-  onOpen?: (path?: string) => void;
-  masked?: string;
-}) {
-  const [open, setOpen] = useState(!!node.defaultExpanded);
-  const hasChildren = Array.isArray(node.children) && node.children.length > 0;
-  const handleClick = () => {
-    if (hasChildren) setOpen((o) => !o);
-    else if (node.path) onOpen?.(node.path);
-  };
-  const getBaseName = (p?: string) =>
-    (p || '').replace(/^.*\//, '').replace(/\.ts$/i, '');
-  const isActive =
-    !hasChildren && masked && node.path
-      ? getBaseName(node.path) === masked
-      : false;
-  return (
-    <div className="select-none">
-      <div
-        className={cn(
-          'flex items-center gap-1 py-1 px-2 rounded-md cursor-pointer',
-          !hasChildren && 'pl-6',
-          isActive
-            ? 'bg-accent text-accent-foreground font-semibold'
-            : 'hover:bg-muted',
-        )}
-        onClick={handleClick}
-      >
-        {hasChildren ? (
-          open ? (
-            <ChevronDown className="h-4 w-4" />
-          ) : (
-            <ChevronRight className="h-4 w-4" />
-          )
-        ) : (
-          <span className="inline-block w-4" />
-        )}
-        <span>{String(node.menuNm)}</span>
-      </div>
-      {hasChildren && open && (
-        <div className="ml-4 border-l pl-2">
-          {node.children!.map((c) => (
-            <TreeItem key={c.menuId} node={c} onOpen={onOpen} />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 
 export function useSmartNav() {
   const navigate = useNavigate();
@@ -161,11 +80,13 @@ export default function LayoutSPA() {
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
+
     try {
       const [me, n] = await Promise.all([
         http<UserPayload>('/api/v1/auth/me'),
         http<unknown>('/api/v1/auth/menu/searchMenuPgmInfoList'),
       ]);
+
       setUser(me.user);
       setNav(sanitizeNavPayload(n));
     } catch (e) {
@@ -174,6 +95,7 @@ export default function LayoutSPA() {
         navigate('/login', { replace: true });
         return;
       }
+
       setError(e);
     } finally {
       setLoading(false);
@@ -182,6 +104,7 @@ export default function LayoutSPA() {
 
   useEffect(() => {
     if (initLoadedRef.current) return;
+    
     initLoadedRef.current = true;
     void load();
   }, [load]);
@@ -191,37 +114,34 @@ export default function LayoutSPA() {
     return filterTreeByRole(nav?.tree ?? [], roles);
   }, [nav, user]);
 
-  const onOpenPath = (path?: string) => {
-    if (!path) return;
-    const pageId = path.replace(/^\/app\//, '').replace(/\.ts$/i, '');
-    setMaskedPage(pageId, navigate, { replace: false });
-  };
-
-  // DB tree 기반 TOP 메뉴(하위 드롭다운 유지)
   const topMenuItems = useMemo(
     () =>
       menuData.map((m, idx) => ({
-        menuId: m.menuId,
-        menuNm: m.menuNm,
+        menuid: m.menuid,
+        menunm: m.menunm,
         path: m.path ?? '',
-        pgmId: m.menuId,
-        lvl: 1,
+        pgmid: m.pgmid ?? m.menuid,
         topMenu: '*',
+        lvl: 1,
         dspSeq: idx,
-        pgmUrl: m.path ?? '',
-        children: m.children?.map((c, cIdx) => ({
-          menuId: c.menuId,
-          menuNm: c.menuNm,
+        children: (m.children ?? []).map((c, cIdx) => ({
+          menuid: c.menuid,
+          menunm: c.menunm,
           path: c.path ?? '',
-          pgmId: c.menuId,
+          pgmid: c.pgmid ?? c.menuid,
+          topMenu: m.menuid,
           lvl: 2,
-          topMenu: m.menuId,
           dspSeq: cIdx,
-          pgmUrl: c.path ?? '',
         })),
       })),
     [menuData],
   );
+
+  const onOpenPath = (path?: string) => {
+    if (!path) return;
+    const pageId = path.replace(/^.*\//, '').replace(/\.ts$/i, '');
+    setMaskedPage(pageId, navigate, { replace: false });
+  };
 
   // 주소 마스킹: /app/<page>.ts 접근 시 항상 /app/default.ts로 표시
   useEffect(() => {
@@ -308,7 +228,7 @@ export default function LayoutSPA() {
           </div>
         </div>
         <div className="w-full flex justify-center">
-          <TopMenu />
+          <TopMenu items={topMenuItems} />
         </div>
         {loading ? (
           <LoadingBlock text="메뉴 불러오는 중..." />
@@ -332,7 +252,7 @@ export default function LayoutSPA() {
                 </div>
               ) : (
                 <ScrollArea className="flex-1">
-                  <Tree
+                  <TreeMenu
                     nodes={toSafeTree(menuData)}
                     onOpen={onOpenPath}
                     masked={maskedPage}

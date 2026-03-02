@@ -5,9 +5,25 @@ import { getMaskedPage, setMaskedPage } from '@/app/routeMask';
 import { cn } from '@/lib/utils';
 import type { MenuItem } from '@/lib/types';
 
-type MenuEntry = MenuItem & { children?: MenuItem[] };
+type TopMenuNode = MenuItem & { children?: MenuItem[] };
+type AnchorPos = { left: number; top: number; width: number; height: number };
 
-export default function TopMenu({ items }: { items?: MenuEntry[] }) {
+const getBaseName = (p?: string) =>
+  (p || '').replace(/^.*\//, '').replace(/\.ts$/i, '');
+
+function isWithinOpenArea(
+  to: Node | null,
+  navRef: React.RefObject<HTMLDivElement | null>,
+  dropdownRef: React.RefObject<HTMLDivElement | null>,
+): boolean {
+  if (!to) return false;
+  return Boolean(
+    (dropdownRef.current && dropdownRef.current.contains(to)) ||
+    (navRef.current && navRef.current.contains(to)),
+  );
+}
+
+export default function TopMenu({ items }: { items?: TopMenuNode[] }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [openId, setOpenId] = useState<string | null>(null);
@@ -15,11 +31,10 @@ export default function TopMenu({ items }: { items?: MenuEntry[] }) {
   const navRef = useRef<HTMLDivElement | null>(null);
   const dropdownRef = useRef<HTMLDivElement | null>(null);
   const anchorRefs = useRef<Record<string, HTMLButtonElement | null>>({});
-  type AnchorPos = { left: number; top: number; width: number; height: number };
   const [anchorPos, setAnchorPos] = useState<AnchorPos | null>(null);
 
   const [masked, setMasked] = useState<string | undefined>(() =>
-    getMaskedPage()
+    getMaskedPage(),
   );
   useEffect(() => {
     setMasked(getMaskedPage());
@@ -34,12 +49,9 @@ export default function TopMenu({ items }: { items?: MenuEntry[] }) {
     return () =>
       window.removeEventListener('maskedpagechange', handler as EventListener);
   }, []);
-  const getBaseName = (p?: string) =>
-    (p || '').replace(/^.*\//, '').replace(/\.ts$/i, '');
 
-  const isTopActive = (m: MenuEntry, isActiveRoute: boolean) => {
-    if (isActiveRoute) return true;
-    if (openId === m.menuId) return true; // 드롭다운이 열려있으면 활성 표시
+  const isTopActive = (m: TopMenuNode) => {
+    if (openId === m.menuid) return true; // 드롭다운이 열려있으면 활성 표시
     const self = getBaseName(m.path);
     if (masked && self && self === masked) return true;
     if (Array.isArray(m.children) && m.children.length > 0) {
@@ -51,7 +63,7 @@ export default function TopMenu({ items }: { items?: MenuEntry[] }) {
   // 드롭다운 포털 렌더링 (JSX 바깥에서)
   let dropdownPortal: React.ReactPortal | null = null;
   if (openId && anchorPos) {
-    const current = list.find((x) => x.menuId === openId);
+    const current = list.find((x) => x.menuid === openId);
     if (current && current.children && current.children.length > 0) {
       const dropdownWidth = Math.max(220, anchorPos.width);
       let left = anchorPos.left + anchorPos.width / 2 - dropdownWidth / 2;
@@ -69,12 +81,7 @@ export default function TopMenu({ items }: { items?: MenuEntry[] }) {
           className="max-h-[60vh] overflow-auto rounded-md border bg-popover text-popover-foreground shadow-md z-[1000]"
           onMouseLeave={(e) => {
             const to = e.relatedTarget as Node | null;
-            // navRef, dropdownRef, 또는 그 하위 요소로 이동 시 닫지 않음
-            if (
-              to &&
-              ((dropdownRef.current && dropdownRef.current.contains(to)) ||
-                (navRef.current && navRef.current.contains(to)))
-            ) {
+            if (isWithinOpenArea(to, navRef, dropdownRef)) {
               return;
             }
             setOpenId(null);
@@ -83,7 +90,7 @@ export default function TopMenu({ items }: { items?: MenuEntry[] }) {
         >
           <ul className="py-1 text-sm">
             {current.children.map((c) => (
-              <li key={c.menuId}>
+              <li key={c.menuid}>
                 <NavLink
                   to={c.path}
                   className={({ isActive }) =>
@@ -91,7 +98,7 @@ export default function TopMenu({ items }: { items?: MenuEntry[] }) {
                       'block w-full text-left px-3 py-2 hover:bg-muted rounded-md',
                       getBaseName(c.path) === masked || isActive
                         ? 'font-semibold bg-accent text-accent-foreground'
-                        : undefined
+                        : undefined,
                     )
                   }
                   onClick={(e) => {
@@ -102,13 +109,13 @@ export default function TopMenu({ items }: { items?: MenuEntry[] }) {
                     setAnchorPos(null);
                   }}
                 >
-                  {String(c.menuNm)}
+                  {String(c.menunm)}
                 </NavLink>
               </li>
             ))}
           </ul>
         </div>,
-        document.body
+        document.body,
       );
     }
   }
@@ -121,22 +128,22 @@ export default function TopMenu({ items }: { items?: MenuEntry[] }) {
       {list.map((m) => {
         const hasChildren = Array.isArray(m.children) && m.children.length > 0;
         return (
-          <div key={m.menuId} className="relative">
+          <div key={m.menuid} className="relative">
             <button
               type="button"
               ref={(el) => {
-                anchorRefs.current[m.menuId] = el;
+                anchorRefs.current[m.menuid] = el;
               }}
               className={cn(
                 'px-4 py-2 rounded-md font-medium transition-colors',
-                isTopActive(m, false)
+                isTopActive(m)
                   ? 'bg-accent text-accent-foreground'
                   : 'text-muted-foreground hover:text-foreground',
-                hasChildren ? 'cursor-pointer' : ''
+                hasChildren ? 'cursor-pointer' : '',
               )}
-              onMouseEnter={(e) => {
+              onMouseEnter={() => {
                 if (hasChildren) {
-                  const el = anchorRefs.current[m.menuId];
+                  const el = anchorRefs.current[m.menuid];
                   if (el) {
                     const r = el.getBoundingClientRect();
                     setAnchorPos({
@@ -146,17 +153,12 @@ export default function TopMenu({ items }: { items?: MenuEntry[] }) {
                       height: r.height,
                     });
                   }
-                  setOpenId(m.menuId);
+                  setOpenId(m.menuid);
                 }
               }}
               onMouseLeave={(e) => {
                 const to = e.relatedTarget as Node | null;
-                // navRef, dropdownRef, 또는 그 하위 요소로 이동 시 닫지 않음
-                if (
-                  to &&
-                  ((dropdownRef.current && dropdownRef.current.contains(to)) ||
-                    (navRef.current && navRef.current.contains(to)))
-                ) {
+                if (isWithinOpenArea(to, navRef, dropdownRef)) {
                   return;
                 }
                 setOpenId(null);
@@ -165,9 +167,9 @@ export default function TopMenu({ items }: { items?: MenuEntry[] }) {
               onClick={() => {
                 if (hasChildren) {
                   setOpenId((id) => {
-                    const next = id === m.menuId ? null : m.menuId;
+                    const next = id === m.menuid ? null : m.menuid;
                     if (next) {
-                      const el = anchorRefs.current[m.menuId];
+                      const el = anchorRefs.current[m.menuid];
                       if (el) {
                         const r = el.getBoundingClientRect();
                         setAnchorPos({
@@ -189,7 +191,7 @@ export default function TopMenu({ items }: { items?: MenuEntry[] }) {
                 }
               }}
             >
-              {String(m.menuNm)}
+              {String(m.menunm)}
             </button>
           </div>
         );

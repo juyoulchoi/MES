@@ -11,9 +11,12 @@ export type HttpOptions = {
 };
 
 const defaultHeaders = { 'Content-Type': 'application/json' };
+
 type ApiEnvelope<T> = {
   success?: boolean;
   message?: string;
+  code?: string;
+  status?: number;
   data?: T;
 };
 
@@ -54,7 +57,14 @@ export async function http<T>(url: string, opt: HttpOptions = {}): Promise<T> {
       const payload = (await res.json().catch(() => null)) as ApiEnvelope<unknown> | null;
       const message =
         (payload && typeof payload.message === 'string' && payload.message) || '';
-      throw new Error(message || `HTTP ${res.status}`);
+      const code =
+        (payload && typeof payload.code === 'string' && payload.code) || '';
+      const status =
+        (payload && typeof payload.status === 'number' && payload.status) ||
+        res.status;
+      throw new Error(
+        `HTTP ${status}${code ? ` ${code}` : ''}${message ? `: ${message}` : ''}`,
+      );
     }
     const text = await res.text().catch(() => '');
     throw new Error(text || `HTTP ${res.status}`);
