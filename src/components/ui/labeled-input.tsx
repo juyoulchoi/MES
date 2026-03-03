@@ -31,7 +31,7 @@ const LabeledInput = React.forwardRef<HTMLInputElement, LabeledInputProps>(
       required,
       ...props
     },
-    ref,
+    ref
   ) => {
     const hasError = Boolean(error);
     const descriptionId = description ? `${id}-description` : undefined;
@@ -68,7 +68,7 @@ const LabeledInput = React.forwardRef<HTMLInputElement, LabeledInputProps>(
         )}
       </div>
     );
-  },
+  }
 );
 
 LabeledInput.displayName = 'LabeledInput';

@@ -117,7 +117,7 @@ export default function LayoutSPA() {
           dspSeq: cIdx,
         })),
       })),
-    [menuData],
+    [menuData]
   );
 
   const onOpenPath = (path?: string) => {

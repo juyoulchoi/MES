@@ -23,7 +23,7 @@ export function getMaskedPage(): string | null {
 export function setMaskedPage(
   pageId: string,
   navigate: NavigateFunction,
-  options?: { replace?: boolean },
+  options?: { replace?: boolean }
 ) {
   try {
     sessionStorage.setItem(MASK_KEY, pageId);
@@ -40,7 +40,7 @@ export function setMaskedPage(
 export function ensureMaskedPage(
   navigate: NavigateFunction,
   initial?: string,
-  replace: boolean = true,
+  replace: boolean = true
 ) {
   const target = getMaskedPage() || initial || DEFAULT_MASK;
   try {

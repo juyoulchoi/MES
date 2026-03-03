@@ -54,12 +54,12 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         ref={ref}
         className={cn(
           buttonVariants({ variant, size, className }),
-          '!cursor-pointer disabled:!cursor-not-allowed',
+          '!cursor-pointer disabled:!cursor-not-allowed'
         )}
         {...props}
       />
     );
-  },
+  }
 );
 Button.displayName = 'Button';
 

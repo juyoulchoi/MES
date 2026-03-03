@@ -9,7 +9,7 @@ export function toCsvText(rows: CsvCell[][]): string {
           const escaped = text.replace(/"/g, '""');
           return /[",\n]/.test(escaped) ? `"${escaped}"` : escaped;
         })
-        .join(','),
+        .join(',')
     )
     .join('\n');
 }
@@ -17,7 +17,7 @@ export function toCsvText(rows: CsvCell[][]): string {
 export function downloadTextFile(
   filename: string,
   content: string,
-  mime = 'text/csv;charset=utf-8;',
+  mime = 'text/csv;charset=utf-8;'
 ): void {
   const blob = new Blob(['\uFEFF' + content], { type: mime });
   const url = URL.createObjectURL(blob);

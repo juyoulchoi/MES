@@ -13,12 +13,12 @@ const getBaseName = (p?: string) => (p || '').replace(/^.*\//, '').replace(/\.ts
 function isWithinOpenArea(
   to: Node | null,
   navRef: React.RefObject<HTMLDivElement | null>,
-  dropdownRef: React.RefObject<HTMLDivElement | null>,
+  dropdownRef: React.RefObject<HTMLDivElement | null>
 ): boolean {
   if (!to) return false;
   return Boolean(
     (dropdownRef.current && dropdownRef.current.contains(to)) ||
-    (navRef.current && navRef.current.contains(to)),
+    (navRef.current && navRef.current.contains(to))
   );
 }
 
@@ -94,7 +94,7 @@ export default function TopMenu({ items }: { items?: TopMenuNode[] }) {
                       'block w-full text-left px-3 py-2 hover:bg-muted rounded-md',
                       getBaseName(c.path) === masked || isActive
                         ? 'font-semibold bg-accent text-accent-foreground'
-                        : undefined,
+                        : undefined
                     )
                   }
                   onClick={(e) => {
@@ -111,7 +111,7 @@ export default function TopMenu({ items }: { items?: TopMenuNode[] }) {
             ))}
           </ul>
         </div>,
-        document.body,
+        document.body
       );
     }
   }
@@ -132,7 +132,7 @@ export default function TopMenu({ items }: { items?: TopMenuNode[] }) {
                 isTopActive(m)
                   ? 'bg-accent text-accent-foreground'
                   : 'text-muted-foreground hover:text-foreground',
-                hasChildren ? 'cursor-pointer' : '',
+                hasChildren ? 'cursor-pointer' : ''
               )}
               onMouseEnter={() => {
                 if (hasChildren) {

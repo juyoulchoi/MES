@@ -12,7 +12,7 @@ import { useLocation } from 'react-router-dom';
 // Login 페이지는 App.tsx에서 정적 라우팅하므로 동적 매핑에서 제외한다.
 const modules = import.meta.glob(
   ['@/pages/**/*.tsx', '!@/pages/M00/Login.tsx', '!@/pages/M00/LoginMUI.tsx'],
-  { eager: false },
+  { eager: false }
 );
 
 // 2) 모듈 키 정규화: /src/pages/..., @/pages/... 모두 커버

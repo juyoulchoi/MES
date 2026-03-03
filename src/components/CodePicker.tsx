@@ -33,7 +33,7 @@ export default function CodePicker({ typeCode, title, onSelect, onClose, items }
 
   const list = useMemo(
     () => (Array.isArray(items) && items.length > 0 ? items : getDefaultItems(typeCode)),
-    [items, typeCode],
+    [items, typeCode]
   );
 
   const filtered = useMemo(() => {

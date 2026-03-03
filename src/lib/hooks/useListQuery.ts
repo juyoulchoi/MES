@@ -32,7 +32,7 @@ export function useListQuery<T>(endpoint: string, initialParams: Record<string, 
         setLoading(false);
       }
     },
-    [endpoint, url],
+    [endpoint, url]
   );
 
   return { data, loading, error, params, setParams, refetch };

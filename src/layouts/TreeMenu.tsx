@@ -36,7 +36,7 @@ function TreeItem({ node, onOpen, masked }: TreeItemProps) {
         className={cn(
           'flex items-center gap-1 py-1 px-2 rounded-md cursor-pointer',
           !hasChildren && 'pl-6',
-          isActive ? 'bg-accent text-accent-foreground font-semibold' : 'hover:bg-muted',
+          isActive ? 'bg-accent text-accent-foreground font-semibold' : 'hover:bg-muted'
         )}
         onClick={handleClick}
       >

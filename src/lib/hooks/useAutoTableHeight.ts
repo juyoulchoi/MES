@@ -8,7 +8,7 @@ type Options = {
 
 export function useAutoTableHeight(
   ref: RefObject<HTMLElement | null>,
-  options: Options = {},
+  options: Options = {}
 ): number {
   const min = options.min ?? 240;
   const bottomGap = options.bottomGap ?? 24;
