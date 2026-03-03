@@ -5,7 +5,6 @@ const toStringSafe = (v: unknown): string => {
     if (typeof v === 'function' || typeof v === 'symbol') return ''; // ⬅️ 추가
 
     return typeof v === 'string' ? v : v == null ? '' : String(v);
-
   } catch {
     return '';
   }
@@ -48,16 +47,10 @@ export function sanitizeMenu(items: unknown): MenuItem[] {
         toStringSafe(any.label) ||
         menuId;
       const pgmId =
-        toStringSafe(any.pgmId) ||
-        toStringSafe(any.pgmid) ||
-        toStringSafe(any.PGM_ID) ||
-        menuId;
+        toStringSafe(any.pgmId) || toStringSafe(any.pgmid) || toStringSafe(any.PGM_ID) || menuId;
       const lvl = toNumberSafe(any.lvl ?? any.LVL, 0);
       const topMenu =
-        toStringSafe(any.topMenu) ||
-        toStringSafe(any.topmenu) ||
-        toStringSafe(any.TOP_MENU) ||
-        '*';
+        toStringSafe(any.topMenu) || toStringSafe(any.topmenu) || toStringSafe(any.TOP_MENU) || '*';
       const dspSeq = toNumberSafe(any.dspSeq ?? any.DSP_SEQ, idx);
       const roles = Array.isArray(any.roles)
         ? (any.roles as unknown[]).map(toStringSafe).filter(Boolean)
@@ -120,15 +113,10 @@ export function sanitizeTree(nodes: unknown): TreeNode[] {
 
     const sortTree = (arr: TreeNode[]): TreeNode[] =>
       arr
-        .sort(
-          (a, b) => (seqById.get(a.menuid) ?? 0) - (seqById.get(b.menuid) ?? 0),
-        )
+        .sort((a, b) => (seqById.get(a.menuid) ?? 0) - (seqById.get(b.menuid) ?? 0))
         .map((n) => ({
           ...n,
-          children:
-            n.children && n.children.length > 0
-              ? sortTree(n.children)
-              : undefined,
+          children: n.children && n.children.length > 0 ? sortTree(n.children) : undefined,
         }));
 
     return sortTree(roots);
@@ -153,10 +141,7 @@ export function sanitizeTree(nodes: unknown): TreeNode[] {
           menuid;
         const path = any.path == null ? undefined : toStringSafe(any.path);
         const pgmid =
-          toStringSafe(any.pgmid) ||
-          toStringSafe(any.pgmId) ||
-          toStringSafe(any.PGM_ID) ||
-          menuid;
+          toStringSafe(any.pgmid) || toStringSafe(any.pgmId) || toStringSafe(any.PGM_ID) || menuid;
         const roles = Array.isArray(any.roles)
           ? (any.roles as unknown[]).map(toStringSafe).filter(Boolean)
           : undefined;
@@ -201,13 +186,9 @@ export function toSafeTree(nodes: TreeNode[] | undefined): UINode[] {
       menunm: toStringSafe(n.menunm) || `${pfx}-${i}`,
       path: n.path ? toStringSafe(n.path) : undefined,
       pgmid: toStringSafe(n.pgmid) || toStringSafe(n.menuid) || `${pfx}-${i}`,
-      roles: Array.isArray(n.roles)
-        ? n.roles.map((r) => toStringSafe(r)).filter(Boolean)
-        : [],
+      roles: Array.isArray(n.roles) ? n.roles.map((r) => toStringSafe(r)).filter(Boolean) : [],
       defaultExpanded: !!n.defaultExpanded,
-      children: Array.isArray(n.children)
-        ? norm(n.children, `${pfx}-${i}`)
-        : [],
+      children: Array.isArray(n.children) ? norm(n.children, `${pfx}-${i}`) : [],
     }));
   return norm(nodes);
 }

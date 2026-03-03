@@ -50,9 +50,7 @@ export default function PageRenderer({
   // URL → pages 하위 파일 경로 계산
   const sub = useMemo(() => {
     // 기본 계산
-    const raw = pathname.startsWith(base)
-      ? pathname.slice(base.length)
-      : pathname;
+    const raw = pathname.startsWith(base) ? pathname.slice(base.length) : pathname;
     const trimmed = normalizeUrlPath(raw);
     const baseSub = trimmed.length === 0 ? fallback : trimmed;
     // 마스킹: /app/default.ts & sessionStorage.maskedPage 존재 시 실제 페이지로 교체
@@ -105,8 +103,7 @@ export default function PageRenderer({
 
     return (
       <div className="p-4 text-sm text-destructive">
-        해당 페이지 파일을 찾을 수 없습니다:{' '}
-        <code>{`${pagesDir}/${key}.tsx`}</code>
+        해당 페이지 파일을 찾을 수 없습니다: <code>{`${pagesDir}/${key}.tsx`}</code>
         {key.endsWith('/') ? ' (끝의 "/"를 제거해 보세요)' : null}
         {hints.length > 0 && (
           <div className="mt-2 text-muted-foreground">
@@ -135,11 +132,7 @@ export default function PageRenderer({
 
   return (
     <Suspense
-      fallback={
-        <div className="p-4 text-sm text-muted-foreground">
-          페이지 불러오는 중...
-        </div>
-      }
+      fallback={<div className="p-4 text-sm text-muted-foreground">페이지 불러오는 중...</div>}
     >
       {/* key로 경로 변경 시 강제 remount → 화면 교체 확실화 */}
       <LazyComp key={filePath} />

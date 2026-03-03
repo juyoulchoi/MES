@@ -2,12 +2,7 @@
 // tests/nav.sanitize.test.ts (vitest)
 // ==============================
 import { describe, it, expect } from 'vitest';
-import {
-  sanitizeMenu,
-  sanitizeTree,
-  sanitizeNavPayload,
-  toSafeTree,
-} from '@/lib/guards';
+import { sanitizeMenu, sanitizeTree, sanitizeNavPayload, toSafeTree } from '@/lib/guards';
 
 describe('sanitizeMenu', () => {
   it('returns [] for non-array', () => {

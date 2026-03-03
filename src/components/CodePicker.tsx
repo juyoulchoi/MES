@@ -28,25 +28,19 @@ function getDefaultItems(typeCode: CodePickerType): CodePickerItem[] {
   ];
 }
 
-export default function CodePicker({
-  typeCode,
-  title,
-  onSelect,
-  onClose,
-  items,
-}: CodePickerProps) {
+export default function CodePicker({ typeCode, title, onSelect, onClose, items }: CodePickerProps) {
   const [q, setQ] = useState('');
 
   const list = useMemo(
     () => (Array.isArray(items) && items.length > 0 ? items : getDefaultItems(typeCode)),
-    [items, typeCode]
+    [items, typeCode],
   );
 
   const filtered = useMemo(() => {
     const k = q.trim();
 
     if (!k) return list;
-    
+
     return list.filter((v) => v.code.includes(k) || v.name.includes(k));
   }, [list, q]);
 

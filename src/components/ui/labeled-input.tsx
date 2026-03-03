@@ -1,20 +1,20 @@
-import * as React from "react"
+import * as React from 'react';
 
-import { cn } from "@/lib/utils"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { cn } from '@/lib/utils';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
-type LabeledInputProps = Omit<React.ComponentProps<"input">, "id"> & {
-  id: string
-  label: React.ReactNode
-  description?: React.ReactNode
-  error?: React.ReactNode
-  wrapperClassName?: string
-  labelClassName?: string
-  inputClassName?: string
-  messageClassName?: string
-  requiredMark?: boolean
-}
+type LabeledInputProps = Omit<React.ComponentProps<'input'>, 'id'> & {
+  id: string;
+  label: React.ReactNode;
+  description?: React.ReactNode;
+  error?: React.ReactNode;
+  wrapperClassName?: string;
+  labelClassName?: string;
+  inputClassName?: string;
+  messageClassName?: string;
+  requiredMark?: boolean;
+};
 
 const LabeledInput = React.forwardRef<HTMLInputElement, LabeledInputProps>(
   (
@@ -31,15 +31,15 @@ const LabeledInput = React.forwardRef<HTMLInputElement, LabeledInputProps>(
       required,
       ...props
     },
-    ref
+    ref,
   ) => {
-    const hasError = Boolean(error)
-    const descriptionId = description ? `${id}-description` : undefined
-    const errorId = hasError ? `${id}-error` : undefined
-    const describedBy = [descriptionId, errorId].filter(Boolean).join(" ") || undefined
+    const hasError = Boolean(error);
+    const descriptionId = description ? `${id}-description` : undefined;
+    const errorId = hasError ? `${id}-error` : undefined;
+    const describedBy = [descriptionId, errorId].filter(Boolean).join(' ') || undefined;
 
     return (
-      <div className={cn("grid gap-1.5", wrapperClassName)}>
+      <div className={cn('grid gap-1.5', wrapperClassName)}>
         <Label htmlFor={id} className={labelClassName}>
           {label}
           {(required || requiredMark) && <span aria-hidden="true">*</span>}
@@ -56,22 +56,21 @@ const LabeledInput = React.forwardRef<HTMLInputElement, LabeledInputProps>(
         />
 
         {description && !hasError && (
-          <p id={descriptionId} className={cn("text-xs text-muted-foreground", messageClassName)}>
+          <p id={descriptionId} className={cn('text-xs text-muted-foreground', messageClassName)}>
             {description}
           </p>
         )}
 
         {hasError && (
-          <p id={errorId} className={cn("text-xs text-destructive", messageClassName)}>
+          <p id={errorId} className={cn('text-xs text-destructive', messageClassName)}>
             {error}
           </p>
         )}
       </div>
-    )
-  }
-)
+    );
+  },
+);
 
-LabeledInput.displayName = "LabeledInput"
+LabeledInput.displayName = 'LabeledInput';
 
-export { LabeledInput }
-
+export { LabeledInput };

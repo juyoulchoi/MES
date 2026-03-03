@@ -1,12 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  Routes,
-  Route,
-  useNavigate,
-  NavLink,
-  Navigate,
-  useLocation,
-} from 'react-router-dom';
+import { Routes, Route, useNavigate, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
@@ -16,11 +9,7 @@ import type { NavPayload, UserPayload, TreeNode } from '@/lib/types';
 import { http } from '@/lib/http';
 import { sanitizeNavPayload, toSafeTree } from '@/lib/guards';
 import { filterTreeByRole } from '@/lib/acl';
-import {
-  ensureMaskedPage,
-  setMaskedPage,
-  getMaskedPage,
-} from '@/app/routeMask';
+import { ensureMaskedPage, setMaskedPage, getMaskedPage } from '@/app/routeMask';
 import TopMenu from './TopMenu';
 import TreeMenu from './TreeMenu';
 
@@ -31,13 +20,7 @@ export const LoadingBlock = ({ text = '불러오는 중...' }) => (
     <span>{text}</span>
   </div>
 );
-export const ErrorBlock = ({
-  error,
-  onRetry,
-}: {
-  error: unknown;
-  onRetry?: () => void;
-}) => (
+export const ErrorBlock = ({ error, onRetry }: { error: unknown; onRetry?: () => void }) => (
   <div className="flex items-center justify-between bg-destructive/5 border border-destructive/20 rounded-md p-3">
     <div className="flex items-center gap-2 text-destructive text-sm">
       <span>⚠️</span>
@@ -104,7 +87,7 @@ export default function LayoutSPA() {
 
   useEffect(() => {
     if (initLoadedRef.current) return;
-    
+
     initLoadedRef.current = true;
     void load();
   }, [load]);
@@ -181,32 +164,19 @@ export default function LayoutSPA() {
         setMaskVersion((v) => v + 1);
       }
     };
-    window.addEventListener(
-      'maskedpagechange',
-      onMaskedChange as EventListener,
-    );
-    return () =>
-      window.removeEventListener(
-        'maskedpagechange',
-        onMaskedChange as EventListener,
-      );
+    window.addEventListener('maskedpagechange', onMaskedChange as EventListener);
+    return () => window.removeEventListener('maskedpagechange', onMaskedChange as EventListener);
   }, []);
 
   const maskedPage = useMemo(() => {
-    return (
-      ((location.state as any)?.maskedPage as string | undefined) ||
-      getMaskedPage()
-    );
+    return ((location.state as any)?.maskedPage as string | undefined) || getMaskedPage();
   }, [location.state, maskVersion]);
 
   return (
     <div className="h-[100vh] w-full bg-background text-foreground">
       <header className="border-b">
         <div className="h-12 flex items-center justify-between px-3">
-          <NavLink
-            to="/app/default.ts"
-            className="font-semibold tracking-tight"
-          >
+          <NavLink to="/app/default.ts" className="font-semibold tracking-tight">
             SSMH
           </NavLink>
           <div className="flex items-center gap-3 text-sm">
@@ -252,11 +222,7 @@ export default function LayoutSPA() {
                 </div>
               ) : (
                 <ScrollArea className="flex-1">
-                  <TreeMenu
-                    nodes={toSafeTree(menuData)}
-                    onOpen={onOpenPath}
-                    masked={maskedPage}
-                  />
+                  <TreeMenu nodes={toSafeTree(menuData)} onOpen={onOpenPath} masked={maskedPage} />
                 </ScrollArea>
               )}
             </div>

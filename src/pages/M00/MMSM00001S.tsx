@@ -40,7 +40,10 @@ export default function MMSM00001S() {
           <div className="border rounded-lg shadow-sm p-6 bg-background">
             <h2 className="text-2xl font-semibold text-center mb-6">Log In</h2>
             {error && (
-              <div className="mb-3 text-sm text-destructive border border-destructive/30 rounded p-2" role="alert">
+              <div
+                className="mb-3 text-sm text-destructive border border-destructive/30 rounded p-2"
+                role="alert"
+              >
                 {error}
               </div>
             )}

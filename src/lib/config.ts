@@ -1,6 +1,5 @@
 const rawApiBaseUrl =
-  (import.meta.env.VITE_API_BASE_URL as string | undefined)?.trim() ||
-  'http://localhost:8080';
+  (import.meta.env.VITE_API_BASE_URL as string | undefined)?.trim() || 'http://localhost:8080';
 
 const API_BASE_URL = rawApiBaseUrl.replace(/\/+$/g, '');
 

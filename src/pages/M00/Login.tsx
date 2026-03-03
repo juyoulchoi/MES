@@ -3,13 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { login, resolveRedirect } from '@/lib/auth';
 
 /**
@@ -103,19 +97,13 @@ export default function LoginPage() {
                 </div>
 
                 <div className="pt-2 flex items-center justify-center">
-                  <Button
-                    type="submit"
-                    disabled={submitting}
-                    className="px-5 disabled:opacity-100"
-                  >
+                  <Button type="submit" disabled={submitting} className="px-5 disabled:opacity-100">
                     {submitting ? '로그인 중...' : '로그인'}
                   </Button>
                 </div>
               </form>
             </CardContent>
-            <CardFooter className="text-sm text-gray-500 justify-center">
-              MES System
-            </CardFooter>
+            <CardFooter className="text-sm text-gray-500 justify-center">MES System</CardFooter>
           </Card>
         </div>
       </main>

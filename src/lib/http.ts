@@ -27,16 +27,12 @@ export async function http<T>(url: string, opt: HttpOptions = {}): Promise<T> {
   };
   const resolvedToken =
     opt.authToken ??
-    (CONFIG.authMode === 'token'
-      ? localStorage.getItem('token') ?? undefined
-      : undefined);
+    (CONFIG.authMode === 'token' ? (localStorage.getItem('token') ?? undefined) : undefined);
   if (resolvedToken) headers.Authorization = `Bearer ${resolvedToken}`;
   if (opt.csrfToken) headers['X-CSRF-Token'] = opt.csrfToken;
 
   const useCredentials =
-    opt.withCredentials !== undefined
-      ? opt.withCredentials
-      : CONFIG.authMode === 'session';
+    opt.withCredentials !== undefined ? opt.withCredentials : CONFIG.authMode === 'session';
 
   const res = await fetch(resolveApiUrl(url), {
     method: opt.method || 'GET',
@@ -55,16 +51,11 @@ export async function http<T>(url: string, opt: HttpOptions = {}): Promise<T> {
   if (!res.ok) {
     if (isJson) {
       const payload = (await res.json().catch(() => null)) as ApiEnvelope<unknown> | null;
-      const message =
-        (payload && typeof payload.message === 'string' && payload.message) || '';
-      const code =
-        (payload && typeof payload.code === 'string' && payload.code) || '';
+      const message = (payload && typeof payload.message === 'string' && payload.message) || '';
+      const code = (payload && typeof payload.code === 'string' && payload.code) || '';
       const status =
-        (payload && typeof payload.status === 'number' && payload.status) ||
-        res.status;
-      throw new Error(
-        `HTTP ${status}${code ? ` ${code}` : ''}${message ? `: ${message}` : ''}`,
-      );
+        (payload && typeof payload.status === 'number' && payload.status) || res.status;
+      throw new Error(`HTTP ${status}${code ? ` ${code}` : ''}${message ? `: ${message}` : ''}`);
     }
     const text = await res.text().catch(() => '');
     throw new Error(text || `HTTP ${res.status}`);
@@ -75,12 +66,7 @@ export async function http<T>(url: string, opt: HttpOptions = {}): Promise<T> {
   }
 
   const payload = (await res.json()) as ApiEnvelope<T> | T;
-  if (
-    payload &&
-    typeof payload === 'object' &&
-    'success' in payload &&
-    'data' in payload
-  ) {
+  if (payload && typeof payload === 'object' && 'success' in payload && 'data' in payload) {
     const envelope = payload as ApiEnvelope<T>;
     if (envelope.success === false) {
       throw new Error(envelope.message || '요청 처리에 실패했습니다.');

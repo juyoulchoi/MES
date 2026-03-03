@@ -18,19 +18,22 @@ export function useListQuery<T>(endpoint: string, initialParams: Record<string, 
 
   const url = useMemo(() => `${endpoint}?${buildQuery(params)}`, [endpoint, params]);
 
-  const refetch = useCallback(async (next?: Record<string, any>) => {
-    if (next) setParams(next);
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await http<T[]>(next ? `${endpoint}?${buildQuery(next)}` : url);
-      setData(Array.isArray(res) ? res : []);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setLoading(false);
-    }
-  }, [endpoint, url]);
+  const refetch = useCallback(
+    async (next?: Record<string, any>) => {
+      if (next) setParams(next);
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await http<T[]>(next ? `${endpoint}?${buildQuery(next)}` : url);
+        setData(Array.isArray(res) ? res : []);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : String(e));
+      } finally {
+        setLoading(false);
+      }
+    },
+    [endpoint, url],
+  );
 
   return { data, loading, error, params, setParams, refetch };
 }

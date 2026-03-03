@@ -8,8 +8,7 @@ import type { MenuItem } from '@/lib/types';
 type TopMenuNode = MenuItem & { children?: MenuItem[] };
 type AnchorPos = { left: number; top: number; width: number; height: number };
 
-const getBaseName = (p?: string) =>
-  (p || '').replace(/^.*\//, '').replace(/\.ts$/i, '');
+const getBaseName = (p?: string) => (p || '').replace(/^.*\//, '').replace(/\.ts$/i, '');
 
 function isWithinOpenArea(
   to: Node | null,
@@ -33,9 +32,7 @@ export default function TopMenu({ items }: { items?: TopMenuNode[] }) {
   const anchorRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const [anchorPos, setAnchorPos] = useState<AnchorPos | null>(null);
 
-  const [masked, setMasked] = useState<string | undefined>(() =>
-    getMaskedPage(),
-  );
+  const [masked, setMasked] = useState<string | undefined>(() => getMaskedPage());
   useEffect(() => {
     setMasked(getMaskedPage());
   }, [location.state]);
@@ -46,8 +43,7 @@ export default function TopMenu({ items }: { items?: TopMenuNode[] }) {
       setMasked(id ?? getMaskedPage());
     };
     window.addEventListener('maskedpagechange', handler as EventListener);
-    return () =>
-      window.removeEventListener('maskedpagechange', handler as EventListener);
+    return () => window.removeEventListener('maskedpagechange', handler as EventListener);
   }, []);
 
   const isTopActive = (m: TopMenuNode) => {
@@ -121,10 +117,7 @@ export default function TopMenu({ items }: { items?: TopMenuNode[] }) {
   }
 
   return (
-    <nav
-      ref={navRef}
-      className="flex gap-4 items-center h-12 px-4 select-none relative z-20"
-    >
+    <nav ref={navRef} className="flex gap-4 items-center h-12 px-4 select-none relative z-20">
       {list.map((m) => {
         const hasChildren = Array.isArray(m.children) && m.children.length > 0;
         return (

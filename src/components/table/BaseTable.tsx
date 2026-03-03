@@ -15,10 +15,7 @@ export function Th({
 }) {
   return (
     <th
-      className={
-        'py-2 px-2 text-gray-700 text-xs font-semibold border-b ' +
-        (className ?? '')
-      }
+      className={'py-2 px-2 text-gray-700 text-xs font-semibold border-b ' + (className ?? '')}
       style={{ width: typeof w === 'number' ? `${w}px` : w, textAlign: align }}
     >
       {children}
@@ -38,11 +35,7 @@ export function Td({
   className?: string;
 }) {
   return (
-    <td
-      className={'py-2 px-2 ' + (className ?? '')}
-      colSpan={colSpan}
-      style={{ textAlign: align }}
-    >
+    <td className={'py-2 px-2 ' + (className ?? '')} colSpan={colSpan} style={{ textAlign: align }}>
       {children}
     </td>
   );

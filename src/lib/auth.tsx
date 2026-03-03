@@ -13,9 +13,7 @@ type LoginApiResponse = {
 };
 
 export function getCsrfToken(): string | null {
-  const meta = document.querySelector(
-    'meta[name="csrf-token"]',
-  ) as HTMLMetaElement | null;
+  const meta = document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement | null;
   if (meta?.content) return meta.content;
   // 2) 쿠키(XSRF-TOKEN) 사용 시
   const m = document.cookie.match(/(?:^|; )XSRF-TOKEN=([^;]+)/);
@@ -42,13 +40,11 @@ export function resolveRedirect(from?: string): string {
 export async function login({
   userId,
   password,
-}: LoginArgs): Promise<
-  { ok: true; token?: string } | { ok: false; error?: string }
-> {
+}: LoginArgs): Promise<{ ok: true; token?: string } | { ok: false; error?: string }> {
   try {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      'Accept': 'application/json',
+      Accept: 'application/json',
     };
     const csrf = getCsrfToken();
     if (csrf) headers['X-CSRF-Token'] = csrf;
@@ -73,10 +69,7 @@ export async function login({
 
     if (CONFIG.authMode === 'token') {
       const token =
-        payload.data?.accessToken ||
-        payload.data?.token ||
-        payload.accessToken ||
-        payload.token;
+        payload.data?.accessToken || payload.data?.token || payload.accessToken || payload.token;
       if (!token) return { ok: false, error: '토큰이 응답에 없습니다.' };
       localStorage.setItem('token', token);
       localStorage.setItem('token_expiry', String(Date.now() + 60 * 60 * 1000));
