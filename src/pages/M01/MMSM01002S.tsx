@@ -1,5 +1,9 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { X } from 'lucide-react';
+import React, { useMemo, useRef, useState } from 'react';
+import { MathGb } from '../../lib/types';
+import CodePicker, { CodePickerType } from '@/components/CodePicker';
+import { Th, Td } from '@/components/table/BaseTable';
+import { toCsvText, downloadTextFile } from '@/lib/export';
+import { useAutoTableHeight } from '@/lib/hooks/useAutoTableHeight';
 
 /**
  * 페이지: 원자재 발주 현황 (MMSM01002S)
@@ -17,7 +21,6 @@ import { X } from 'lucide-react';
  */
 
 // === 타입 ===
-export type MatGb = 'ALL' | 'A' | 'B' | 'C';
 
 export interface SearchForm {
   startDate: string; // yyyy-MM-dd
@@ -26,7 +29,7 @@ export interface SearchForm {
   cstNm: string;
   itemCd: string;
   itemNm: string;
-  matGb: MatGb;
+  mathGb: MathGb;
 }
 
 export interface RowItem {
@@ -43,57 +46,6 @@ export interface RowItem {
   PRE_IV_QTY: number; // 기입고량
   IV_QTY: number; // 입고량
 }
-
-// === 유틸 ===
-const fmtDateDot = (d: string) => d?.split('-').join('.') ?? '';
-
-const toCsv = (rows: RowItem[]) => {
-  const header = [
-    '순번',
-    '발주번호',
-    '발주일자',
-    '원자재구분',
-    '원자재명',
-    '종류',
-    '규격',
-    '입고요청일',
-    '입고일',
-    '발주량',
-    '기입고량',
-    '입고량',
-  ];
-  const body = rows.map((r) => [
-    r.RNUM,
-    r.PO_NO,
-    r.PO_YMD,
-    r.ITEM_GB,
-    r.ITEM_NM,
-    r.ITEM_TP,
-    r.STANDARD,
-    r.REQ_YMD,
-    r.IV_YMD,
-    r.PO_QTY,
-    r.PRE_IV_QTY,
-    r.IV_QTY,
-  ]);
-  return [header, ...body].map((cols) => cols.join(',')).join('\n');
-};
-
-const download = (
-  filename: string,
-  content: string,
-  mime = 'text/csv;charset=utf-8;'
-) => {
-  const blob = new Blob(['\uFEFF' + content], { type: mime });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  URL.revokeObjectURL(url);
-  a.remove();
-};
 
 // === 임시 데이터 ===
 const mockFetch = async (_form: SearchForm): Promise<RowItem[]> => {
@@ -116,105 +68,10 @@ const mockFetch = async (_form: SearchForm): Promise<RowItem[]> => {
   return base;
 };
 
-// === 코드 선택 팝업 ===
-interface CodePickerProps {
-  typeCode: 'Customer' | 'mat';
-  title: string;
-  onSelect: (v: { code: string; name: string }) => void;
-  onClose: () => void;
-}
-
-const CodePicker: React.FC<CodePickerProps> = ({
-  typeCode,
-  title,
-  onSelect,
-  onClose,
-}) => {
-  const [q, setQ] = useState('');
-  const list = useMemo(() => {
-    if (typeCode === 'Customer') {
-      return [
-        { code: 'C001', name: '삼성상사' },
-        { code: 'C002', name: '엘지상사' },
-        { code: 'C003', name: '한화트레이딩' },
-      ];
-    }
-    return [
-      { code: 'M001', name: '알루미늄' },
-      { code: 'M002', name: '구리' },
-      { code: 'M003', name: '철' },
-      { code: 'M004', name: '플라스틱' },
-    ];
-  }, [typeCode]);
-
-  const filtered = useMemo(() => {
-    const k = q.trim();
-    if (!k) return list;
-    return list.filter((v) => v.code.includes(k) || v.name.includes(k));
-  }, [list, q]);
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="w-[700px] max-h-[520px] rounded-2xl bg-white shadow-xl flex flex-col">
-        <div className="flex items-center justify-between px-5 py-3 border-b">
-          <h3 className="text-lg font-semibold">{title}</h3>
-          <button
-            className="p-1 hover:bg-gray-100 rounded-full"
-            onClick={onClose}
-          >
-            <X size={18} />
-          </button>
-        </div>
-        <div className="p-4">
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="코드/이름 검색"
-            className="w-full rounded-xl border px-3 py-2 outline-none focus:ring"
-          />
-        </div>
-        <div className="px-4 pb-4 overflow-auto">
-          <table className="w-full text-sm">
-            <thead className="sticky top-0 bg-gray-50">
-              <tr>
-                <th className="text-left py-2 px-2">코드</th>
-                <th className="text-left py-2 px-2">이름</th>
-                <th className="w-24 py-2 px-2"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((v) => (
-                <tr key={v.code} className="border-t">
-                  <td className="py-2 px-2">{v.code}</td>
-                  <td className="py-2 px-2">{v.name}</td>
-                  <td className="py-2 px-2 text-right">
-                    <button
-                      className="rounded-lg border px-3 py-1 hover:bg-gray-50"
-                      onClick={() => {
-                        onSelect({ code: v.code, name: v.name });
-                        onClose();
-                      }}
-                    >
-                      선택
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  );
-};
-
 // === 메인 페이지 ===
 const MMSM01002S: React.FC = () => {
   const today = useMemo(() => new Date(), []);
-  const first = useMemo(
-    () => new Date(today.getFullYear(), today.getMonth(), 1),
-    [today]
-  );
+  const first = useMemo(() => new Date(today.getFullYear(), today.getMonth(), 1), [today]);
   const [form, setForm] = useState<SearchForm>({
     startDate: first.toISOString().slice(0, 10),
     endDate: today.toISOString().slice(0, 10),
@@ -222,29 +79,20 @@ const MMSM01002S: React.FC = () => {
     cstNm: '',
     itemCd: '',
     itemNm: '',
-    matGb: 'ALL',
+    mathGb: MathGb.ALL,
   });
   const [rows, setRows] = useState<RowItem[]>([]);
+
   const [loading, setLoading] = useState(false);
+
   const [picker, setPicker] = useState<null | {
-    type: 'Customer' | 'mat';
+    type: CodePickerType;
     title: string;
   }>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
-  const [tableHeight, setTableHeight] = useState<number>(520);
-  useEffect(() => {
-    // body 영역 높이에 맞춰 테이블 높이 조정 (gridInit 대체)
-    const handler = () => {
-      if (!containerRef.current) return;
-      const rect = containerRef.current.getBoundingClientRect();
-      const h = window.innerHeight - rect.top - 24; // 하단 여백 24
-      setTableHeight(Math.max(240, h));
-    };
-    handler();
-    window.addEventListener('resize', handler);
-    return () => window.removeEventListener('resize', handler);
-  }, []);
+
+  const tableHeight = useAutoTableHeight(containerRef);
 
   const fetchList = async () => {
     setLoading(true);
@@ -258,9 +106,37 @@ const MMSM01002S: React.FC = () => {
 
   const exportExcel = () => {
     if (!rows.length) return;
-    const csv = toCsv(rows);
+    const header = [
+      '순번',
+      '발주번호',
+      '발주일자',
+      '원자재구분',
+      '원자재명',
+      '종류',
+      '규격',
+      '입고요청일',
+      '입고일',
+      '발주량',
+      '기입고량',
+      '입고량',
+    ];
+    const body = rows.map((r) => [
+      r.RNUM,
+      r.PO_NO,
+      r.PO_YMD,
+      r.ITEM_GB,
+      r.ITEM_NM,
+      r.ITEM_TP,
+      r.STANDARD,
+      r.REQ_YMD,
+      r.IV_YMD,
+      r.PO_QTY,
+      r.PRE_IV_QTY,
+      r.IV_QTY,
+    ]);
+    const csv = toCsvText([header, ...body]);
     const yyyymmdd = form.endDate.split('-').join('');
-    download(`원자재발주현황_${yyyymmdd}.csv`, csv);
+    downloadTextFile(`원자재발주현황_${yyyymmdd}.csv`, csv);
   };
 
   return (
@@ -298,9 +174,7 @@ const MMSM01002S: React.FC = () => {
               />
               <button
                 className="absolute right-1 top-1.5 rounded-md border px-2 py-0.5 text-sm hover:bg-gray-50"
-                onClick={() =>
-                  setPicker({ type: 'Customer', title: '거래처 정보' })
-                }
+                onClick={() => setPicker({ type: 'customer', title: '거래처 정보' })}
               >
                 검색
               </button>
@@ -309,10 +183,8 @@ const MMSM01002S: React.FC = () => {
 
           <label className="col-span-1 text-sm text-gray-600">자재구분</label>
           <select
-            value={form.matGb}
-            onChange={(e) =>
-              setForm({ ...form, matGb: e.target.value as MatGb })
-            }
+            value={form.mathGb}
+            onChange={(e) => setForm({ ...form, mathGb: e.target.value as MathGb })}
             className="col-span-1 h-9 rounded-lg border px-2"
           >
             <option value="ALL">전체</option>
@@ -336,7 +208,7 @@ const MMSM01002S: React.FC = () => {
               />
               <button
                 className="absolute right-1 top-1.5 rounded-md border px-2 py-0.5 text-sm hover:bg-gray-50"
-                onClick={() => setPicker({ type: 'mat', title: '원자재 검색' })}
+                onClick={() => setPicker({ type: 'math', title: '원자재 검색' })}
               >
                 검색
               </button>
@@ -365,10 +237,7 @@ const MMSM01002S: React.FC = () => {
 
       {/* 그리드 영역 */}
       <div className="rounded-2xl border bg-white shadow-sm overflow-hidden">
-        <div
-          className="max-w-full overflow-auto"
-          style={{ height: tableHeight }}
-        >
+        <div className="max-w-full overflow-auto" style={{ height: tableHeight }}>
           <table className="min-w-[1000px] w-full text-sm">
             <thead className="sticky top-0 bg-gray-100 z-10">
               <tr>
@@ -396,10 +265,7 @@ const MMSM01002S: React.FC = () => {
             </thead>
             <tbody>
               {rows.map((r) => (
-                <tr
-                  key={r.RNUM}
-                  className="border-b last:border-b-0 hover:bg-gray-50"
-                >
+                <tr key={r.RNUM} className="border-b last:border-b-0 hover:bg-gray-50">
                   <Td align="center">{r.RNUM}</Td>
                   <Td className="hidden">{r.PO_NO}</Td>
                   <Td align="center">{r.PO_YMD}</Td>
@@ -416,11 +282,7 @@ const MMSM01002S: React.FC = () => {
               ))}
               {!rows.length && (
                 <tr>
-                  <Td
-                    colSpan={12}
-                    align="center"
-                    className="py-10 text-gray-400"
-                  >
+                  <Td colSpan={12} align="center" className="py-10 text-gray-400">
                     데이터가 없습니다. 조건을 변경하고 조회를 눌러주세요.
                   </Td>
                 </tr>
@@ -437,7 +299,7 @@ const MMSM01002S: React.FC = () => {
           title={picker.title}
           onClose={() => setPicker(null)}
           onSelect={(v) => {
-            if (picker.type === 'Customer') {
+            if (picker.type === 'customer') {
               setForm((f) => ({ ...f, cstCd: v.code, cstNm: v.name }));
             } else {
               setForm((f) => ({ ...f, itemCd: v.code, itemNm: v.name }));
@@ -450,36 +312,3 @@ const MMSM01002S: React.FC = () => {
 };
 
 export default MMSM01002S;
-
-// === 프리미티브 테이블 셀 ===
-const Th: React.FC<{
-  children: React.ReactNode;
-  w?: string | number;
-  align?: 'left' | 'center' | 'right';
-  className?: string;
-}> = ({ children, w, align = 'center', className }) => (
-  <th
-    className={
-      'py-2 px-2 text-gray-700 text-xs font-semibold border-b ' +
-      (className ?? '')
-    }
-    style={{ width: typeof w === 'number' ? `${w}px` : w, textAlign: align }}
-  >
-    {children}
-  </th>
-);
-
-const Td: React.FC<{
-  children: React.ReactNode;
-  colSpan?: number;
-  align?: 'left' | 'center' | 'right';
-  className?: string;
-}> = ({ children, colSpan, align = 'left', className }) => (
-  <td
-    className={'py-2 px-2 ' + (className ?? '')}
-    colSpan={colSpan}
-    style={{ textAlign: align }}
-  >
-    {children}
-  </td>
-);
