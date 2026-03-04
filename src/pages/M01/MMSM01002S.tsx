@@ -1,6 +1,8 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { MathGb } from '../../lib/types';
+import { MathGb, MathGbLabel } from '../../lib/types';
 import CodePicker, { CodePickerType } from '@/components/CodePicker';
+import MasterSearchField from '@/components/MasterSearchField';
+import FromToDateSearchField from '@/components/FromToDateSearchField';
 import { Th, Td } from '@/components/table/BaseTable';
 import { toCsvText, downloadTextFile } from '@/lib/export';
 import { useAutoTableHeight } from '@/lib/hooks/useAutoTableHeight';
@@ -143,77 +145,48 @@ const MMSM01002S: React.FC = () => {
     <div className="flex h-full flex-col gap-3 p-4" ref={containerRef}>
       {/* 조건 영역 */}
       <div className="rounded-2xl border bg-white p-3 shadow-sm">
-        <div className="grid grid-cols-12 gap-3 items-center">
-          <label className="col-span-1 text-sm text-gray-600">요청일자</label>
-          <input
-            type="date"
-            value={form.startDate}
-            onChange={(e) => setForm({ ...form, startDate: e.target.value })}
-            className="col-span-2 h-9 rounded-lg border px-2"
-          />
-          <div className="col-span-1 text-center">~</div>
-          <input
-            type="date"
-            value={form.endDate}
-            onChange={(e) => setForm({ ...form, endDate: e.target.value })}
-            className="col-span-2 h-9 rounded-lg border px-2"
+        <div className="grid [grid-template-columns:600px_600px_300px_1fr] gap-2 items-end">
+          <FromToDateSearchField
+            label="요청일자"
+            fromValue={form.startDate}
+            toValue={form.endDate}
+            onFromChange={(value) => setForm({ ...form, startDate: value })}
+            onToChange={(value) => setForm({ ...form, endDate: value })}
           />
 
-          <label className="col-span-1 text-sm text-gray-600">거래처명</label>
-          <div className="col-span-2 flex gap-2">
-            <input
-              value={form.cstCd}
-              readOnly
-              className="w-24 h-9 rounded-lg border bg-gray-100 px-2"
-            />
-            <div className="flex-1 relative">
-              <input
-                value={form.cstNm}
-                readOnly
-                className="w-full h-9 rounded-lg border bg-gray-100 pl-3 pr-9"
-              />
-              <button
-                className="absolute right-1 top-1.5 rounded-md border px-2 py-0.5 text-sm hover:bg-gray-50"
-                onClick={() => setPicker({ type: 'customer', title: '거래처 정보' })}
-              >
-                검색
-              </button>
-            </div>
-          </div>
+          <MasterSearchField
+            label="거래처명"
+            code={form.cstCd}
+            name={form.cstNm}
+            codePlaceholder="코드"
+            namePlaceholder="거래처 선택"
+            onSearch={() => setPicker({ type: 'customer', title: '거래처 정보' })}
+          />
 
-          <label className="col-span-1 text-sm text-gray-600">자재구분</label>
-          <select
-            value={form.mathGb}
-            onChange={(e) => setForm({ ...form, mathGb: e.target.value as MathGb })}
-            className="col-span-1 h-9 rounded-lg border px-2"
-          >
-            <option value="ALL">전체</option>
-            <option value="A">A</option>
-            <option value="B">B</option>
-            <option value="C">C</option>
-          </select>
-
-          <label className="col-span-1 text-sm text-gray-600">제품명</label>
-          <div className="col-span-2 flex gap-2">
-            <input
-              value={form.itemCd}
-              readOnly
-              className="w-24 h-9 rounded-lg border bg-gray-100 px-2"
-            />
-            <div className="flex-1 relative">
-              <input
-                value={form.itemNm}
-                readOnly
-                className="w-full h-9 rounded-lg border bg-gray-100 pl-3 pr-9"
-              />
-              <button
-                className="absolute right-1 top-1.5 rounded-md border px-2 py-0.5 text-sm hover:bg-gray-50"
-                onClick={() => setPicker({ type: 'math', title: '원자재 검색' })}
-              >
-                검색
-              </button>
-            </div>
+          <div className="w-[300px] grid grid-cols-[100px_170px_1fr] items-center gap-2">
+            <label className="text-sm text-gray-600">자재구분</label>
+            <select
+              value={form.mathGb}
+              onChange={(e) => setForm({ ...form, mathGb: e.target.value as MathGb })}
+              className="h-9 w-[170px] rounded-lg border px-2"
+            >
+              <option value={MathGb.ALL}>{MathGbLabel.ALL}</option>
+              <option value={MathGb.A}>{MathGbLabel.A}</option>
+              <option value={MathGb.B}>{MathGbLabel.B}</option>
+              <option value={MathGb.C}>{MathGbLabel.C}</option>
+            </select>
           </div>
+        </div>
+
+        <div className="mt-2">
+          <MasterSearchField
+            label="제품명"
+            code={form.itemCd}
+            name={form.itemNm}
+            codePlaceholder="코드"
+            namePlaceholder="제품 선택"
+            onSearch={() => setPicker({ type: 'math', title: '원자재 검색' })}
+          />
         </div>
 
         {/* 버튼 영역 */}
