@@ -33,14 +33,13 @@ export default function MMSM01009S() {
   }
 
   function onExportCsv() {
-    const headers = ['순번','제품명','원자재명','업체명','등록일자'];
-    const lines = rows.map((r, i) => [
-      r.RNUM ?? i + 1,
-      r.ITEM_NM ?? '',
-      r.MAT_NM ?? '',
-      r.CST_NM ?? '',
-      r.REQ_YMD ?? '',
-    ].map(v => (v ?? '').toString().replace(/"/g, '""')).map(v => `"${v}` + `"`).join(','));
+    const headers = ['순번', '제품명', '원자재명', '업체명', '등록일자'];
+    const lines = rows.map((r, i) =>
+      [r.RNUM ?? i + 1, r.ITEM_NM ?? '', r.MAT_NM ?? '', r.CST_NM ?? '', r.REQ_YMD ?? '']
+        .map((v) => (v ?? '').toString().replace(/"/g, '""'))
+        .map((v) => `"${v}` + `"`)
+        .join(',')
+    );
     const csv = [headers.join(','), ...lines].join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -61,19 +60,39 @@ export default function MMSM01009S() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-2 items-end">
         <label className="flex flex-col text-sm">
           <span className="mb-1">원자재 코드</span>
-          <input className="h-8 border rounded px-2" value={itemCd} onChange={(e) => setItemCd(e.target.value)} />
+          <input
+            className="h-8 border rounded px-2"
+            value={itemCd}
+            onChange={(e) => setItemCd(e.target.value)}
+          />
         </label>
         <label className="flex flex-col text-sm md:col-span-2">
           <span className="mb-1">원자재 명</span>
-          <input className="h-8 border rounded px-2" value={itemNm} onChange={(e) => setItemNm(e.target.value)} />
+          <input
+            className="h-8 border rounded px-2"
+            value={itemNm}
+            onChange={(e) => setItemNm(e.target.value)}
+          />
         </label>
         <div className="flex gap-2 md:col-span-3 justify-end">
-          <button onClick={onSearch} disabled={loading} className="h-8 px-3 border rounded bg-primary text-primary-foreground disabled:opacity-50">조회</button>
-          <button onClick={onExportCsv} className="h-8 px-3 border rounded">엑셀</button>
+          <button
+            onClick={onSearch}
+            disabled={loading}
+            className="h-8 px-3 border rounded bg-primary text-primary-foreground disabled:opacity-50"
+          >
+            조회
+          </button>
+          <button onClick={onExportCsv} className="h-8 px-3 border rounded">
+            엑셀
+          </button>
         </div>
       </div>
 
-      {error && <div className="text-sm text-destructive border border-destructive/30 rounded p-2">{error}</div>}
+      {error && (
+        <div className="text-sm text-destructive border border-destructive/30 rounded p-2">
+          {error}
+        </div>
+      )}
 
       {/* Grid */}
       <div className="border rounded overflow-auto max-h-[70vh]">
@@ -99,7 +118,9 @@ export default function MMSM01009S() {
             ))}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={5} className="p-3 text-center text-muted-foreground">데이터가 없습니다. 조건을 선택하고 조회하세요.</td>
+                <td colSpan={5} className="p-3 text-center text-muted-foreground">
+                  데이터가 없습니다. 조건을 선택하고 조회하세요.
+                </td>
               </tr>
             )}
           </tbody>

@@ -64,7 +64,7 @@ export default function MMSM01008E() {
     setEndDate(ymd);
     // 초기 조회: 마스터/디테일
     void onSearch();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function loadMaster() {
@@ -74,7 +74,7 @@ export default function MMSM01008E() {
       po_yn: poYn ? 'Y' : 'N',
     }).toString();
     const data = await http<MasterRow[]>(`/api/m01/mmsm01008/master?${qs}`);
-    return (Array.isArray(data) ? data : []).map(r => ({ ...r, CHECK: false }));
+    return (Array.isArray(data) ? data : []).map((r) => ({ ...r, CHECK: false }));
   }
 
   async function loadDetail() {
@@ -111,7 +111,7 @@ export default function MMSM01008E() {
   }
 
   function toggleMaster(i: number, checked: boolean) {
-    setMaster(prev => {
+    setMaster((prev) => {
       const next = [...prev];
       next[i] = { ...next[i], CHECK: checked };
       return next;
@@ -119,7 +119,7 @@ export default function MMSM01008E() {
   }
 
   function toggleDetail(i: number, checked: boolean) {
-    setDetail(prev => {
+    setDetail((prev) => {
       const next = [...prev];
       next[i] = { ...next[i], CHECK: checked };
       return next;
@@ -127,7 +127,7 @@ export default function MMSM01008E() {
   }
 
   function onDetailChange(i: number, patch: Partial<DetailRow>) {
-    setDetail(prev => {
+    setDetail((prev) => {
       const next = [...prev];
       next[i] = { ...next[i], ...patch, CHECK: true };
       return next;
@@ -136,14 +136,14 @@ export default function MMSM01008E() {
 
   function onAddFromMaster() {
     // 선택된 마스터 행들 → 디테일의 선두에 추가
-    const selected = master.filter(r => r.CHECK);
+    const selected = master.filter((r) => r.CHECK);
     if (selected.length === 0) return;
-    setDetail(prev => {
+    setDetail((prev) => {
       const list: DetailRow[] = [];
       selected.forEach((m) => {
         list.push({
           CHECK: true,
-          SO_SUB_SEQ: (prev.length + list.length + 1),
+          SO_SUB_SEQ: prev.length + list.length + 1,
           EM_GB: 'G',
           UNIT_CD: 'C',
           QTY: '0',
@@ -157,11 +157,11 @@ export default function MMSM01008E() {
   }
 
   function onDeleteDetail() {
-    setDetail(prev => prev.filter(r => !r.CHECK));
+    setDetail((prev) => prev.filter((r) => !r.CHECK));
   }
 
   async function onSave() {
-    const targets = detail.filter(r => r.CHECK);
+    const targets = detail.filter((r) => r.CHECK);
     if (targets.length === 0) {
       setError('저장할 데이터가 없습니다.');
       return;
@@ -170,7 +170,7 @@ export default function MMSM01008E() {
     setLoading(true);
     setError(null);
     try {
-      const payload = targets.map(r => ({
+      const payload = targets.map((r) => ({
         METHOD: 'I' as const,
         SO_YMD: toYMD(startDate),
         SO_SUB_SEQ: r.SO_SUB_SEQ ?? '',
@@ -191,7 +191,7 @@ export default function MMSM01008E() {
 
   async function onCalc() {
     // 소요량계산: 선택된 마스터 행 기준으로 날짜 전달
-    const keys = master.filter(r => r.CHECK);
+    const keys = master.filter((r) => r.CHECK);
     if (keys.length === 0) {
       setError('소요량계산 대상이 없습니다.');
       return;
@@ -210,14 +210,13 @@ export default function MMSM01008E() {
   }
 
   function onExportCsv() {
-    const headers = ['선택','거래처','품목코드','품목명','수량'];
-    const lines = master.map((r, i) => [
-      r.CHECK ? 'Y' : '',
-      r.CST_NM ?? '',
-      r.ITEM_CD ?? '',
-      r.ITEM_NM ?? '',
-      r.QTY ?? '',
-    ].map(v => (v ?? '').toString().replace(/"/g, '""')).map(v => `"${v}` + `"`).join(','));
+    const headers = ['선택', '거래처', '품목코드', '품목명', '수량'];
+    const lines = master.map((r, i) =>
+      [r.CHECK ? 'Y' : '', r.CST_NM ?? '', r.ITEM_CD ?? '', r.ITEM_NM ?? '', r.QTY ?? '']
+        .map((v) => (v ?? '').toString().replace(/"/g, '""'))
+        .map((v) => `"${v}` + `"`)
+        .join(',')
+    );
     const csv = [headers.join(','), ...lines].join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -238,25 +237,51 @@ export default function MMSM01008E() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-2 items-end">
         <label className="flex flex-col text-sm">
           <span className="mb-1">수주일자(시작)</span>
-          <input type="date" className="h-8 border rounded px-2" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+          <input
+            type="date"
+            className="h-8 border rounded px-2"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+          />
         </label>
         <label className="flex flex-col text-sm">
           <span className="mb-1">수주일자(끝)</span>
-          <input type="date" className="h-8 border rounded px-2" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+          <input
+            type="date"
+            className="h-8 border rounded px-2"
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+          />
         </label>
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={poYn} onChange={(e) => setPoYn(e.target.checked)} />
           <span>발주여부</span>
         </label>
         <div className="flex gap-2 justify-end">
-          <button onClick={onCalc} disabled={loading} className="h-8 px-3 border rounded">소요량계산</button>
-          <button onClick={onSearch} disabled={loading} className="h-8 px-3 border rounded bg-primary text-primary-foreground disabled:opacity-50">조회</button>
-          <button onClick={onSave} disabled={loading} className="h-8 px-3 border rounded">저장</button>
-          <button onClick={onExportCsv} className="h-8 px-3 border rounded">엑셀</button>
+          <button onClick={onCalc} disabled={loading} className="h-8 px-3 border rounded">
+            소요량계산
+          </button>
+          <button
+            onClick={onSearch}
+            disabled={loading}
+            className="h-8 px-3 border rounded bg-primary text-primary-foreground disabled:opacity-50"
+          >
+            조회
+          </button>
+          <button onClick={onSave} disabled={loading} className="h-8 px-3 border rounded">
+            저장
+          </button>
+          <button onClick={onExportCsv} className="h-8 px-3 border rounded">
+            엑셀
+          </button>
         </div>
       </div>
 
-      {error && <div className="text-sm text-destructive border border-destructive/30 rounded p-2">{error}</div>}
+      {error && (
+        <div className="text-sm text-destructive border border-destructive/30 rounded p-2">
+          {error}
+        </div>
+      )}
 
       {/* Split: Master | Buttons | Detail */}
       <div className="grid grid-cols-12 gap-3">
@@ -275,7 +300,13 @@ export default function MMSM01008E() {
             <tbody>
               {master.map((r, i) => (
                 <tr key={i} className="border-b hover:bg-muted/30">
-                  <td className="p-2 text-center"><input type="checkbox" checked={!!r.CHECK} onChange={e => toggleMaster(i, e.target.checked)} /></td>
+                  <td className="p-2 text-center">
+                    <input
+                      type="checkbox"
+                      checked={!!r.CHECK}
+                      onChange={(e) => toggleMaster(i, e.target.checked)}
+                    />
+                  </td>
                   <td className="p-2 text-center">{r.CST_NM ?? ''}</td>
                   <td className="p-2 text-center">{r.ITEM_CD ?? ''}</td>
                   <td className="p-2 text-left">{r.ITEM_NM ?? ''}</td>
@@ -284,7 +315,9 @@ export default function MMSM01008E() {
               ))}
               {master.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="p-3 text-center text-muted-foreground">마스터 데이터가 없습니다.</td>
+                  <td colSpan={5} className="p-3 text-center text-muted-foreground">
+                    마스터 데이터가 없습니다.
+                  </td>
                 </tr>
               )}
             </tbody>
@@ -293,8 +326,12 @@ export default function MMSM01008E() {
 
         {/* Middle buttons 5% (col-span-1) */}
         <div className="col-span-12 md:col-span-1 flex md:flex-col gap-2 items-center justify-center">
-          <button onClick={onDeleteDetail} className="h-8 px-3 border rounded">삭제</button>
-          <button onClick={onAddFromMaster} className="h-8 px-3 border rounded">추가</button>
+          <button onClick={onDeleteDetail} className="h-8 px-3 border rounded">
+            삭제
+          </button>
+          <button onClick={onAddFromMaster} className="h-8 px-3 border rounded">
+            추가
+          </button>
         </div>
 
         {/* Detail 65% (col-span-7) */}
@@ -316,27 +353,83 @@ export default function MMSM01008E() {
             <tbody>
               {detail.map((r, i) => (
                 <tr key={i} className="border-b hover:bg-muted/30">
-                  <td className="p-2 text-center"><input type="checkbox" checked={!!r.CHECK} onChange={e => toggleDetail(i, e.target.checked)} /></td>
-                  <td className="p-1 text-center"><input className="h-8 border rounded px-2 w-full bg-muted" value={r.ITEM_CD || ''} readOnly /></td>
-                  <td className="p-1 text-left"><input className="h-8 border rounded px-2 w-full bg-muted" value={r.ITEM_NM || ''} readOnly /></td>
-                  <td className="p-1 text-center"><input className="h-8 border rounded px-2 w-full" value={r.UNIT_CD || ''} onChange={e => onDetailChange(i, { UNIT_CD: e.target.value })} /></td>
-                  <td className="p-1 text-right"><input className="h-8 border rounded px-2 w-full text-right" value={r.QTY ?? ''} onChange={e => onDetailChange(i, { QTY: e.target.value })} /></td>
-                  <td className="p-1"><input className="h-8 border rounded px-2 w-full" value={r.ITEM_TP || ''} onChange={e => onDetailChange(i, { ITEM_TP: e.target.value })} /></td>
-                  <td className="p-1 text-center"><input className="h-8 border rounded px-2 w-full" value={r.STANDAD || ''} onChange={e => onDetailChange(i, { STANDAD: e.target.value })} /></td>
+                  <td className="p-2 text-center">
+                    <input
+                      type="checkbox"
+                      checked={!!r.CHECK}
+                      onChange={(e) => toggleDetail(i, e.target.checked)}
+                    />
+                  </td>
                   <td className="p-1 text-center">
-                    <select className="h-8 border rounded px-2 w-full" value={r.EM_GB || ''} onChange={e => onDetailChange(i, { EM_GB: e.target.value })}>
+                    <input
+                      className="h-8 border rounded px-2 w-full bg-muted"
+                      value={r.ITEM_CD || ''}
+                      readOnly
+                    />
+                  </td>
+                  <td className="p-1 text-left">
+                    <input
+                      className="h-8 border rounded px-2 w-full bg-muted"
+                      value={r.ITEM_NM || ''}
+                      readOnly
+                    />
+                  </td>
+                  <td className="p-1 text-center">
+                    <input
+                      className="h-8 border rounded px-2 w-full"
+                      value={r.UNIT_CD || ''}
+                      onChange={(e) => onDetailChange(i, { UNIT_CD: e.target.value })}
+                    />
+                  </td>
+                  <td className="p-1 text-right">
+                    <input
+                      className="h-8 border rounded px-2 w-full text-right"
+                      value={r.QTY ?? ''}
+                      onChange={(e) => onDetailChange(i, { QTY: e.target.value })}
+                    />
+                  </td>
+                  <td className="p-1">
+                    <input
+                      className="h-8 border rounded px-2 w-full"
+                      value={r.ITEM_TP || ''}
+                      onChange={(e) => onDetailChange(i, { ITEM_TP: e.target.value })}
+                    />
+                  </td>
+                  <td className="p-1 text-center">
+                    <input
+                      className="h-8 border rounded px-2 w-full"
+                      value={r.STANDAD || ''}
+                      onChange={(e) => onDetailChange(i, { STANDAD: e.target.value })}
+                    />
+                  </td>
+                  <td className="p-1 text-center">
+                    <select
+                      className="h-8 border rounded px-2 w-full"
+                      value={r.EM_GB || ''}
+                      onChange={(e) => onDetailChange(i, { EM_GB: e.target.value })}
+                    >
                       <option value=""></option>
-                      {emCodes.map(c => (
-                        <option key={c.code} value={c.code}>{c.name}</option>
+                      {emCodes.map((c) => (
+                        <option key={c.code} value={c.code}>
+                          {c.name}
+                        </option>
                       ))}
                     </select>
                   </td>
-                  <td className="p-1"><input className="h-8 border rounded px-2 w-full" value={r.DESC || ''} onChange={e => onDetailChange(i, { DESC: e.target.value })} /></td>
+                  <td className="p-1">
+                    <input
+                      className="h-8 border rounded px-2 w-full"
+                      value={r.DESC || ''}
+                      onChange={(e) => onDetailChange(i, { DESC: e.target.value })}
+                    />
+                  </td>
                 </tr>
               ))}
               {detail.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="p-3 text-center text-muted-foreground">디테일 데이터가 없습니다. 마스터에서 선택 후 추가하세요.</td>
+                  <td colSpan={9} className="p-3 text-center text-muted-foreground">
+                    디테일 데이터가 없습니다. 마스터에서 선택 후 추가하세요.
+                  </td>
                 </tr>
               )}
             </tbody>

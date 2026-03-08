@@ -43,7 +43,11 @@ export default function MMSM02003S() {
     setLoading(true);
     setError(null);
     try {
-      const qs = new URLSearchParams({ start: toYMD(startDate), end: toYMD(endDate), proc: proc || '' }).toString();
+      const qs = new URLSearchParams({
+        start: toYMD(startDate),
+        end: toYMD(endDate),
+        proc: proc || '',
+      }).toString();
       const data = await http<Row[]>(`/api/m02/mmsm02003/list?${qs}`);
       setRows(Array.isArray(data) ? data : []);
     } catch (e) {
@@ -54,16 +58,21 @@ export default function MMSM02003S() {
   }
 
   function onExportCsv() {
-    const headers = ['순번','작업일자','공정','제품명','거래처명','계획수량','생산수량'];
-    const lines = rows.map((r, i) => [
-      r.RNUM ?? i + 1,
-      r.REQ_YMD ?? '',
-      r.LINE_NM ?? '',
-      r.ITEM_NM ?? '',
-      r.CST_NM ?? '',
-      r.PRD_QTY ?? '',
-      r.QTY ?? '',
-    ].map(v => (v ?? '').toString().replace(/"/g, '""')).map(v => `"${v}"`).join(','));
+    const headers = ['순번', '작업일자', '공정', '제품명', '거래처명', '계획수량', '생산수량'];
+    const lines = rows.map((r, i) =>
+      [
+        r.RNUM ?? i + 1,
+        r.REQ_YMD ?? '',
+        r.LINE_NM ?? '',
+        r.ITEM_NM ?? '',
+        r.CST_NM ?? '',
+        r.PRD_QTY ?? '',
+        r.QTY ?? '',
+      ]
+        .map((v) => (v ?? '').toString().replace(/"/g, '""'))
+        .map((v) => `"${v}"`)
+        .join(',')
+    );
     const csv = [headers.join(','), ...lines].join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -84,23 +93,50 @@ export default function MMSM02003S() {
       <div className="grid grid-cols-1 md:grid-cols-5 gap-2 items-end">
         <label className="flex flex-col text-sm">
           <span className="mb-1">수주일자(시작)</span>
-          <input type="date" className="h-8 border rounded px-2" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+          <input
+            type="date"
+            className="h-8 border rounded px-2"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+          />
         </label>
         <label className="flex flex-col text-sm">
           <span className="mb-1">수주일자(끝)</span>
-          <input type="date" className="h-8 border rounded px-2" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+          <input
+            type="date"
+            className="h-8 border rounded px-2"
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+          />
         </label>
         <label className="flex flex-col text-sm md:col-span-2">
           <span className="mb-1">공정</span>
-          <input className="h-8 border rounded px-2" value={proc} onChange={(e) => setProc(e.target.value)} placeholder="공정코드/명" />
+          <input
+            className="h-8 border rounded px-2"
+            value={proc}
+            onChange={(e) => setProc(e.target.value)}
+            placeholder="공정코드/명"
+          />
         </label>
         <div className="flex gap-2 justify-end">
-          <button onClick={onSearch} disabled={loading} className="h-8 px-3 border rounded bg-primary text-primary-foreground disabled:opacity-50">조회</button>
-          <button onClick={onExportCsv} className="h-8 px-3 border rounded">엑셀</button>
+          <button
+            onClick={onSearch}
+            disabled={loading}
+            className="h-8 px-3 border rounded bg-primary text-primary-foreground disabled:opacity-50"
+          >
+            조회
+          </button>
+          <button onClick={onExportCsv} className="h-8 px-3 border rounded">
+            엑셀
+          </button>
         </div>
       </div>
 
-      {error && <div className="text-sm text-destructive border border-destructive/30 rounded p-2">{error}</div>}
+      {error && (
+        <div className="text-sm text-destructive border border-destructive/30 rounded p-2">
+          {error}
+        </div>
+      )}
 
       {/* Grid */}
       <div className="border rounded overflow-auto max-h:[70vh]">
@@ -130,7 +166,9 @@ export default function MMSM02003S() {
             ))}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={7} className="p-3 text-center text-muted-foreground">데이터가 없습니다. 조건을 선택하고 조회하세요.</td>
+                <td colSpan={7} className="p-3 text-center text-muted-foreground">
+                  데이터가 없습니다. 조건을 선택하고 조회하세요.
+                </td>
               </tr>
             )}
           </tbody>

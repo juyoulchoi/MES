@@ -61,14 +61,11 @@ export default function MMSM08005S() {
     };
     // CustomEvent for same-window listeners
     try {
-      window.dispatchEvent(
-        new CustomEvent('picker:select', { detail: payload })
-      );
+      window.dispatchEvent(new CustomEvent('picker:select', { detail: payload }));
     } catch {}
     // postMessage for opener/parent contexts
     try {
-      window.opener &&
-        window.opener.postMessage({ type: 'MMSM08005S_SELECT', payload }, '*');
+      window.opener && window.opener.postMessage({ type: 'MMSM08005S_SELECT', payload }, '*');
     } catch {}
     try {
       window.parent &&
@@ -110,11 +107,7 @@ export default function MMSM08005S() {
         <button onClick={onExportCsv} className="h-8 px-3 border rounded">
           엑셀
         </button>
-        <button
-          onClick={onConfirm}
-          disabled={focused < 0}
-          className="h-8 px-3 border rounded"
-        >
+        <button onClick={onConfirm} disabled={focused < 0} className="h-8 px-3 border rounded">
           확인
         </button>
       </div>
@@ -126,10 +119,7 @@ export default function MMSM08005S() {
       )}
 
       {/* Grid */}
-      <div
-        className="border rounded overflow-auto max-h-[70vh]"
-        style={{ height: 320 }}
-      >
+      <div className="border rounded overflow-auto max-h-[70vh]" style={{ height: 320 }}>
         <table className="w-full text-sm">
           <thead className="sticky top-0 bg-background">
             <tr className="border-b">
@@ -154,10 +144,7 @@ export default function MMSM08005S() {
             ))}
             {rows.length === 0 && (
               <tr>
-                <td
-                  colSpan={3}
-                  className="p-3 text-center text-muted-foreground"
-                >
+                <td colSpan={3} className="p-3 text-center text-muted-foreground">
                   데이터가 없습니다.
                 </td>
               </tr>

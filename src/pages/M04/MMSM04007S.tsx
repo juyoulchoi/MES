@@ -14,34 +14,45 @@ export default function MMSM04007S() {
   const [error, setError] = useState<string | null>(null);
 
   async function onSearch() {
-    setLoading(true); setError(null);
+    setLoading(true);
+    setError(null);
     try {
       const data = await http<Row[]>(`/api/m04/mmsm04007/list`);
-      const list = (Array.isArray(data) ? data : []).map(r => ({ ...r, CHECK: !!r.CHECK }));
+      const list = (Array.isArray(data) ? data : []).map((r) => ({ ...r, CHECK: !!r.CHECK }));
       setRows(list);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   }
 
   function toggle(i: number, checked: boolean) {
-    setRows(prev => { const next = [...prev]; next[i] = { ...next[i], CHECK: checked }; return next; });
+    setRows((prev) => {
+      const next = [...prev];
+      next[i] = { ...next[i], CHECK: checked };
+      return next;
+    });
   }
 
   function onExportCsv() {
-    const headers = ['선택','투입품목','투입품목명','단위','입고일자'];
-    const lines = rows.map((r) => [
-      r.CHECK ? 'Y' : 'N',
-      r.ITEM_CD ?? '',
-      r.ITEM_NM ?? '',
-      r.UNIT_CD ?? '',
-      r.PO_YMD ?? '',
-    ].map(v => (v ?? '').toString().replace(/"/g, '""')).map(v => `"${v}"`).join(','));
+    const headers = ['선택', '투입품목', '투입품목명', '단위', '입고일자'];
+    const lines = rows.map((r) =>
+      [r.CHECK ? 'Y' : 'N', r.ITEM_CD ?? '', r.ITEM_NM ?? '', r.UNIT_CD ?? '', r.PO_YMD ?? '']
+        .map((v) => (v ?? '').toString().replace(/"/g, '""'))
+        .map((v) => `"${v}"`)
+        .join(',')
+    );
     const csv = [headers.join(','), ...lines].join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = 'MMSM04007S.csv';
-    document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'MMSM04007S.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   }
 
   return (
@@ -50,11 +61,23 @@ export default function MMSM04007S() {
 
       {/* Buttons */}
       <div className="flex gap-2 justify-end">
-        <button onClick={onSearch} disabled={loading} className="h-8 px-3 border rounded bg-primary text-primary-foreground disabled:opacity-50">조회</button>
-        <button onClick={onExportCsv} className="h-8 px-3 border rounded">엑셀</button>
+        <button
+          onClick={onSearch}
+          disabled={loading}
+          className="h-8 px-3 border rounded bg-primary text-primary-foreground disabled:opacity-50"
+        >
+          조회
+        </button>
+        <button onClick={onExportCsv} className="h-8 px-3 border rounded">
+          엑셀
+        </button>
       </div>
 
-      {error && <div className="text-sm text-destructive border border-destructive/30 rounded p-2">{error}</div>}
+      {error && (
+        <div className="text-sm text-destructive border border-destructive/30 rounded p-2">
+          {error}
+        </div>
+      )}
 
       {/* Grid */}
       <div className="border rounded overflow-auto max-h-[70vh]">
@@ -71,7 +94,13 @@ export default function MMSM04007S() {
           <tbody>
             {rows.map((r, i) => (
               <tr key={i} className="border-b hover:bg-muted/30">
-                <td className="p-2 text-center"><input type="checkbox" checked={!!r.CHECK} onChange={e => toggle(i, e.target.checked)} /></td>
+                <td className="p-2 text-center">
+                  <input
+                    type="checkbox"
+                    checked={!!r.CHECK}
+                    onChange={(e) => toggle(i, e.target.checked)}
+                  />
+                </td>
                 <td className="p-2 text-center">{r.ITEM_CD ?? ''}</td>
                 <td className="p-2 text-left">{r.ITEM_NM ?? ''}</td>
                 <td className="p-2 text-center">{r.UNIT_CD ?? ''}</td>
@@ -80,7 +109,9 @@ export default function MMSM04007S() {
             ))}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={5} className="p-3 text-center text-muted-foreground">데이터가 없습니다. 조회를 눌러 가져오세요.</td>
+                <td colSpan={5} className="p-3 text-center text-muted-foreground">
+                  데이터가 없습니다. 조회를 눌러 가져오세요.
+                </td>
               </tr>
             )}
           </tbody>

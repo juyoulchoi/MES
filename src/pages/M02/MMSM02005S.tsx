@@ -32,26 +32,46 @@ export default function MMSM02005S() {
 
   function onExportCsv() {
     const headers = [
-      '생산계획일자','생산계획순번','제품명','제판','재단','인쇄','제본','코팅','합지기','톰슨','가공','트레이','창문','소분','접착','출고'
+      '생산계획일자',
+      '생산계획순번',
+      '제품명',
+      '제판',
+      '재단',
+      '인쇄',
+      '제본',
+      '코팅',
+      '합지기',
+      '톰슨',
+      '가공',
+      '트레이',
+      '창문',
+      '소분',
+      '접착',
+      '출고',
     ];
-    const lines = rows.map(r => [
-      r.PRD_PLAN_YMD ?? '',
-      r.PRD_PLAN_SEQ ?? '',
-      r.ITEM_NM ?? '',
-      r.P01 ?? '',
-      r.P02 ?? '',
-      r.P03 ?? '',
-      r.P04 ?? '',
-      r.P05 ?? '',
-      r.P06 ?? '',
-      r.P07 ?? '',
-      r.P08 ?? '',
-      r.P09 ?? '',
-      r.P10 ?? '',
-      r.P11 ?? '',
-      r.P12 ?? '',
-      r.P13 ?? '',
-    ].map(v => (v ?? '').toString().replace(/"/g, '""')).map(v => `"${v}"`).join(','));
+    const lines = rows.map((r) =>
+      [
+        r.PRD_PLAN_YMD ?? '',
+        r.PRD_PLAN_SEQ ?? '',
+        r.ITEM_NM ?? '',
+        r.P01 ?? '',
+        r.P02 ?? '',
+        r.P03 ?? '',
+        r.P04 ?? '',
+        r.P05 ?? '',
+        r.P06 ?? '',
+        r.P07 ?? '',
+        r.P08 ?? '',
+        r.P09 ?? '',
+        r.P10 ?? '',
+        r.P11 ?? '',
+        r.P12 ?? '',
+        r.P13 ?? '',
+      ]
+        .map((v) => (v ?? '').toString().replace(/"/g, '""'))
+        .map((v) => `"${v}"`)
+        .join(',')
+    );
     const csv = [headers.join(','), ...lines].join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -69,12 +89,24 @@ export default function MMSM02005S() {
       <div className="flex items-center justify-between">
         <div className="text-base font-semibold">모니터링</div>
         <div className="flex gap-2">
-          <button onClick={onSearch} disabled={loading} className="h-8 px-3 border rounded bg-primary text-primary-foreground disabled:opacity-50">조회</button>
-          <button onClick={onExportCsv} className="h-8 px-3 border rounded">엑셀</button>
+          <button
+            onClick={onSearch}
+            disabled={loading}
+            className="h-8 px-3 border rounded bg-primary text-primary-foreground disabled:opacity-50"
+          >
+            조회
+          </button>
+          <button onClick={onExportCsv} className="h-8 px-3 border rounded">
+            엑셀
+          </button>
         </div>
       </div>
 
-      {error && <div className="text-sm text-destructive border border-destructive/30 rounded p-2">{error}</div>}
+      {error && (
+        <div className="text-sm text-destructive border border-destructive/30 rounded p-2">
+          {error}
+        </div>
+      )}
 
       <div className="border rounded overflow-auto max-h-[75vh]">
         <table className="w-full text-sm">
@@ -121,7 +153,9 @@ export default function MMSM02005S() {
             ))}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={16} className="p-3 text-center text-muted-foreground">데이터가 없습니다. 조회 버튼을 눌러 갱신하세요.</td>
+                <td colSpan={16} className="p-3 text-center text-muted-foreground">
+                  데이터가 없습니다. 조회 버튼을 눌러 갱신하세요.
+                </td>
               </tr>
             )}
           </tbody>

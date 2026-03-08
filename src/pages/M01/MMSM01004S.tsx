@@ -98,19 +98,32 @@ export default function MMSM01004S() {
   // 엑셀(CSV) 내보내기
   function onExportCsv() {
     const headers = [
-      '순번','입고일자','순번','자재코드','자재명','자재구분','수량','단위','비고'
+      '순번',
+      '입고일자',
+      '순번',
+      '자재코드',
+      '자재명',
+      '자재구분',
+      '수량',
+      '단위',
+      '비고',
     ];
-    const lines = rows.map((r, i) => [
-      r.RNUM ?? i + 1,
-      r.IN_YMD ?? r.REQ_YMD ?? '',
-      r.SEQ ?? r.PO_YMD_SEQ ?? '',
-      r.ITEM_CD ?? '',
-      r.ITEM_NM ?? '',
-      r.ITEM_GB ?? '',
-      r.QTY ?? '',
-      r.UNIT_CD ?? '',
-      r.DESC ?? '',
-    ].map(v => (v ?? '').toString().replace(/"/g, '""')).map(v => `"${v}"`).join(','));
+    const lines = rows.map((r, i) =>
+      [
+        r.RNUM ?? i + 1,
+        r.IN_YMD ?? r.REQ_YMD ?? '',
+        r.SEQ ?? r.PO_YMD_SEQ ?? '',
+        r.ITEM_CD ?? '',
+        r.ITEM_NM ?? '',
+        r.ITEM_GB ?? '',
+        r.QTY ?? '',
+        r.UNIT_CD ?? '',
+        r.DESC ?? '',
+      ]
+        .map((v) => (v ?? '').toString().replace(/"/g, '""'))
+        .map((v) => `"${v}"`)
+        .join(',')
+    );
     const csv = [headers.join(','), ...lines].join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -131,44 +144,94 @@ export default function MMSM01004S() {
       <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-5 gap-2 items-end">
         <label className="flex flex-col text-sm">
           <span className="mb-1">입고일자(시작)</span>
-          <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="h-8 border rounded px-2" />
+          <input
+            type="date"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+            className="h-8 border rounded px-2"
+          />
         </label>
         <label className="flex flex-col text-sm">
           <span className="mb-1">입고일자(끝)</span>
-          <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="h-8 border rounded px-2" />
+          <input
+            type="date"
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+            className="h-8 border rounded px-2"
+          />
         </label>
         <label className="flex flex-col text-sm">
           <span className="mb-1">거래처명</span>
           <div className="flex gap-1">
-            <input value={cstCd} readOnly className="h-8 border rounded px-2 w-28 bg-muted" placeholder="코드" />
-            <input value={cstNm} readOnly className="h-8 border rounded px-2 flex-1 bg-muted" placeholder="거래처 선택" />
-            <button type="button" className="h-8 px-2 border rounded" onClick={openCustomerPicker}>...</button>
+            <input
+              value={cstCd}
+              readOnly
+              className="h-8 border rounded px-2 w-28 bg-muted"
+              placeholder="코드"
+            />
+            <input
+              value={cstNm}
+              readOnly
+              className="h-8 border rounded px-2 flex-1 bg-muted"
+              placeholder="거래처 선택"
+            />
+            <button type="button" className="h-8 px-2 border rounded" onClick={openCustomerPicker}>
+              ...
+            </button>
           </div>
         </label>
         <label className="flex flex-col text-sm">
           <span className="mb-1">자재구분</span>
-          <select value={matGb} onChange={(e) => setMatGb(e.target.value)} className="h-8 border rounded px-2">
+          <select
+            value={matGb}
+            onChange={(e) => setMatGb(e.target.value)}
+            className="h-8 border rounded px-2"
+          >
             <option value=""></option>
-            {matCodes.map((c) => (
+            {/* {matCodes.map((c) => (
               <option key={c.code} value={c.code}>{c.name}</option>
-            ))}
+            ))} */}
           </select>
         </label>
         <label className="flex flex-col text-sm md:col-span-2 lg:col-span-2">
           <span className="mb-1">제품명</span>
           <div className="flex gap-1">
-            <input value={itemCd} readOnly className="h-8 border rounded px-2 w-28 bg-muted" placeholder="코드" />
-            <input value={itemNm} readOnly className="h-8 border rounded px-2 flex-1 bg-muted" placeholder="제품 선택" />
-            <button type="button" className="h-8 px-2 border rounded" onClick={openProductPicker}>...</button>
+            <input
+              value={itemCd}
+              readOnly
+              className="h-8 border rounded px-2 w-28 bg-muted"
+              placeholder="코드"
+            />
+            <input
+              value={itemNm}
+              readOnly
+              className="h-8 border rounded px-2 flex-1 bg-muted"
+              placeholder="제품 선택"
+            />
+            <button type="button" className="h-8 px-2 border rounded" onClick={openProductPicker}>
+              ...
+            </button>
           </div>
         </label>
         <div className="flex gap-2 md:col-span-1 lg:col-span-1 justify-end">
-          <button onClick={onSearch} disabled={loading} className="h-8 px-3 border rounded bg-primary text-primary-foreground disabled:opacity-50">조회</button>
-          <button onClick={onExportCsv} className="h-8 px-3 border rounded">엑셀</button>
+          <button
+            onClick={onSearch}
+            disabled={loading}
+            className="h-8 px-3 border rounded bg-primary text-primary-foreground disabled:opacity-50"
+          >
+            조회
+          </button>
+          <button onClick={onExportCsv} className="h-8 px-3 border rounded">
+            엑셀
+          </button>
         </div>
       </div>
 
-      {error && <div className="text-sm text-destructive border border-destructive/30 rounded p-2">{error}</div>}
+      {error && (
+        <div className="text-sm text-destructive border border-destructive/30 rounded p-2">
+          {error}
+        </div>
+      )}
 
       {/* Grid */}
       <div className="border rounded overflow-auto max-h-[70vh]">
@@ -202,7 +265,9 @@ export default function MMSM01004S() {
             ))}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={9} className="p-3 text-center text-muted-foreground">데이터가 없습니다. 조건을 선택하고 조회하세요.</td>
+                <td colSpan={9} className="p-3 text-center text-muted-foreground">
+                  데이터가 없습니다. 조건을 선택하고 조회하세요.
+                </td>
               </tr>
             )}
           </tbody>
@@ -217,16 +282,31 @@ export default function MMSM01004S() {
             <div className="grid grid-cols-2 gap-2">
               <label className="flex flex-col text-sm">
                 <span className="mb-1">코드</span>
-                <input className="h-8 border rounded px-2" value={tempCode} onChange={(e) => setTempCode(e.target.value)} />
+                <input
+                  className="h-8 border rounded px-2"
+                  value={tempCode}
+                  onChange={(e) => setTempCode(e.target.value)}
+                />
               </label>
               <label className="flex flex-col text-sm">
                 <span className="mb-1">이름</span>
-                <input className="h-8 border rounded px-2" value={tempName} onChange={(e) => setTempName(e.target.value)} />
+                <input
+                  className="h-8 border rounded px-2"
+                  value={tempName}
+                  onChange={(e) => setTempName(e.target.value)}
+                />
               </label>
             </div>
             <div className="flex justify-end gap-2 pt-1">
-              <button className="h-8 px-3 border rounded" onClick={() => setCustOpen(false)}>취소</button>
-              <button className="h-8 px-3 border rounded bg-primary text-primary-foreground" onClick={applyCustomer}>선택</button>
+              <button className="h-8 px-3 border rounded" onClick={() => setCustOpen(false)}>
+                취소
+              </button>
+              <button
+                className="h-8 px-3 border rounded bg-primary text-primary-foreground"
+                onClick={applyCustomer}
+              >
+                선택
+              </button>
             </div>
           </div>
         </div>
@@ -239,16 +319,31 @@ export default function MMSM01004S() {
             <div className="grid grid-cols-2 gap-2">
               <label className="flex flex-col text-sm">
                 <span className="mb-1">코드</span>
-                <input className="h-8 border rounded px-2" value={tempCode} onChange={(e) => setTempCode(e.target.value)} />
+                <input
+                  className="h-8 border rounded px-2"
+                  value={tempCode}
+                  onChange={(e) => setTempCode(e.target.value)}
+                />
               </label>
               <label className="flex flex-col text-sm">
                 <span className="mb-1">이름</span>
-                <input className="h-8 border rounded px-2" value={tempName} onChange={(e) => setTempName(e.target.value)} />
+                <input
+                  className="h-8 border rounded px-2"
+                  value={tempName}
+                  onChange={(e) => setTempName(e.target.value)}
+                />
               </label>
             </div>
             <div className="flex justify-end gap-2 pt-1">
-              <button className="h-8 px-3 border rounded" onClick={() => setProdOpen(false)}>취소</button>
-              <button className="h-8 px-3 border rounded bg-primary text-primary-foreground" onClick={applyProduct}>선택</button>
+              <button className="h-8 px-3 border rounded" onClick={() => setProdOpen(false)}>
+                취소
+              </button>
+              <button
+                className="h-8 px-3 border rounded bg-primary text-primary-foreground"
+                onClick={applyProduct}
+              >
+                선택
+              </button>
             </div>
           </div>
         </div>

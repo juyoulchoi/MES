@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { http } from '@/lib/http';
+import { BaseTable, type TableColumn } from '@/components/table/BaseTable';
 
 // 제품출고 지시현황 (MMSM04001S)
 // 필터: 출고일자(시작/끝)
@@ -43,7 +44,10 @@ export default function MMSM04001S() {
     setLoading(true);
     setError(null);
     try {
-      const qs = new URLSearchParams({ start: fmtDateYMD(startDate), end: fmtDateYMD(endDate) }).toString();
+      const qs = new URLSearchParams({
+        start: fmtDateYMD(startDate),
+        end: fmtDateYMD(endDate),
+      }).toString();
       const data = await http<Row[]>(`/api/m04/mmsm04001/list?${qs}`);
       setRows(Array.isArray(data) ? data : []);
     } catch (e) {
@@ -54,20 +58,38 @@ export default function MMSM04001S() {
   }
 
   function onExportCsv() {
-    const headers = ['순번','출고일자','수주일자','품명','거래처명','계획수량','출고수량','잔량','출고지시일','출고요청일','출고일'];
-    const lines = rows.map((r, i) => [
-      r.RNUM ?? i + 1,
-      r.GI_DT ?? '',
-      r.SO_YMD ?? '',
-      r.ITEM_NM ?? '',
-      r.CST_NM ?? '',
-      r.SO_QTY ?? '',
-      r.GI_QTY ?? '',
-      r.REM_QTY ?? r.BAL_QTY ?? r.REMAIN_QTY ?? r.GI_QTY ?? '',
-      r.SO_INS_YMD ?? r.SO_YMD ?? '',
-      r.SO_REQ_YMD ?? r.SO_YMD ?? '',
-      r.GI_DAY ?? r.GI_DT ?? '',
-    ].map(v => (v ?? '').toString().replace(/"/g, '""')).map(v => `"${v}"`).join(','));
+    const headers = [
+      '순번',
+      '출고일자',
+      '수주일자',
+      '품명',
+      '거래처명',
+      '계획수량',
+      '출고수량',
+      '잔량',
+      '출고지시일',
+      '출고요청일',
+      '출고일',
+    ];
+    const lines = rows.map((r, i) =>
+      [
+        r.RNUM ?? i + 1,
+        r.GI_DT ?? '',
+        r.SO_YMD ?? '',
+        r.ITEM_NM ?? '',
+        r.CST_NM ?? '',
+        r.SO_QTY ?? '',
+        r.GI_QTY ?? '',
+        r.REM_QTY ?? r.BAL_QTY ?? r.REMAIN_QTY ?? r.GI_QTY ?? '',
+        r.SO_INS_YMD ?? r.SO_YMD ?? '',
+        r.SO_REQ_YMD ?? r.SO_YMD ?? '',
+        r.GI_DAY ?? r.GI_DT ?? '',
+      ]
+        .map((v) => (v ?? '').toString().replace(/"/g, '""'))
+        .map((v) => `"${v}"`)
+        .join(',')
+    );
+
     const csv = [headers.join(','), ...lines].join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -80,6 +102,67 @@ export default function MMSM04001S() {
     URL.revokeObjectURL(url);
   }
 
+  const columns = useMemo<TableColumn<Row>[]>(
+    () => [
+      {
+        key: 'RNUM',
+        header: '순번',
+        align: 'center',
+        width: 64,
+        accessor: (r, i) => r.RNUM ?? i + 1,
+      },
+      { key: 'GI_DT', header: '출고일자', align: 'center', width: 112, accessor: 'GI_DT' },
+      { key: 'SO_YMD', header: '수주일자', align: 'center', width: 112, accessor: 'SO_YMD' },
+      { key: 'ITEM_NM', header: '품명', align: 'left', accessor: 'ITEM_NM' },
+      { key: 'CST_NM', header: '거래처명', align: 'left', width: 160, accessor: 'CST_NM' },
+      { key: 'SO_QTY', header: '계획수량', align: 'right', width: 96, accessor: 'SO_QTY' },
+      { key: 'GI_QTY', header: '출고수량', align: 'right', width: 96, accessor: 'GI_QTY' },
+      {
+        key: 'REM_QTY',
+        header: '잔량',
+        align: 'right',
+        width: 96,
+        accessor: (r) => r.REM_QTY ?? r.BAL_QTY ?? r.REMAIN_QTY ?? r.GI_QTY ?? '',
+      },
+      {
+        key: 'SO_INS_YMD',
+        header: '출고지시일',
+        align: 'center',
+        width: 112,
+        accessor: (r) => r.SO_INS_YMD ?? r.SO_YMD ?? '',
+      },
+      {
+        key: 'SO_REQ_YMD',
+        header: '출고요청일',
+        align: 'center',
+        width: 112,
+        accessor: (r) => r.SO_REQ_YMD ?? r.SO_YMD ?? '',
+      },
+      {
+        key: 'GI_DAY',
+        header: '출고일',
+        align: 'center',
+        width: 112,
+        accessor: (r) => r.GI_DAY ?? r.GI_DT ?? '',
+      },
+    ],
+    []
+  );
+
+  const tableClassNames = useMemo(
+    () => ({
+      wrapper: 'border rounded overflow-auto max-h-[70vh]',
+      table: 'w-full text-sm',
+      thead: 'sticky top-0 bg-background',
+      headerRow: 'border-b',
+      headerCell: 'p-2',
+      bodyRow: 'border-b hover:bg-muted/30',
+      bodyCell: 'p-2',
+      emptyCell: 'p-3 text-center text-muted-foreground',
+    }),
+    []
+  );
+
   return (
     <div className="p-3 space-y-3">
       <div className="text-base font-semibold">제품출고 지시현황</div>
@@ -88,62 +171,50 @@ export default function MMSM04001S() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-2 items-end">
         <label className="flex flex-col text-sm">
           <span className="mb-1">출고일자(시작)</span>
-          <input type="date" className="h-8 border rounded px-2" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+          <input
+            type="date"
+            className="h-8 border rounded px-2"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+          />
         </label>
         <label className="flex flex-col text-sm">
           <span className="mb-1">출고일자(끝)</span>
-          <input type="date" className="h-8 border rounded px-2" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+          <input
+            type="date"
+            className="h-8 border rounded px-2"
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+          />
         </label>
         <div className="flex gap-2 md:col-span-2 justify-end">
-          <button onClick={onSearch} disabled={loading} className="h-8 px-3 border rounded bg-primary text-primary-foreground disabled:opacity-50">조회</button>
-          <button onClick={onExportCsv} className="h-8 px-3 border rounded">엑셀</button>
+          <button
+            onClick={onSearch}
+            disabled={loading}
+            className="h-8 px-3 border rounded bg-primary text-primary-foreground disabled:opacity-50"
+          >
+            조회
+          </button>
+          <button onClick={onExportCsv} className="h-8 px-3 border rounded">
+            엑셀
+          </button>
         </div>
       </div>
 
-      {error && <div className="text-sm text-destructive border border-destructive/30 rounded p-2">{error}</div>}
+      {error && (
+        <div className="text-sm text-destructive border border-destructive/30 rounded p-2">
+          {error}
+        </div>
+      )}
 
       {/* Grid */}
-      <div className="border rounded overflow-auto max-h=[70vh]">
-        <table className="w-full text-sm">
-          <thead className="sticky top-0 bg-background">
-            <tr className="border-b">
-              <th className="w-16 p-2 text-center">순번</th>
-              <th className="w-28 p-2 text-center">출고일자</th>
-              <th className="w-28 p-2 text-center">수주일자</th>
-              <th className="p-2 text-left">품명</th>
-              <th className="w-40 p-2 text-left">거래처명</th>
-              <th className="w-24 p-2 text-right">계획수량</th>
-              <th className="w-24 p-2 text-right">출고수량</th>
-              <th className="w-24 p-2 text-right">잔량</th>
-              <th className="w-28 p-2 text-center">출고지시일</th>
-              <th className="w-28 p-2 text-center">출고요청일</th>
-              <th className="w-28 p-2 text-center">출고일</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r, i) => (
-              <tr key={i} className="border-b hover:bg-muted/30">
-                <td className="p-2 text-center">{r.RNUM ?? i + 1}</td>
-                <td className="p-2 text-center">{r.GI_DT ?? ''}</td>
-                <td className="p-2 text-center">{r.SO_YMD ?? ''}</td>
-                <td className="p-2 text-left">{r.ITEM_NM ?? ''}</td>
-                <td className="p-2 text-left">{r.CST_NM ?? ''}</td>
-                <td className="p-2 text-right">{r.SO_QTY ?? ''}</td>
-                <td className="p-2 text-right">{r.GI_QTY ?? ''}</td>
-                <td className="p-2 text-right">{r.REM_QTY ?? r.BAL_QTY ?? r.REMAIN_QTY ?? r.GI_QTY ?? ''}</td>
-                <td className="p-2 text-center">{r.SO_INS_YMD ?? r.SO_YMD ?? ''}</td>
-                <td className="p-2 text-center">{r.SO_REQ_YMD ?? r.SO_YMD ?? ''}</td>
-                <td className="p-2 text-center">{r.GI_DAY ?? r.GI_DT ?? ''}</td>
-              </tr>
-            ))}
-            {rows.length === 0 && (
-              <tr>
-                <td colSpan={11} className="p-3 text-center text-muted-foreground">데이터가 없습니다. 조건을 선택하고 조회하세요.</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+      <BaseTable
+        rows={rows}
+        columns={columns}
+        rowKey={(row, i) => row.RNUM ?? i}
+        classNames={tableClassNames}
+        emptyText="데이터가 없습니다. 조건을 선택하고 조회하세요."
+      />
     </div>
   );
 }

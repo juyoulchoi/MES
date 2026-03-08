@@ -28,10 +28,7 @@ export default function MMSM08008E() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const anyDirty = useMemo(
-    () => rows.some((r) => r._dirty || r._isNew),
-    [rows]
-  );
+  const anyDirty = useMemo(() => rows.some((r) => r._dirty || r._isNew), [rows]);
   const anyChecked = useMemo(() => rows.some((r) => r._chk), [rows]);
 
   async function onSearch() {
@@ -46,9 +43,7 @@ export default function MMSM08008E() {
       };
       const params = toParams(paramObj);
 
-      const url =
-        `/api/v1/common/bsc/search` +
-        (params.toString() ? `?${params.toString()}` : '');
+      const url = `/api/v1/common/bsc/search` + (params.toString() ? `?${params.toString()}` : '');
 
       const data = await http<Row[]>(url);
       const list = (Array.isArray(data) ? data : []).map((r, i) => ({
@@ -87,9 +82,7 @@ export default function MMSM08008E() {
   }
 
   function updateCell(idx: number, patch: Partial<Row>) {
-    setRows((prev) =>
-      prev.map((r, i) => (i === idx ? { ...r, ...patch, _dirty: true } : r))
-    );
+    setRows((prev) => prev.map((r, i) => (i === idx ? { ...r, ...patch, _dirty: true } : r)));
   }
 
   function onToggleAll(checked: boolean) {
@@ -102,11 +95,7 @@ export default function MMSM08008E() {
       const rowNo = i + 1;
       if (!r.USR_GRP_NM || !String(r.USR_GRP_NM).trim())
         errs.push(`${rowNo}행: 사용자그룹명은 필수입니다.`);
-      if (
-        r.DSP_SEQ === undefined ||
-        r.DSP_SEQ === null ||
-        String(r.DSP_SEQ).trim() === ''
-      )
+      if (r.DSP_SEQ === undefined || r.DSP_SEQ === null || String(r.DSP_SEQ).trim() === '')
         errs.push(`${rowNo}행: 표시순서는 필수입니다.`);
       if (r.DSP_SEQ !== undefined && r.DSP_SEQ !== null) {
         const n = Number(r.DSP_SEQ);
@@ -176,9 +165,7 @@ export default function MMSM08008E() {
           body: { rows: keys },
         });
         void res;
-        next = next.filter(
-          (r) => !persisted.some((p) => p.USR_GRP_CD === r.USR_GRP_CD)
-        );
+        next = next.filter((r) => !persisted.some((p) => p.USR_GRP_CD === r.USR_GRP_CD));
         await onSearch();
       }
       if (newOnes.length > 0 && persisted.length === 0) {
@@ -201,8 +188,7 @@ export default function MMSM08008E() {
         window.parent.postMessage({ type: 'MMSM08008E_CLOSE' }, '*');
     } catch {}
     try {
-      window.opener &&
-        window.opener.postMessage({ type: 'MMSM08008E_CLOSE' }, '*');
+      window.opener && window.opener.postMessage({ type: 'MMSM08008E_CLOSE' }, '*');
     } catch {}
   }
 
@@ -267,10 +253,7 @@ export default function MMSM08008E() {
       )}
 
       {/* Grid */}
-      <div
-        className="border rounded overflow-auto max-h-[60vh]"
-        style={{ height: 300 }}
-      >
+      <div className="border rounded overflow-auto max-h-[60vh]" style={{ height: 300 }}>
         <table className="w-full text-sm">
           <thead className="sticky top-0 bg-background">
             <tr className="border-b">
@@ -311,9 +294,7 @@ export default function MMSM08008E() {
                   <input
                     className="h-8 border rounded px-2 w-full"
                     value={r.USR_GRP_NM ?? ''}
-                    onChange={(e) =>
-                      updateCell(i, { USR_GRP_NM: e.target.value })
-                    }
+                    onChange={(e) => updateCell(i, { USR_GRP_NM: e.target.value })}
                   />
                 </td>
                 <td className="p-2 text-center">
@@ -338,9 +319,7 @@ export default function MMSM08008E() {
                   <select
                     className="h-8 border rounded px-2 w-full"
                     value={r.USE_YN ?? 'Y'}
-                    onChange={(e) =>
-                      updateCell(i, { USE_YN: e.target.value as 'Y' | 'N' })
-                    }
+                    onChange={(e) => updateCell(i, { USE_YN: e.target.value as 'Y' | 'N' })}
                   >
                     <option value="Y">사용</option>
                     <option value="N">미사용</option>
@@ -350,10 +329,7 @@ export default function MMSM08008E() {
             ))}
             {rows.length === 0 && (
               <tr>
-                <td
-                  colSpan={7}
-                  className="p-3 text-center text-muted-foreground"
-                >
+                <td colSpan={7} className="p-3 text-center text-muted-foreground">
                   데이터가 없습니다. 조건을 입력하고 조회하세요.
                 </td>
               </tr>

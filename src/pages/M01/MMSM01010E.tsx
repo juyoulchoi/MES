@@ -60,7 +60,7 @@ export default function MMSM01010E() {
       item_nm: itemNm || '',
     }).toString();
     const data = await http<MasterRow[]>(`/api/m01/mmsm01010/master?${qs}`);
-    return (Array.isArray(data) ? data : []).map(r => ({ ...r, CHECK: false }));
+    return (Array.isArray(data) ? data : []).map((r) => ({ ...r, CHECK: false }));
   }
 
   async function loadDetail() {
@@ -70,7 +70,7 @@ export default function MMSM01010E() {
       item_nm: itemNm || '',
     }).toString();
     const data = await http<DetailRow[]>(`/api/m01/mmsm01010/detail?${qs}`);
-    return (Array.isArray(data) ? data : []).map(r => ({
+    return (Array.isArray(data) ? data : []).map((r) => ({
       ISNEW: false,
       CHECK: false,
       ITEM_CD: r.ITEM_CD ?? '',
@@ -94,7 +94,7 @@ export default function MMSM01010E() {
   }
 
   function toggleMaster(i: number, checked: boolean) {
-    setMaster(prev => {
+    setMaster((prev) => {
       const next = [...prev];
       next[i] = { ...next[i], CHECK: checked };
       return next;
@@ -102,7 +102,7 @@ export default function MMSM01010E() {
   }
 
   function toggleDetail(i: number, checked: boolean) {
-    setDetail(prev => {
+    setDetail((prev) => {
       const next = [...prev];
       next[i] = { ...next[i], CHECK: checked };
       return next;
@@ -110,7 +110,7 @@ export default function MMSM01010E() {
   }
 
   function onDetailChange(i: number, patch: Partial<DetailRow>) {
-    setDetail(prev => {
+    setDetail((prev) => {
       const next = [...prev];
       next[i] = { ...next[i], ...patch, CHECK: true };
       return next;
@@ -122,9 +122,9 @@ export default function MMSM01010E() {
       setError('거래처를 선택하세요.');
       return;
     }
-    const selected = master.filter(r => r.CHECK);
+    const selected = master.filter((r) => r.CHECK);
     if (selected.length === 0) return;
-    setDetail(prev => {
+    setDetail((prev) => {
       const list: DetailRow[] = [];
       selected.forEach((m) => {
         list.push({
@@ -140,7 +140,7 @@ export default function MMSM01010E() {
   }
 
   function onDeleteDetail() {
-    setDetail(prev => prev.filter(r => !r.CHECK));
+    setDetail((prev) => prev.filter((r) => !r.CHECK));
   }
 
   async function onSave() {
@@ -148,7 +148,7 @@ export default function MMSM01010E() {
       setError('거래처를 선택하세요.');
       return;
     }
-    const targets = detail.filter(r => r.CHECK);
+    const targets = detail.filter((r) => r.CHECK);
     if (targets.length === 0) {
       setError('저장할 데이터가 없습니다.');
       return;
@@ -157,7 +157,7 @@ export default function MMSM01010E() {
     setLoading(true);
     setError(null);
     try {
-      const payload = targets.map(r => ({
+      const payload = targets.map((r) => ({
         METHOD: 'Y' as const,
         CST_CD: cstCd,
         ITEM_CD: r.ITEM_CD ?? '',
@@ -173,12 +173,13 @@ export default function MMSM01010E() {
   }
 
   function onExportCsv() {
-    const headers = ['품목코드','품목명','MAIN_YN'];
-    const lines = detail.map((r) => [
-      r.ITEM_CD ?? '',
-      r.ITEM_NM ?? '',
-      r.MAIN_YN ?? '',
-    ].map(v => (v ?? '').toString().replace(/"/g, '""')).map(v => `"${v}` + `"`).join(','));
+    const headers = ['품목코드', '품목명', 'MAIN_YN'];
+    const lines = detail.map((r) =>
+      [r.ITEM_CD ?? '', r.ITEM_NM ?? '', r.MAIN_YN ?? '']
+        .map((v) => (v ?? '').toString().replace(/"/g, '""'))
+        .map((v) => `"${v}` + `"`)
+        .join(',')
+    );
     const csv = [headers.join(','), ...lines].join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -200,27 +201,61 @@ export default function MMSM01010E() {
         <label className="flex flex-col text-sm md:col-span-2">
           <span className="mb-1">거래처</span>
           <div className="flex gap-1">
-            <input value={cstCd} readOnly className="h-8 border rounded px-2 w-28 bg-muted" placeholder="코드" />
-            <input value={cstNm} readOnly className="h-8 border rounded px-2 flex-1 bg-muted" placeholder="거래처 선택" />
-            <button type="button" className="h-8 px-2 border rounded" onClick={openCustomerPicker}>...</button>
+            <input
+              value={cstCd}
+              readOnly
+              className="h-8 border rounded px-2 w-28 bg-muted"
+              placeholder="코드"
+            />
+            <input
+              value={cstNm}
+              readOnly
+              className="h-8 border rounded px-2 flex-1 bg-muted"
+              placeholder="거래처 선택"
+            />
+            <button type="button" className="h-8 px-2 border rounded" onClick={openCustomerPicker}>
+              ...
+            </button>
           </div>
         </label>
         <label className="flex flex-col text-sm">
           <span className="mb-1">제품코드</span>
-          <input className="h-8 border rounded px-2" value={itemCd} onChange={(e) => setItemCd(e.target.value)} />
+          <input
+            className="h-8 border rounded px-2"
+            value={itemCd}
+            onChange={(e) => setItemCd(e.target.value)}
+          />
         </label>
         <label className="flex flex-col text-sm">
           <span className="mb-1">제품명</span>
-          <input className="h-8 border rounded px-2" value={itemNm} onChange={(e) => setItemNm(e.target.value)} />
+          <input
+            className="h-8 border rounded px-2"
+            value={itemNm}
+            onChange={(e) => setItemNm(e.target.value)}
+          />
         </label>
         <div className="flex gap-2 md:col-span-4 justify-end">
-          <button onClick={onSearch} disabled={loading} className="h-8 px-3 border rounded bg-primary text-primary-foreground disabled:opacity-50">조회</button>
-          <button onClick={onSave} disabled={loading} className="h-8 px-3 border rounded">저장</button>
-          <button onClick={onExportCsv} className="h-8 px-3 border rounded">엑셀</button>
+          <button
+            onClick={onSearch}
+            disabled={loading}
+            className="h-8 px-3 border rounded bg-primary text-primary-foreground disabled:opacity-50"
+          >
+            조회
+          </button>
+          <button onClick={onSave} disabled={loading} className="h-8 px-3 border rounded">
+            저장
+          </button>
+          <button onClick={onExportCsv} className="h-8 px-3 border rounded">
+            엑셀
+          </button>
         </div>
       </div>
 
-      {error && <div className="text-sm text-destructive border border-destructive/30 rounded p-2">{error}</div>}
+      {error && (
+        <div className="text-sm text-destructive border border-destructive/30 rounded p-2">
+          {error}
+        </div>
+      )}
 
       {/* Split: Master | Buttons | Detail */}
       <div className="grid grid-cols-12 gap-3">
@@ -237,14 +272,22 @@ export default function MMSM01010E() {
             <tbody>
               {master.map((r, i) => (
                 <tr key={i} className="border-b hover:bg-muted/30">
-                  <td className="p-2 text-center"><input type="checkbox" checked={!!r.CHECK} onChange={e => toggleMaster(i, e.target.checked)} /></td>
+                  <td className="p-2 text-center">
+                    <input
+                      type="checkbox"
+                      checked={!!r.CHECK}
+                      onChange={(e) => toggleMaster(i, e.target.checked)}
+                    />
+                  </td>
                   <td className="p-2 text-center">{r.ITEM_CD ?? ''}</td>
                   <td className="p-2 text-left">{r.ITEM_NM ?? ''}</td>
                 </tr>
               ))}
               {master.length === 0 && (
                 <tr>
-                  <td colSpan={3} className="p-3 text-center text-muted-foreground">마스터 데이터가 없습니다.</td>
+                  <td colSpan={3} className="p-3 text-center text-muted-foreground">
+                    마스터 데이터가 없습니다.
+                  </td>
                 </tr>
               )}
             </tbody>
@@ -253,8 +296,12 @@ export default function MMSM01010E() {
 
         {/* Middle buttons 5% */}
         <div className="col-span-12 md:col-span-2 flex md:flex-col gap-2 items-center justify-center">
-          <button onClick={onDeleteDetail} className="h-8 px-3 border rounded">삭제</button>
-          <button onClick={onAddFromMaster} className="h-8 px-3 border rounded">추가</button>
+          <button onClick={onDeleteDetail} className="h-8 px-3 border rounded">
+            삭제
+          </button>
+          <button onClick={onAddFromMaster} className="h-8 px-3 border rounded">
+            추가
+          </button>
         </div>
 
         {/* Detail 50% */}
@@ -273,11 +320,33 @@ export default function MMSM01010E() {
               {detail.map((r, i) => (
                 <tr key={i} className="border-b hover:bg-muted/30">
                   <td className="p-2 text-center">{r.ISNEW ? 'Y' : ''}</td>
-                  <td className="p-2 text-center"><input type="checkbox" checked={!!r.CHECK} onChange={e => toggleDetail(i, e.target.checked)} /></td>
-                  <td className="p-1 text-center"><input className="h-8 border rounded px-2 w-full bg-muted" value={r.ITEM_CD || ''} readOnly /></td>
-                  <td className="p-1 text-left"><input className="h-8 border rounded px-2 w-full bg-muted" value={r.ITEM_NM || ''} readOnly /></td>
+                  <td className="p-2 text-center">
+                    <input
+                      type="checkbox"
+                      checked={!!r.CHECK}
+                      onChange={(e) => toggleDetail(i, e.target.checked)}
+                    />
+                  </td>
                   <td className="p-1 text-center">
-                    <select className="h-8 border rounded px-2 w-full" value={r.MAIN_YN || ''} onChange={e => onDetailChange(i, { MAIN_YN: e.target.value as any })}>
+                    <input
+                      className="h-8 border rounded px-2 w-full bg-muted"
+                      value={r.ITEM_CD || ''}
+                      readOnly
+                    />
+                  </td>
+                  <td className="p-1 text-left">
+                    <input
+                      className="h-8 border rounded px-2 w-full bg-muted"
+                      value={r.ITEM_NM || ''}
+                      readOnly
+                    />
+                  </td>
+                  <td className="p-1 text-center">
+                    <select
+                      className="h-8 border rounded px-2 w-full"
+                      value={r.MAIN_YN || ''}
+                      onChange={(e) => onDetailChange(i, { MAIN_YN: e.target.value as any })}
+                    >
                       <option value=""></option>
                       <option value="Y">Y</option>
                       <option value="N">N</option>
@@ -287,7 +356,9 @@ export default function MMSM01010E() {
               ))}
               {detail.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="p-3 text-center text-muted-foreground">디테일 데이터가 없습니다. 마스터에서 선택 후 추가하세요.</td>
+                  <td colSpan={5} className="p-3 text-center text-muted-foreground">
+                    디테일 데이터가 없습니다. 마스터에서 선택 후 추가하세요.
+                  </td>
                 </tr>
               )}
             </tbody>
@@ -303,16 +374,31 @@ export default function MMSM01010E() {
             <div className="grid grid-cols-2 gap-2">
               <label className="flex flex-col text-sm">
                 <span className="mb-1">코드</span>
-                <input className="h-8 border rounded px-2" value={tmpCode} onChange={(e) => setTmpCode(e.target.value)} />
+                <input
+                  className="h-8 border rounded px-2"
+                  value={tmpCode}
+                  onChange={(e) => setTmpCode(e.target.value)}
+                />
               </label>
               <label className="flex flex-col text-sm">
                 <span className="mb-1">이름</span>
-                <input className="h-8 border rounded px-2" value={tmpName} onChange={(e) => setTmpName(e.target.value)} />
+                <input
+                  className="h-8 border rounded px-2"
+                  value={tmpName}
+                  onChange={(e) => setTmpName(e.target.value)}
+                />
               </label>
             </div>
             <div className="flex justify-end gap-2 pt-1">
-              <button className="h-8 px-3 border rounded" onClick={() => setCustOpen(false)}>취소</button>
-              <button className="h-8 px-3 border rounded bg-primary text-primary-foreground" onClick={applyCustomer}>선택</button>
+              <button className="h-8 px-3 border rounded" onClick={() => setCustOpen(false)}>
+                취소
+              </button>
+              <button
+                className="h-8 px-3 border rounded bg-primary text-primary-foreground"
+                onClick={applyCustomer}
+              >
+                선택
+              </button>
             </div>
           </div>
         </div>

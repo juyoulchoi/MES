@@ -57,8 +57,7 @@ export default function MMSM08002S() {
       }
 
       const url =
-        `/api/v1/mdm/iteminfo/search` +
-        (params.toString() ? `?${params.toString()}` : '');
+        `/api/v1/mdm/iteminfo/search` + (params.toString() ? `?${params.toString()}` : '');
 
       const data = await http<Row[]>(url);
       const list = (Array.isArray(data) ? data : []).map((r, i) => ({
@@ -98,14 +97,11 @@ export default function MMSM08002S() {
     };
     // CustomEvent for same-window listeners
     try {
-      window.dispatchEvent(
-        new CustomEvent('picker:select', { detail: payload })
-      );
+      window.dispatchEvent(new CustomEvent('picker:select', { detail: payload }));
     } catch {}
     // postMessage for opener/parent contexts
     try {
-      window.opener &&
-        window.opener.postMessage({ type: 'MMSM08002S_SELECT', payload }, '*');
+      window.opener && window.opener.postMessage({ type: 'MMSM08002S_SELECT', payload }, '*');
     } catch {}
     try {
       window.parent &&
@@ -119,16 +115,7 @@ export default function MMSM08002S() {
   }
 
   function onExportCsv() {
-    const headers = [
-      'No.',
-      '원자재코드',
-      '원자재명',
-      '종류',
-      '가로',
-      '세로',
-      '도수',
-      '단위',
-    ];
+    const headers = ['No.', '원자재코드', '원자재명', '종류', '가로', '세로', '도수', '단위'];
     const lines = rows.map((r, i) =>
       [
         r.RNUM ?? i + 1,
@@ -189,11 +176,7 @@ export default function MMSM08002S() {
           <button onClick={onExportCsv} className="h-8 px-3 border rounded">
             엑셀
           </button>
-          <button
-            onClick={onConfirm}
-            disabled={focused < 0}
-            className="h-8 px-3 border rounded"
-          >
+          <button onClick={onConfirm} disabled={focused < 0} className="h-8 px-3 border rounded">
             확인
           </button>
         </div>
@@ -241,10 +224,7 @@ export default function MMSM08002S() {
             ))}
             {rows.length === 0 && (
               <tr>
-                <td
-                  colSpan={8}
-                  className="p-3 text-center text-muted-foreground"
-                >
+                <td colSpan={8} className="p-3 text-center text-muted-foreground">
                   데이터가 없습니다. 조건을 입력하고 조회하세요.
                 </td>
               </tr>
