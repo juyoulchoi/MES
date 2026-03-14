@@ -1,7 +1,8 @@
-const rawApiBaseUrl =
-  (import.meta.env.VITE_API_BASE_URL as string | undefined)?.trim() || 'http://localhost:8080';
+const envApiBaseUrl = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.trim();
 
-const API_BASE_URL = rawApiBaseUrl.replace(/\/+$/g, '');
+// Default to same-origin `/api` requests. In development this uses the Vite proxy,
+// and in production it assumes the web server or gateway proxies `/api` to the backend.
+const API_BASE_URL = (envApiBaseUrl || '').replace(/\/+$/g, '');
 
 export function resolveApiUrl(path: string): string {
   if (/^https?:\/\//i.test(path)) return path;

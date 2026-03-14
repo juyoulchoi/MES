@@ -8,6 +8,7 @@ export type HttpOptions = {
   authToken?: string; // JWT 모드
   withCredentials?: boolean; // 세션 쿠키 모드
   csrfToken?: string;
+  unwrapEnvelope?: boolean;
 };
 
 const defaultHeaders = { 'Content-Type': 'application/json' };
@@ -47,6 +48,7 @@ export async function http<T>(url: string, opt: HttpOptions = {}): Promise<T> {
 
   const ct = res.headers.get('content-type');
   const isJson = ct?.includes('application/json');
+  const shouldUnwrapEnvelope = opt.unwrapEnvelope !== false;
 
   if (!res.ok) {
     if (isJson) {
@@ -71,7 +73,9 @@ export async function http<T>(url: string, opt: HttpOptions = {}): Promise<T> {
     if (envelope.success === false) {
       throw new Error(envelope.message || '요청 처리에 실패했습니다.');
     }
-    return envelope.data as T;
+    if (shouldUnwrapEnvelope) {
+      return envelope.data as T;
+    }
   }
 
   return payload as T;

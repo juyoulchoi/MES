@@ -53,9 +53,17 @@ export type AuthRow = {
 };
 
 export const MathGb = {
-  ALL: 'ALL',
-  A: 'A',
-  B: 'B',
-  C: 'C',
+  ALL: '전체',
+  A: '원자재',
+  B: '반제품',
+  C: '제품',
 } as const;
-export type MathGb = (typeof MathGb)[keyof typeof MathGb]; // 원자재 구분, ALL: 전체, A: 원자재, B: 반제품, C: 제품
+
+export type MathGbKey = keyof typeof MathGb;
+export type MathGb = (typeof MathGb)[MathGbKey]; // 원자재 구분, ALL: 전체, A: 원자재, B: 반제품, C: 제품
+export const MathGbLabel: Record<keyof typeof MathGb, string> = {
+  ALL: '전체',
+  A: '원자재',
+  B: '반제품',
+  C: '제품',
+};

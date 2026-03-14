@@ -1,4 +1,5 @@
 import { CONFIG } from '@/lib/config';
+import { http } from '@/lib/http';
 
 type LoginArgs = { userId: string; password: string };
 type LoginApiResponse = {
@@ -49,20 +50,14 @@ export async function login({
     const csrf = getCsrfToken();
     if (csrf) headers['X-CSRF-Token'] = csrf;
 
-    const res = await fetch(CONFIG.loginApi, {
+    const payload = await http<LoginApiResponse>(CONFIG.loginApi, {
       method: 'POST',
       headers,
-      body: JSON.stringify({ userId, password }),
-      credentials: 'include', // 세션 모드 시 필요
-      cache: 'no-store',
+      body: { userId, password },
+      withCredentials: true,
+      unwrapEnvelope: false,
     });
 
-    if (!res.ok) {
-      const msg = await res.text().catch(() => '');
-      return { ok: false, error: msg || `HTTP ${res.status}` };
-    }
-
-    const payload = (await res.json().catch(() => ({}))) as LoginApiResponse;
     if (payload.success !== true) {
       return { ok: false, error: payload.message || '로그인에 실패했습니다.' };
     }
@@ -77,7 +72,7 @@ export async function login({
     }
 
     // session 모드: 쿠키로 인증됨
-    localStorage.setItem('token', 'session_ok'); // PrivateRoute 호환용 마커
+    localStorage.setItem('token', 'session_ok'); // PrivateRoute 호환용 마커Promise
     return { ok: true };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : String(e) };
