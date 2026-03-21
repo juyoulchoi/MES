@@ -13,3 +13,10 @@ export function toParams(obj: Record<string, string | undefined>) {
   });
   return params;
 }
+
+export function formatNumber(value: number | string | null | undefined): string {
+  if (value === null || value === undefined || value === '') return '';
+  const numberValue = typeof value === 'number' ? value : Number(String(value).replace(/,/g, ''));
+  if (Number.isNaN(numberValue)) return String(value);
+  return numberValue.toLocaleString('ko-KR');
+}
