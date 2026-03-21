@@ -1,5 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { MathGb, MathGbLabel } from '@/lib/types';
+import { createEmptyPageResult } from '@/lib/pagination';
 import CodePicker, { type CodePickerType } from '@/components/CodePicker';
 import ExportCsvButton from '@/components/ExportCsvButton';
 import MasterSearchField from '@/components/MasterSearchField';
@@ -10,9 +11,13 @@ import {
   columns,
   fetchMmsm01002List as onSearch,
   tableClassNames,
-  type RowItem,
+  exportHeaders,
+  mapExportRow,
+  type Mmsm01002ListResult,
   type SearchForm,
 } from '@/services/m01/mmsm01002';
+
+const PAGE_SIZE = 10;
 
 const MMSM01002S: React.FC = () => {
   const today = useMemo(() => new Date(), []);
@@ -27,7 +32,9 @@ const MMSM01002S: React.FC = () => {
     itemNm: '',
     mathGb: MathGb.ALL,
   });
-  const [rows, setRows] = useState<RowItem[]>([]);
+  const [result, setResult] = useState<Mmsm01002ListResult>(() =>
+    createEmptyPageResult(0, PAGE_SIZE)
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [picker, setPicker] = useState<null | { type: CodePickerType; title: string }>(null);
@@ -35,49 +42,18 @@ const MMSM01002S: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const tableHeight = useAutoTableHeight(containerRef);
 
-  const fetchList = async () => {
+  const fetchList = async (nextPage = 0) => {
     setLoading(true);
     setError(null);
     try {
-      const data = await onSearch(form);
-      setRows(data);
+      setResult(await onSearch(form, nextPage, PAGE_SIZE));
     } catch (e) {
-      setRows([]);
+      setResult(createEmptyPageResult(nextPage, PAGE_SIZE));
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
     }
   };
-
-  const exportHeaders = [
-    '순번',
-    '발주번호',
-    '발주일자',
-    '원자재구분',
-    '원자재명',
-    '종류',
-    '규격',
-    '입고요청일',
-    '입고일',
-    '발주량',
-    '기입고량',
-    '입고량',
-  ];
-
-  const mapExportRow = (r: RowItem) => [
-    r.RNUM,
-    r.PO_NO,
-    r.PO_YMD,
-    r.ITEM_GB,
-    r.ITEM_NM,
-    r.ITEM_TP,
-    r.STANDARD,
-    r.REQ_YMD,
-    r.IV_YMD,
-    r.PO_QTY,
-    r.PRE_IV_QTY,
-    r.IV_QTY,
-  ];
 
   return (
     <div className="flex h-full flex-col gap-3 p-4" ref={containerRef}>
@@ -133,14 +109,16 @@ const MMSM01002S: React.FC = () => {
 
         <div className="mt-3 flex justify-end gap-2">
           <button
-            onClick={fetchList}
+            onClick={(e) => {
+              fetchList(0);
+            }}
             className="rounded-xl border bg-white px-4 py-2 shadow-sm hover:bg-gray-50 active:scale-[0.99]"
             disabled={loading}
           >
             {loading ? '조회중...' : '조회'}
           </button>
           <ExportCsvButton
-            rows={rows}
+            rows={result.content}
             headers={exportHeaders}
             mapRow={mapExportRow}
             filename={() => `원자재발주현황_${form.endDate.split('-').join('')}.csv`}
@@ -159,11 +137,16 @@ const MMSM01002S: React.FC = () => {
       <div className="rounded-2xl border bg-white shadow-sm overflow-hidden">
         <div className="max-w-full overflow-auto" style={{ height: tableHeight }}>
           <BaseTable
-            rows={rows}
+            pageResult={result}
             columns={columns}
-            rowKey={(row, i) => row.RNUM ?? i}
+            rowKey={(row, i) => row.rnum ?? i}
             classNames={tableClassNames}
             emptyText="데이터가 없습니다. 조건을 변경하고 조회를 눌러주세요."
+            pagination={{
+              result,
+              loading,
+              onPageChange: fetchList,
+            }}
           />
         </div>
       </div>
