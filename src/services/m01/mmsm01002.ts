@@ -1,6 +1,8 @@
 import { getApi } from '@/lib/axiosClient';
+import { toPageResult, type PageResult, type PageableResponse } from '@/lib/pagination';
 import { MathGb } from '@/lib/types';
 import { type BaseTableClassNames, type TableColumn } from '@/components/table/BaseTable';
+import { formatNumber } from '@/lib/utils';
 
 export interface SearchForm {
   startDate: string;
@@ -13,58 +15,58 @@ export interface SearchForm {
 }
 
 export interface RowItem {
-  RNUM: number;
-  PO_NO: string;
-  PO_YMD: string;
-  ITEM_GB: string;
-  ITEM_NM: string;
-  ITEM_TP: string;
-  STANDARD: string;
-  REQ_YMD: string;
-  IV_YMD: string;
-  PO_QTY: number;
-  PRE_IV_QTY: number;
-  IV_QTY: number;
+  rnum: number;
+  poYmd: string;
+  poSeq: number;
+  poSubSeq: number;
+  itemGb: string;
+  itemNm: string;
+  cstCd: string;
+  cstNm: string;
+  totAmt: number;
+  preIvQty: number;
+  ivQty: number;
+  itemCd: string;
+  unitCd: string;
+  giYmd: string;
+  emGb: string;
+  reqYmd: string;
+  ivYmd: string;
+  endYn: string;
+  status: string;
+  description: string;
 }
 
+export type Mmsm01002ListResult = PageResult<RowItem>;
+
 export const columns: TableColumn<RowItem>[] = [
-  { key: 'RNUM', header: '순번', width: 80, align: 'center', accessor: 'RNUM' },
+  { key: 'RNUM', header: '순번', width: 80, align: 'center', accessor: 'rnum' },
   {
-    key: 'PO_NO',
-    header: '발주번호',
-    width: 0,
-    accessor: 'PO_NO',
-    headerClassName: 'hidden',
-    cellClassName: 'hidden',
-  },
-  { key: 'PO_YMD', header: '발주일자', width: 100, align: 'center', accessor: 'PO_YMD' },
-  { key: 'ITEM_GB', header: '원자재구분', width: 100, align: 'center', accessor: 'ITEM_GB' },
-  { key: 'ITEM_NM', header: '원자재명', width: 160, accessor: 'ITEM_NM' },
-  { key: 'ITEM_TP', header: '종류', width: 120, accessor: 'ITEM_TP' },
-  { key: 'STANDARD', header: '규격', width: 120, align: 'center', accessor: 'STANDARD' },
-  { key: 'REQ_YMD', header: '입고요청일', width: 120, align: 'center', accessor: 'REQ_YMD' },
-  { key: 'IV_YMD', header: '입고일', width: 120, align: 'center', accessor: 'IV_YMD' },
-  {
-    key: 'PO_QTY',
-    header: '발주량',
+    key: 'PO_YMD',
+    header: '발주일자',
     width: 100,
-    align: 'right',
-    accessor: (row) => row.PO_QTY.toLocaleString(),
+    align: 'center',
+    accessor: 'poYmd',
+    render: (row) => `${row.poYmd}_${row.poSeq}_${row.poSubSeq}`,
   },
+  { key: 'ITEM_GB', header: '원자재구분', width: 100, align: 'center', accessor: 'itemGb' },
+  { key: 'ITEM_NM', header: '원자재명', width: 160, accessor: 'itemNm' },
+  { key: 'CST_NM', header: '거래처명', width: 160, accessor: 'cstNm' },
   {
-    key: 'PRE_IV_QTY',
-    header: '기입고량',
-    width: 100,
+    key: 'TOT_AMT',
+    header: '총금액',
+    width: 120,
     align: 'right',
-    accessor: (row) => row.PRE_IV_QTY.toLocaleString(),
+    accessor: 'totAmt',
+    render: (row) => formatNumber(row.totAmt),
   },
-  {
-    key: 'IV_QTY',
-    header: '입고량',
-    width: 100,
-    align: 'right',
-    accessor: (row) => row.IV_QTY.toLocaleString(),
-  },
+  { key: 'PRE_IV_QTY', header: '기입고량', width: 120, align: 'right', accessor: 'preIvQty' },
+  { key: 'IV_QTY', header: '입고량', width: 120, align: 'right', accessor: 'ivQty' },
+  { key: 'ITEM_CD', header: '품목코드', width: 120, align: 'center', accessor: 'itemCd' },
+  { key: 'GI_YMD', header: '출고일자', width: 120, align: 'center', accessor: 'giYmd' },
+  { key: 'REQ_YMD', header: '입고요청일', width: 120, align: 'center', accessor: 'reqYmd' },
+  { key: 'IV_YMD', header: '입고일', width: 120, align: 'center', accessor: 'ivYmd' },
+  { key: 'END_YN', header: '완료여부', width: 120, align: 'center', accessor: 'endYn' },
 ];
 
 export const tableClassNames: BaseTableClassNames = {
@@ -85,41 +87,66 @@ function toYmd(date: string): string {
 }
 export const exportHeaders = [
   '순번',
-  '발주번호',
   '발주일자',
+  '발주순번',
+  '발주서브순번',
   '원자재구분',
   '원자재명',
-  '종류',
-  '규격',
-  '입고요청일',
-  '입고일',
-  '발주량',
+  '거래처코드',
+  '거래처명',
+  '총금액',
   '기입고량',
   '입고량',
+  '품목코드',
+  '단위코드',
+  '출고일자',
+  '긴급구분',
+  '입고요청일',
+  '입고일',
+  '완료여부',
+  '상태',
+  '비고',
 ];
 
 export const mapExportRow = (r: RowItem) => [
-  r.RNUM,
-  r.PO_NO,
-  r.PO_YMD,
-  r.ITEM_GB,
-  r.ITEM_NM,
-  r.ITEM_TP,
-  r.STANDARD,
-  r.REQ_YMD,
-  r.IV_YMD,
-  r.PO_QTY,
-  r.PRE_IV_QTY,
-  r.IV_QTY,
+  r.rnum,
+  r.poYmd,
+  r.poSeq,
+  r.poSubSeq,
+  r.itemGb,
+  r.itemNm,
+  r.cstCd,
+  r.cstNm,
+  r.totAmt,
+  r.preIvQty,
+  r.ivQty,
+  r.itemCd,
+  r.unitCd,
+  r.giYmd,
+  r.emGb,
+  r.reqYmd,
+  r.ivYmd,
+  r.endYn,
+  r.status,
+  r.description,
 ];
 
-export async function fetchMmsm01002List(form: SearchForm): Promise<RowItem[]> {
-  const data = await getApi<RowItem[]>('/api/v1/material/pomst/search', {
-    poYmdS: toYmd(form.startDate),
-    poYmdE: toYmd(form.endDate),
-    cstCd: form.cstCd || '',
-    itemCd: form.itemCd || '',
-    // mathGb: form.mathGb || '',
-  });
-  return Array.isArray(data) ? data : [];
+export async function fetchMmsm01002List(
+  form: SearchForm,
+  page = 0,
+  size = 10
+): Promise<Mmsm01002ListResult> {
+  const data = await getApi<PageableResponse<RowItem> | RowItem[]>(
+    '/api/v1/material/pomst/search',
+    {
+      poYmdS: toYmd(form.startDate),
+      poYmdE: toYmd(form.endDate),
+      cstCd: form.cstCd || '',
+      itemCd: form.itemCd || '',
+      mathGb: form.mathGb || '',
+      page: String(page),
+      size: String(size),
+    }
+  );
+  return toPageResult(data, page, size);
 }
