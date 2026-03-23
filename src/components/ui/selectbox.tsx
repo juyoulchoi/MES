@@ -28,6 +28,7 @@ type BaseProps<T> = {
   triggerClassName?: string;
   name?: string;
   disabled?: boolean;
+  allExpr?: boolean;
 };
 
 export type SelectBoxProps<T extends Record<string, unknown>> = BaseProps<T> &
@@ -100,6 +101,7 @@ function SelectBoxInner<T extends Record<string, unknown>>(
     triggerClassName = 'h-9 w-[170px] rounded-lg',
     name,
     disabled = false,
+    allExpr = true,
     id,
     ...props
   }: SelectBoxProps<T>,
@@ -206,6 +208,7 @@ function SelectBoxInner<T extends Record<string, unknown>>(
     const selected = itemValue === selectedValue;
 
     return (
+      
       <button
         key={String(itemValue)}
         type="button"
@@ -294,11 +297,7 @@ function SelectBoxInner<T extends Record<string, unknown>>(
                 <input
                   ref={searchInputRef}
                   value={searchText}
-                  onChange={(event) => {
-                    React.startTransition(() => {
-                      setSearchText(event.target.value);
-                    });
-                  }}
+                  onChange={(event) => setSearchText(event.target.value)}
                   placeholder={searchPlaceholder}
                   className="border-input h-9 w-full rounded-md border px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
                 />
