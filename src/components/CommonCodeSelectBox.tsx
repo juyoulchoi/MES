@@ -13,6 +13,7 @@ type CommonCodeSelectBoxProps = Omit<
   extraParams?: Record<string, string>;
   fallbackItems?: CommonCodeItem[];
   autoLoad?: boolean;
+  allSelect?: boolean;
 };
 
 const EMPTY_ITEMS: CommonCodeItem[] = [];
@@ -24,6 +25,7 @@ function CommonCodeSelectBox({
   extraParams,
   fallbackItems,
   autoLoad = true,
+  allSelect = true,
   noDataText = '공통코드 데이터가 없습니다.',
   ...props
 }: CommonCodeSelectBoxProps) {
@@ -75,6 +77,7 @@ function CommonCodeSelectBox({
       valueExpr="code"
       displayExpr="name"
       groupExpr="groupCode"
+      allSelect
       searchEnabled
       {...props}
       disabled={props.disabled || loading}
