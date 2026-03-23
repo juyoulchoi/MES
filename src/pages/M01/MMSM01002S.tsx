@@ -2,6 +2,7 @@ import React, { useMemo, useRef, useState } from 'react';
 import { MathGb, MathGbLabel } from '@/lib/types';
 import { createEmptyPageResult } from '@/lib/pagination';
 import CodePicker, { type CodePickerType } from '@/components/CodePicker';
+import CommonCodeSelectBox from '@/components/CommonCodeSelectBox';
 import ExportCsvButton from '@/components/ExportCsvButton';
 import MasterSearchField from '@/components/MasterSearchField';
 import FromToDateSearchField from '@/components/FromToDateSearchField';
@@ -30,7 +31,7 @@ const MMSM01002S: React.FC = () => {
     cstNm: '',
     itemCd: '',
     itemNm: '',
-    mathGb: MathGb.ALL,
+    itemGb: MathGb.ALL,
   });
   const [result, setResult] = useState<Mmsm01002ListResult>(() =>
     createEmptyPageResult(0, PAGE_SIZE)
@@ -78,21 +79,17 @@ const MMSM01002S: React.FC = () => {
 
           <div className="w-[300px] grid grid-cols-[100px_170px_1fr] items-center gap-2">
             <label className="text-sm text-gray-600">자재구분</label>
-            <select
-              value={form.mathGb}
-              onChange={(e) =>
+            <CommonCodeSelectBox
+              codeGroup="ITEM_GB"
+              label="자재구분"
+              showAllOption={true}
+              onValueChange={(value) =>
                 setForm({
                   ...form,
-                  mathGb: e.target.value as SearchForm['mathGb'],
+                  itemGb: String(value),
                 })
               }
-              className="h-9 w-[170px] rounded-lg border px-2"
-            >
-              <option value={MathGb.ALL}>{MathGbLabel.ALL}</option>
-              <option value={MathGb.A}>{MathGbLabel.A}</option>
-              <option value={MathGb.B}>{MathGbLabel.B}</option>
-              <option value={MathGb.C}>{MathGbLabel.C}</option>
-            </select>
+            />
           </div>
         </div>
 
@@ -109,7 +106,7 @@ const MMSM01002S: React.FC = () => {
 
         <div className="mt-3 flex justify-end gap-2">
           <button
-            onClick={(e) => {
+            onClick={() => {
               fetchList(0);
             }}
             className="rounded-xl border bg-white px-4 py-2 shadow-sm hover:bg-gray-50 active:scale-[0.99]"
