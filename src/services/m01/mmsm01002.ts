@@ -1,6 +1,5 @@
 import { getApi } from '@/lib/axiosClient';
 import { toPageResult, type PageResult, type PageableResponse } from '@/lib/pagination';
-import { MathGb } from '@/lib/types';
 import { type BaseTableClassNames, type TableColumn } from '@/components/table/BaseTable';
 import { formatNumber } from '@/lib/utils';
 
@@ -11,7 +10,7 @@ export interface SearchForm {
   cstNm: string;
   itemCd: string;
   itemNm: string;
-  mathGb: MathGb;
+  itemGb: string;
 }
 
 export interface RowItem {
@@ -143,7 +142,7 @@ export async function fetchMmsm01002List(
       poYmdE: toYmd(form.endDate),
       cstCd: form.cstCd || '',
       itemCd: form.itemCd || '',
-      mathGb: form.mathGb || '',
+      itemGb: form.itemGb || '',
       page: String(page),
       size: String(size),
     }
