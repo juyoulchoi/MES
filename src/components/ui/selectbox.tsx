@@ -12,7 +12,7 @@ type BaseProps<T> = {
   dataSource?: T[];
   value?: Primitive | null | undefined;
   defaultValue?: Primitive | null | undefined;
-  onValueChange?: (value: Primitive, item: T) => void;
+  onValueChange?: (value: Primitive, item?: T) => void;
   valueExpr?: Expr<T, Primitive>;
   displayExpr?: Expr<T, React.ReactNode>;
   groupExpr?: Expr<T, React.ReactNode>;
@@ -28,7 +28,9 @@ type BaseProps<T> = {
   triggerClassName?: string;
   name?: string;
   disabled?: boolean;
-  allExpr?: boolean;
+  showAllOption?: boolean;
+  allOptionLabel?: React.ReactNode;
+  allOptionValue?: Primitive;
 };
 
 export type SelectBoxProps<T extends Record<string, unknown>> = BaseProps<T> &
@@ -37,7 +39,16 @@ export type SelectBoxProps<T extends Record<string, unknown>> = BaseProps<T> &
 type Group<T> = {
   key: string;
   label: React.ReactNode;
-  items: T[];
+  items: NormalizedOption<T>[];
+};
+
+type NormalizedOption<T> = {
+  key: string;
+  item?: T;
+  value: Primitive;
+  label: React.ReactNode;
+  group?: React.ReactNode;
+  searchText: string;
 };
 
 function getByExpr<T, R>(item: T, expr: Expr<T, R> | undefined, fallback?: R): R | undefined {
@@ -101,7 +112,9 @@ function SelectBoxInner<T extends Record<string, unknown>>(
     triggerClassName = 'h-9 w-[170px] rounded-lg',
     name,
     disabled = false,
-    allExpr = true,
+    showAllOption = false,
+    allOptionLabel = '전체',
+    allOptionValue = '',
     id,
     ...props
   }: SelectBoxProps<T>,
@@ -146,26 +159,37 @@ function SelectBoxInner<T extends Record<string, unknown>>(
     }
   }, [open, searchEnabled]);
 
-  const normalizedOptions = React.useMemo(() => {
-    return dataSource.map((item) => {
+  const allOption = React.useMemo<NormalizedOption<T> | null>(() => {
+    if (!showAllOption) return null;
+    return {
+      key: '__all__',
+      value: allOptionValue,
+      label: allOptionLabel,
+      searchText: normalizeText(allOptionLabel),
+    };
+  }, [allOptionLabel, allOptionValue, showAllOption]);
+
+  const normalizedOptions = React.useMemo<NormalizedOption<T>[]>(() => {
+    return dataSource.map((item, index) => {
       const itemValue = getByExpr(item, valueExpr);
       const itemLabel = getByExpr(item, displayExpr, '') ?? '';
       const itemGroup = getByExpr(item, groupExpr);
       return {
+        key: `${String(itemValue)}_${index}`,
         item,
-        value: itemValue,
+        value: itemValue ?? index,
         label: itemLabel,
         group: itemGroup,
         searchText: normalizeText(itemLabel),
       };
     });
-  }, [dataSource, valueExpr, displayExpr, groupExpr]);
+  }, [dataSource, displayExpr, groupExpr, valueExpr]);
 
   const filteredOptions = React.useMemo(() => {
     return normalizedOptions.filter((option) =>
       matchesSearch(option.searchText, deferredSearchText, searchMode)
     );
-  }, [normalizedOptions, deferredSearchText, searchMode]);
+  }, [deferredSearchText, normalizedOptions, searchMode]);
 
   const groupedOptions = React.useMemo(() => {
     if (!grouped) return [] as Group<T>[];
@@ -176,52 +200,53 @@ function SelectBoxInner<T extends Record<string, unknown>>(
       const key = String(groupLabel);
       const existing = groups.get(key);
       if (existing) {
-        existing.items.push(option.item);
+        existing.items.push(option);
         return;
       }
       groups.set(key, {
         key,
         label: groupLabel,
-        items: [option.item],
+        items: [option],
       });
     });
 
     return Array.from(groups.values());
   }, [filteredOptions, grouped]);
 
-  const selectedOption = normalizedOptions.find((option) => option.value === selectedValue);
+  const selectedOption = React.useMemo(() => {
+    if (allOption && selectedValue === allOption.value) return allOption;
+    return normalizedOptions.find((option) => option.value === selectedValue) ?? null;
+  }, [allOption, normalizedOptions, selectedValue]);
+
   const showFloatingLabel =
     labelMode === 'floating' && (open || Boolean(selectedOption) || searchText.length > 0);
 
-  const selectOption = (item: T) => {
-    const nextValue = getByExpr(item, valueExpr);
-    if (nextValue === undefined) return;
-    setSelectedValue(nextValue);
-    onValueChange?.(nextValue, item);
+  const selectOption = (option: NormalizedOption<T>) => {
+    setSelectedValue(option.value);
+    onValueChange?.(option.value, option.item);
     setOpen(false);
     setSearchText('');
   };
 
-  const renderOption = (item: T) => {
-    const itemValue = getByExpr(item, valueExpr);
-    const itemLabel = getByExpr(item, displayExpr, '') ?? '';
-    const selected = itemValue === selectedValue;
+  const renderOption = (option: NormalizedOption<T>) => {
+    const selected = option.value === selectedValue;
 
     return (
-      
       <button
-        key={String(itemValue)}
+        key={option.key}
         type="button"
         className={cn(
           'flex w-full items-center px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground',
           selected && 'bg-accent text-accent-foreground'
         )}
-        onClick={() => selectOption(item)}
+        onClick={() => selectOption(option)}
       >
-        {itemLabel}
+        {option.label}
       </button>
     );
   };
+
+  const hasVisibleOptions = Boolean(allOption) || filteredOptions.length > 0;
 
   return (
     <div className={cn('relative w-full', className)} ref={rootRef} {...props}>
@@ -304,18 +329,20 @@ function SelectBoxInner<T extends Record<string, unknown>>(
               </div>
             ) : null}
 
+            {allOption ? renderOption(allOption) : null}
+
             {grouped
               ? groupedOptions.map((group) => (
                   <div key={group.key} className="py-1">
                     <div className="px-3 py-1 text-xs font-semibold text-muted-foreground">
                       {group.label}
                     </div>
-                    {group.items.map((item) => renderOption(item))}
+                    {group.items.map((option) => renderOption(option))}
                   </div>
                 ))
-              : filteredOptions.map((option) => renderOption(option.item))}
+              : filteredOptions.map((option) => renderOption(option))}
 
-            {filteredOptions.length === 0 ? (
+            {!hasVisibleOptions ? (
               <div className="px-3 py-6 text-center text-sm text-muted-foreground">
                 {noDataText}
               </div>
