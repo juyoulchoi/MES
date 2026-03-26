@@ -1,85 +1,144 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { X } from 'lucide-react';
 
-export type CodePickerType = 'customer' | 'math';
-export type CodePickerItem = { code: string; name: string };
+import { getApi } from '@/lib/axiosClient';
+import { LabeledInput } from '@/components/ui/labeled-input';
+import { toPageResult, type PageResult, createEmptyPageResult } from '@/lib/pagination';
+
+export type CodeItem = { code: string; name: string };
+type ResultRow = PageResult<CodeItem>;
+const PAGE_SIZE = 10;
 
 export interface CodePickerProps {
-  typeCode: CodePickerType;
   title: string;
-  onSelect: (v: CodePickerItem) => void;
+  onSelect: (v: CodeItem) => void;
   onClose: () => void;
-  items?: CodePickerItem[];
+  code: string;
+  name: string;
+  pageable?: string;
 }
 
-function getDefaultItems(typeCode: CodePickerType): CodePickerItem[] {
-  if (typeCode === 'customer') {
-    return [
-      { code: 'C001', name: '삼성상사' },
-      { code: 'C002', name: '엘지상사' },
-      { code: 'C003', name: '한화트레이딩' },
-    ];
-  }
-  return [
-    { code: 'M001', name: '알루미늄' },
-    { code: 'M002', name: '구리' },
-    { code: 'M003', name: '철' },
-    { code: 'M004', name: '플라스틱' },
-  ];
+type SearchForm = {
+  searchCode?: string;
+  searchName?: string;
+  status?: string;
+  pageable?: string;
+};
+
+async function fetchtems(form: SearchForm, page = 0, size = PAGE_SIZE): Promise<ResultRow> {
+  const data = await getApi<unknown>('/api/v1/mdm/cust/searchCustList', {
+    searchCode: form.searchCode,
+    searchName: form.searchName,
+    status: 'ACTIVE',
+    pageable: form.pageable,
+    page: String(page),
+    size: String(size),
+  });
+  return toPageResult(data, page, size);
 }
 
-export default function CodePicker({ typeCode, title, onSelect, onClose, items }: CodePickerProps) {
-  const [q, setQ] = useState('');
+export default function CodePicker({
+  title,
+  onSelect,
+  onClose,
+  code,
+  name,
+  pageable,
+}: CodePickerProps) {
+  const [searchName, setSearchName] = useState(name ?? '');
+  const [result, setResult] = useState<ResultRow>(() => createEmptyPageResult(0, PAGE_SIZE));
+  const [loading, setLoading] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [form, setForm] = useState<SearchForm>({
+    searchCode: code,
+    searchName: name,
+  });
+  useEffect(() => {
+    setSearchName(name ?? '');
+    setError(null);
+    setLoaded(false);
+  }, [name]);
 
-  const list = useMemo(
-    () => (Array.isArray(items) && items.length > 0 ? items : getDefaultItems(typeCode)),
-    [items, typeCode]
+  const searchCustomers = useCallback(
+    async (nextName: string) => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        setResult(await fetchtems(form, 0, 10));
+      } catch (e) {
+        setError(e instanceof Error ? e.message : String(e));
+      } finally {
+        setLoaded(true);
+        setLoading(false);
+      }
+    },
+    [name]
   );
 
-  const filtered = useMemo(() => {
-    const k = q.trim();
-
-    if (!k) return list;
-
-    return list.filter((v) => v.code.includes(k) || v.name.includes(k));
-  }, [list, q]);
+  const emptyMessage = '데이터가 없습니다.';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="w-[700px] max-h-[520px] rounded-2xl bg-white shadow-xl flex flex-col">
-        <div className="flex items-center justify-between px-5 py-3 border-b">
+      <div className="flex max-h-[560px] w-[760px] flex-col rounded-2xl bg-white shadow-xl">
+        <div className="flex items-center justify-between border-b px-5 py-3">
           <h3 className="text-lg font-semibold">{title}</h3>
-          <button className="p-1 hover:bg-gray-100 rounded-full" onClick={onClose}>
+          <button className="rounded-full p-1 hover:bg-gray-100" onClick={onClose}>
             <X size={18} />
           </button>
         </div>
-        <div className="p-4">
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="코드/이름 검색"
-            className="w-full rounded-xl border px-3 py-2 outline-none focus:ring"
-          />
+
+        <div className="border-b p-4">
+          <div className="grid grid-cols-[1fr_auto] items-center gap-3">
+            <LabeledInput
+              id="txtName"
+              label="검색명"
+              value={name}
+              wrapperClassName="grid grid-cols-[140px_1fr] items-center gap-3"
+              labelClassName="text-sm text-gray-600"
+              inputClassName="h-10 rounded-xl border px-3 outline-none focus:ring"
+              onChange={(e) => setSearchName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') void searchCustomers(name);
+              }}
+            />
+            <button
+              type="button"
+              className="h-10 rounded-xl border px-4 hover:bg-gray-50 disabled:opacity-50"
+              onClick={() => void searchCustomers(name)}
+              disabled={loading}
+            >
+              {loading ? '조회중...' : '조회'}
+            </button>
+          </div>
         </div>
-        <div className="px-4 pb-4 overflow-auto">
+
+        {error ? <div className="px-4 pt-4 text-sm text-red-600">{error}</div> : null}
+
+        <div className="overflow-auto px-4 pb-4 pt-4">
           <table className="w-full text-sm">
             <thead className="sticky top-0 bg-gray-50">
               <tr>
-                <th className="text-left py-2 px-2">코드</th>
-                <th className="text-left py-2 px-2">이름</th>
-                <th className="w-24 py-2 px-2"></th>
+                <th className="px-2 py-2 text-left">대표자명</th>
+                <th className="px-2 py-2 text-left">거래처코드</th>
+                <th className="px-2 py-2 text-left">거래처명</th>
+                <th className="px-2 py-2 text-left">사업자번호</th>
+                <th className="w-24 px-2 py-2"></th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map((v) => (
-                <tr key={v.code} className="border-t">
-                  <td className="py-2 px-2">{v.code}</td>
-                  <td className="py-2 px-2">{v.name}</td>
-                  <td className="py-2 px-2 text-right">
+              {/* {result.content.map((row) => (
+                <tr key={`${row.cstCd}_${row.cstNm}_${row.regNo}`} className="border-t">
+                  <td className="px-2 py-2">{row.ceoNm}</td>
+                  <td className="px-2 py-2">{row.cstCd}</td>
+                  <td className="px-2 py-2">{row.cstNm}</td>
+                  <td className="px-2 py-2">{row.regNo}</td>
+                  <td className="px-2 py-2 text-right">
                     <button
                       className="rounded-lg border px-3 py-1 hover:bg-gray-50"
                       onClick={() => {
-                        onSelect(v);
+                        onSelect(row);
                         onClose();
                       }}
                     >
@@ -87,7 +146,14 @@ export default function CodePicker({ typeCode, title, onSelect, onClose, items }
                     </button>
                   </td>
                 </tr>
-              ))}
+              ))} */}
+              {result.content.length == 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-2 py-8 text-center text-sm text-gray-400">
+                    {loading ? '거래처 목록을 불러오는 중...' : emptyMessage}
+                  </td>
+                </tr>
+              ) : null}
             </tbody>
           </table>
         </div>
