@@ -1,7 +1,7 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { MathGb, MathGbLabel } from '@/lib/types';
 import { createEmptyPageResult } from '@/lib/pagination';
-import CodePicker, { type CodePickerType } from '@/components/CodePicker';
+import CustomerCodePicker from '@/components/CustomerCodePicker';
+import MaterialCodePicker from '@/components/MaterialCodePicker';
 import CommonCodeSelectBox from '@/components/CommonCodeSelectBox';
 import ExportCsvButton from '@/components/ExportCsvButton';
 import MasterSearchField from '@/components/MasterSearchField';
@@ -14,7 +14,7 @@ import {
   tableClassNames,
   exportHeaders,
   mapExportRow,
-  type Mmsm01002ListResult,
+  type ListResult,
   type SearchForm,
 } from '@/services/m01/mmsm01002';
 
@@ -31,14 +31,15 @@ const MMSM01002S: React.FC = () => {
     cstNm: '',
     itemCd: '',
     itemNm: '',
-    itemGb: MathGb.ALL,
+    itemGb: '',
   });
-  const [result, setResult] = useState<Mmsm01002ListResult>(() =>
-    createEmptyPageResult(0, PAGE_SIZE)
-  );
+
+  const [result, setResult] = useState<ListResult>(() => createEmptyPageResult(0, PAGE_SIZE));
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [picker, setPicker] = useState<null | { type: CodePickerType; title: string }>(null);
+  const [customerOpen, setCustomerOpen] = useState(false);
+  const [materialPickerOpen, setMaterialPickerOpen] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const tableHeight = useAutoTableHeight(containerRef);
@@ -70,11 +71,12 @@ const MMSM01002S: React.FC = () => {
 
           <MasterSearchField
             label="거래처명"
+            id="cust"
             code={form.cstCd}
             name={form.cstNm}
             codePlaceholder="코드"
             namePlaceholder="거래처 선택"
-            onSearch={() => setPicker({ type: 'customer', title: '거래처 정보' })}
+            onSearch={() => setCustomerOpen(true)}
           />
 
           <div className="w-[300px] grid grid-cols-[100px_170px_1fr] items-center gap-2">
@@ -83,6 +85,7 @@ const MMSM01002S: React.FC = () => {
               codeGroup="ITEM_GB"
               label="자재구분"
               showAllOption={true}
+              searchEnabled={false}
               onValueChange={(value) =>
                 setForm({
                   ...form,
@@ -96,11 +99,12 @@ const MMSM01002S: React.FC = () => {
         <div className="mt-2">
           <MasterSearchField
             label="제품명"
+            id="cust"
             code={form.itemCd}
             name={form.itemNm}
             codePlaceholder="코드"
             namePlaceholder="제품 선택"
-            onSearch={() => setPicker({ type: 'math', title: '원자재 검색' })}
+            onSearch={() => setMaterialPickerOpen(true)}
           />
         </div>
 
@@ -148,20 +152,31 @@ const MMSM01002S: React.FC = () => {
         </div>
       </div>
 
-      {picker && (
-        <CodePicker
-          typeCode={picker.type}
-          title={picker.title}
-          onClose={() => setPicker(null)}
-          onSelect={(v) => {
-            if (picker.type === 'customer') {
-              setForm((f) => ({ ...f, cstCd: v.code, cstNm: v.name }));
-            } else {
-              setForm((f) => ({ ...f, itemCd: v.code, itemNm: v.name }));
-            }
+      {customerOpen ? (
+        <CustomerCodePicker
+          title="거래처 정보"
+          custGb="CUSTOMER"
+          cstCd={form.cstCd}
+          cstNm={form.cstNm}
+          onClose={() => setCustomerOpen(false)}
+          onSelect={(value) => {
+            setForm((prev) => ({ ...prev, cstCd: value.cstCd, cstNm: value.cstNm }));
           }}
         />
-      )}
+      ) : null}
+
+      {materialPickerOpen ? (
+        <MaterialCodePicker
+          title="원자재 정보"
+          itemGb="RAW"
+          itemCd={form.itemCd}
+          itemNm={form.itemNm}
+          onClose={() => setMaterialPickerOpen(false)}
+          onSelect={(value) => {
+            setForm((prev) => ({ ...prev, itemCd: value.code, itemNm: value.name }));
+          }}
+        />
+      ) : null}
     </div>
   );
 };
