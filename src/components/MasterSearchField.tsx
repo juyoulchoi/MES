@@ -1,5 +1,10 @@
+import { LabeledInput } from '@/components/ui/labeled-input';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+
 type MasterSearchFieldProps = {
   label: string;
+  id: string;
   code: string;
   name: string;
   onSearch: () => void;
@@ -10,6 +15,7 @@ type MasterSearchFieldProps = {
 
 export default function MasterSearchField({
   label,
+  id,
   code,
   name,
   onSearch,
@@ -20,19 +26,21 @@ export default function MasterSearchField({
   return (
     <div className="w-[550px]">
       <div className="grid grid-cols-[100px_120px_300px] items-center gap-2">
-        <label className="text-sm text-gray-600">{label}</label>
-        <input
+        <Label className="text-sm text-gray-600">{label}</Label>
+        <Input
+          id={`${id}-code`}
           value={code}
           readOnly
           placeholder={codePlaceholder}
-          className="h-9 w-[120px] rounded-lg border bg-gray-100 px-2"
+          className="h-9 w-[120px] rounded-lg bg-gray-100 px-2"
         />
         <div className="relative">
-          <input
+          <Input
+            id={`${id}-name`}
             value={name}
             readOnly
-            placeholder={namePlaceholder}
-            className="h-9 w-full rounded-lg border bg-gray-100 pl-3 pr-9"
+            placeholder={codePlaceholder}
+            className="h-9 w-full rounded-lg bg-gray-100 pl-3 pr-14"
           />
           <button
             type="button"
