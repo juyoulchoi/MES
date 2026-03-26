@@ -1,5 +1,5 @@
 import { getApi } from '@/lib/axiosClient';
-import { toPageResult, type PageResult, type PageableResponse } from '@/lib/pagination';
+import { toPageResult, type PageResult } from '@/lib/pagination';
 import { type BaseTableClassNames, type TableColumn } from '@/components/table/BaseTable';
 import { formatNumber } from '@/lib/utils';
 
@@ -36,7 +36,7 @@ export interface RowItem {
   description: string;
 }
 
-export type Mmsm01002ListResult = PageResult<RowItem>;
+export type ListResult = PageResult<RowItem>;
 
 export const columns: TableColumn<RowItem>[] = [
   { key: 'RNUM', header: '순번', width: 80, align: 'center', accessor: 'rnum' },
@@ -134,18 +134,15 @@ export async function fetchMmsm01002List(
   form: SearchForm,
   page = 0,
   size = 10
-): Promise<Mmsm01002ListResult> {
-  const data = await getApi<PageableResponse<RowItem> | RowItem[]>(
-    '/api/v1/material/pomst/search',
-    {
-      poYmdS: toYmd(form.startDate),
-      poYmdE: toYmd(form.endDate),
-      cstCd: form.cstCd || '',
-      itemCd: form.itemCd || '',
-      itemGb: form.itemGb || '',
-      page: String(page),
-      size: String(size),
-    }
-  );
+): Promise<ListResult> {
+  const data = await getApi<unknown>('/api/v1/material/pomst/search', {
+    poYmdS: toYmd(form.startDate),
+    poYmdE: toYmd(form.endDate),
+    cstCd: form.cstCd || '',
+    itemCd: form.itemCd || '',
+    itemGb: form.itemGb || '',
+    page: String(page),
+    size: String(size),
+  });
   return toPageResult(data, page, size);
 }
