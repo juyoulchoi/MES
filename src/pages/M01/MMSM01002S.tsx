@@ -6,12 +6,11 @@ import CommonCodeSelectBox from '@/components/CommonCodeSelectBox';
 import ExportCsvButton from '@/components/ExportCsvButton';
 import MasterSearchField from '@/components/MasterSearchField';
 import FromToDateSearchField from '@/components/FromToDateSearchField';
-import { BaseTable } from '@/components/table/BaseTable';
+import { BaseTable, tableClassNames } from '@/components/table/BaseTable';
 import { useAutoTableHeight } from '@/lib/hooks/useAutoTableHeight';
 import {
   columns,
-  fetchMmsm01002List as onSearch,
-  tableClassNames,
+  fetchList as onSearch,
   exportHeaders,
   mapExportRow,
   type ListResult,
