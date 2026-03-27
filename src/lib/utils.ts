@@ -20,3 +20,9 @@ export function formatNumber(value: number | string | null | undefined): string 
   if (Number.isNaN(numberValue)) return String(value);
   return numberValue.toLocaleString('ko-KR');
 }
+
+export function toYmd(date: string): string {
+  const trimmed = date?.trim();
+  if (!trimmed) return '';
+  return trimmed.replace(/-/g, '');
+}
