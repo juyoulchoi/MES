@@ -144,7 +144,14 @@ export default function CustomerCodePicker({
             </thead>
             <tbody>
               {result.content.map((row) => (
-                <tr key={`${row.cstCd}_${row.cstNm}_${row.regNo}`} className="border-t">
+                <tr
+                  key={`${row.cstCd}_${row.cstNm}_${row.regNo}`}
+                  className="border-t"
+                  onDoubleClick={() => {
+                    onSelect(row);
+                    onClose();
+                  }}
+                >
                   <td className="px-2 py-2">{row.ceoNm}</td>
                   <td className="px-2 py-2">{row.cstCd}</td>
                   <td className="px-2 py-2">{row.cstNm}</td>
