@@ -1,7 +1,7 @@
 import { getApi } from '@/lib/axiosClient';
 import { toPageResult, type PageResult } from '@/lib/pagination';
-import { type BaseTableClassNames, type TableColumn } from '@/components/table/BaseTable';
-import { formatNumber } from '@/lib/utils';
+import { type TableColumn } from '@/components/table/BaseTable';
+import { formatNumber, toYmd } from '@/lib/utils';
 
 export interface SearchForm {
   startDate: string;
@@ -68,22 +68,6 @@ export const columns: TableColumn<RowItem>[] = [
   { key: 'END_YN', header: '완료여부', width: 120, align: 'center', accessor: 'endYn' },
 ];
 
-export const tableClassNames: BaseTableClassNames = {
-  table: 'min-w-[1000px] w-full text-sm',
-  thead: 'sticky top-0 bg-gray-100 z-10',
-  headerCell: 'py-2 px-2 text-gray-700 text-xs font-semibold border-b',
-  bodyRow: 'border-b last:border-b-0 hover:bg-gray-50',
-  bodyCell: 'py-2 px-2',
-  emptyCell: 'py-10 text-center text-gray-400',
-};
-
-export const rows: RowItem[] = [];
-
-function toYmd(date: string): string {
-  const trimmed = date?.trim();
-  if (!trimmed) return '';
-  return trimmed.replace(/-/g, '');
-}
 export const exportHeaders = [
   '순번',
   '발주일자',
@@ -130,11 +114,7 @@ export const mapExportRow = (r: RowItem) => [
   r.description,
 ];
 
-export async function fetchMmsm01002List(
-  form: SearchForm,
-  page = 0,
-  size = 10
-): Promise<ListResult> {
+export async function fetchList(form: SearchForm, page = 0, size = 10): Promise<ListResult> {
   const data = await getApi<unknown>('/api/v1/material/pomst/search', {
     poYmdS: toYmd(form.startDate),
     poYmdE: toYmd(form.endDate),
