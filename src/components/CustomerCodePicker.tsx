@@ -1,10 +1,8 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { X } from 'lucide-react';
-import { toPageResult, type PageResult, createEmptyPageResult } from '@/lib/pagination';
+import { toPageResult, type PageResult, createEmptyPageResult, PAGE_SIZE } from '@/lib/pagination';
 import { getApi } from '@/lib/axiosClient';
 import { LabeledInput } from '@/components/ui/labeled-input';
-
-const PAGE_SIZE = 10;
 
 type RowItem = {
   ceoNm: string;
@@ -12,6 +10,16 @@ type RowItem = {
   cstNm: string;
   regNo: string;
 };
+
+export type CustomerCodePickerItem = RowItem;
+
+export type SearchForm = {
+  custGb?: string;
+  cstNm?: string;
+  pageable?: string;
+};
+
+export type CustomerResult = PageResult<RowItem>;
 
 interface CustomerCodePickerProps {
   title: string;
@@ -21,14 +29,6 @@ interface CustomerCodePickerProps {
   cstCd?: string;
   cstNm?: string;
 }
-
-export type CustomerResult = PageResult<RowItem>;
-
-export type SearchForm = {
-  custGb?: string;
-  cstNm?: string;
-  pageable?: string;
-};
 
 async function fetchCustomer(form: SearchForm, page = 0, size = 10): Promise<CustomerResult> {
   const data = await getApi<unknown>('/api/v1/mdm/cust/searchCustList', {
@@ -54,16 +54,6 @@ export default function CustomerCodePicker({
   const [loading, setLoading] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [form, setForm] = useState<SearchForm>({
-    custGb: custGb,
-    cstNm: cstNm,
-  });
-
-  useEffect(() => {
-    setCustomerName(cstNm ?? '');
-    setError(null);
-    setLoaded(false);
-  }, [cstNm]);
 
   const searchCustomers = useCallback(
     async (nextName: string) => {
@@ -71,7 +61,16 @@ export default function CustomerCodePicker({
       setError(null);
 
       try {
-        setResult(await fetchCustomer(form, 0, PAGE_SIZE));
+        setResult(
+          await fetchCustomer(
+            {
+              custGb,
+              cstNm: nextName,
+            },
+            0,
+            PAGE_SIZE
+          )
+        );
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
       } finally {
@@ -79,8 +78,19 @@ export default function CustomerCodePicker({
         setLoading(false);
       }
     },
-    [cstNm]
+    [custGb]
   );
+
+  useEffect(() => {
+    const initialName = cstNm ?? '';
+
+    setCustomerName(initialName);
+    setError(null);
+    setLoaded(false);
+    setResult(createEmptyPageResult(0, PAGE_SIZE));
+
+    void searchCustomers(initialName);
+  }, [cstNm, custGb, searchCustomers]);
 
   const emptyMessage = loaded ? '조회된 거래처가 없습니다.' : '거래처 목록을 불러오는 중...';
 

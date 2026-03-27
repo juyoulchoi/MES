@@ -1,3 +1,5 @@
+export const PAGE_SIZE = 10;
+
 interface PageableResponse<T> {
   content?: T[];
   totalElements?: number;

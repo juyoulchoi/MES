@@ -3,11 +3,10 @@ import { X } from 'lucide-react';
 
 import { getApi } from '@/lib/axiosClient';
 import { LabeledInput } from '@/components/ui/labeled-input';
-import { toPageResult, type PageResult, createEmptyPageResult } from '@/lib/pagination';
+import { toPageResult, type PageResult, createEmptyPageResult, PAGE_SIZE } from '@/lib/pagination';
 
 export type CodeItem = { code: string; name: string };
 type ResultRow = PageResult<CodeItem>;
-const PAGE_SIZE = 10;
 
 export interface CodePickerProps {
   title: string;
