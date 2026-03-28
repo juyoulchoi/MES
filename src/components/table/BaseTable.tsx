@@ -71,7 +71,6 @@ function resolveRowKey<T>(row: T, rowIndex: number, rowKey?: BaseTableProps<T>['
 }
 
 function resolveCellValue<T>(column: TableColumn<T>, row: T, rowIndex: number) {
-  console.log('column: ' + JSON.stringify(column) + ', Row: ' + JSON.stringify(row));
   if (column.render) return column.render(row, rowIndex);
   if (typeof column.accessor === 'function') return column.accessor(row, rowIndex);
   if (column.accessor) return row[column.accessor] as ReactNode;
