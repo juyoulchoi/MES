@@ -1,7 +1,9 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { X } from 'lucide-react';
 import { type PageResult, EmptyPageResult, PAGE_SIZE } from '@/lib/pagination';
 import { getApiFetch, type PageFetchRequest } from '@/services/common/getApiFetch';
+import PopupGrid from '@/components/PopupGrid';
+import type { TableColumn } from '@/components/table/BaseTable';
 
 type RowItem = {
   itemCd: string;
@@ -13,6 +15,8 @@ type RowItem = {
   obtNm: string;
   status: string;
 };
+
+export type MaterialCodePickerItem = RowItem;
 
 type SearchForm = {
   itemGb?: string;
@@ -56,8 +60,8 @@ export default function ItemInfoCodePicker({
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const searchItems = useCallback(
-    async (nextCode: string, nextName: string) => {
+  const search = useCallback(
+    async (nextCode: string, nextName: string, nextPage = 0) => {
       setLoading(true);
       setError(null);
 
@@ -69,7 +73,7 @@ export default function ItemInfoCodePicker({
               itemCd: nextCode,
               itemNm: nextName,
             },
-            page: 0,
+            page: nextPage,
             pageSize: PAGE_SIZE,
           })
         );
@@ -93,10 +97,40 @@ export default function ItemInfoCodePicker({
     setLoaded(false);
     setResult(EmptyPageResult(0, PAGE_SIZE));
 
-    void searchItems(initialCode, initialName);
-  }, [itemCd, itemNm, itemGb, searchItems]);
+    void search(initialCode, initialName);
+  }, [itemCd, itemNm, itemGb, search]);
 
-  const emptyMessage = loaded ? '조회된 원자재가 없습니다.' : '원자재 목록을 불러오는 중...';
+  const columns = useMemo<TableColumn<RowItem>[]>(
+    () => [
+      { key: 'itemCd', header: '코드', accessor: 'itemCd' },
+      { key: 'itemNm', header: '이름', accessor: 'itemNm' },
+      { key: 'itemGbNm', header: '구분', accessor: 'itemGbNm' },
+      {
+        key: 'select',
+        header: '',
+        width: 96,
+        align: 'right',
+        render: (row) => (
+          <button
+            className="rounded-lg border px-3 py-1 hover:bg-gray-50"
+            onClick={() => {
+              onSelect(row);
+              onClose();
+            }}
+          >
+            선택
+          </button>
+        ),
+      },
+    ],
+    [onClose, onSelect]
+  );
+
+  const emptyMessage = loading
+    ? '원자재 목록을 불러오는 중...'
+    : loaded
+      ? '조회된 원자재가 없습니다.'
+      : '원자재 목록을 불러오는 중...';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
@@ -116,7 +150,7 @@ export default function ItemInfoCodePicker({
                 value={itemCode}
                 onChange={(e) => setItemCode(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter') void searchItems(itemCode, itemName);
+                  if (e.key === 'Enter') void search(itemCode, itemName);
                 }}
                 placeholder="원자재코드"
                 className="h-10 w-full rounded-xl border px-3 outline-none focus:ring"
@@ -129,7 +163,7 @@ export default function ItemInfoCodePicker({
                 value={itemName}
                 onChange={(e) => setItemName(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter') void searchItems(itemCode, itemName);
+                  if (e.key === 'Enter') void search(itemCode, itemName);
                 }}
                 placeholder="원자재명"
                 className="h-10 w-full rounded-xl border px-3 outline-none focus:ring"
@@ -139,7 +173,7 @@ export default function ItemInfoCodePicker({
             <button
               type="button"
               className="h-10 rounded-xl border px-4 hover:bg-gray-50 disabled:opacity-50"
-              onClick={() => void searchItems(itemCode, itemName)}
+              onClick={() => void search(itemCode, itemName)}
               disabled={loading}
             >
               {loading ? '조회중...' : '조회'}
@@ -149,43 +183,14 @@ export default function ItemInfoCodePicker({
 
         {error ? <div className="px-4 pt-4 text-sm text-red-600">{error}</div> : null}
 
-        <div className="overflow-auto px-4 pb-4 pt-4">
-          <table className="w-full text-sm">
-            <thead className="sticky top-0 bg-gray-50">
-              <tr>
-                <th className="px-2 py-2 text-left">코드</th>
-                <th className="px-2 py-2 text-left">이름</th>
-                <th className="w-24 px-2 py-2"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {result.content.map((row) => (
-                <tr key={`${row.itemCd}_${row.itemNm}`} className="border-t">
-                  <td className="px-2 py-2">{row.itemCd}</td>
-                  <td className="px-2 py-2">{row.itemNm}</td>
-                  <td className="px-2 py-2 text-right">
-                    <button
-                      className="rounded-lg border px-3 py-1 hover:bg-gray-50"
-                      onClick={() => {
-                        onSelect(row);
-                        onClose();
-                      }}
-                    >
-                      선택
-                    </button>
-                  </td>
-                </tr>
-              ))}
-              {result.content.length === 0 ? (
-                <tr>
-                  <td colSpan={3} className="px-2 py-8 text-center text-sm text-gray-400">
-                    {loading ? '원자재 목록을 불러오는 중...' : emptyMessage}
-                  </td>
-                </tr>
-              ) : null}
-            </tbody>
-          </table>
-        </div>
+        <PopupGrid
+          result={result}
+          columns={columns}
+          rowKey={(row) => `${row.itemCd}_${row.itemNm}`}
+          emptyText={emptyMessage}
+          loading={loading}
+          onPageChange={(page) => void search(itemCode, itemName, page)}
+        />
       </div>
     </div>
   );

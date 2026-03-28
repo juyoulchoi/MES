@@ -1,8 +1,10 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { X } from 'lucide-react';
 import { type PageResult, EmptyPageResult, PAGE_SIZE } from '@/lib/pagination';
 import { getApiFetch, type PageFetchRequest } from '@/services/common/getApiFetch';
 import { LabeledInput } from '@/components/ui/labeled-input';
+import PopupGrid from '@/components/PopupGrid';
+import type { TableColumn } from '@/components/table/BaseTable';
 
 type RowItem = {
   ceoNm: string;
@@ -50,7 +52,7 @@ export default function CustomerCodePicker({
   const [error, setError] = useState<string | null>(null);
 
   const search = useCallback(
-    async (nextName: string) => {
+    async (nextName: string, nextPage = 0) => {
       setLoading(true);
       setError(null);
 
@@ -61,7 +63,7 @@ export default function CustomerCodePicker({
               custGb,
               cstNm: nextName,
             },
-            page: 0,
+            page: nextPage,
             pageSize: PAGE_SIZE,
           })
         );
@@ -86,7 +88,38 @@ export default function CustomerCodePicker({
     void search(initialName);
   }, [cstNm, custGb, search]);
 
-  const emptyMessage = loaded ? '조회된 거래처가 없습니다.' : '거래처 목록을 불러오는 중...';
+  const columns = useMemo<TableColumn<RowItem>[]>(
+    () => [
+      { key: 'ceoNm', header: '대표자명', accessor: 'ceoNm' },
+      { key: 'cstCd', header: '거래처코드', accessor: 'cstCd' },
+      { key: 'cstNm', header: '거래처명', accessor: 'cstNm' },
+      { key: 'regNo', header: '사업자번호', accessor: 'regNo' },
+      {
+        key: 'select',
+        header: '',
+        width: 96,
+        align: 'right',
+        render: (row) => (
+          <button
+            className="rounded-lg border px-3 py-1 hover:bg-gray-50"
+            onClick={() => {
+              onSelect(row);
+              onClose();
+            }}
+          >
+            선택
+          </button>
+        ),
+      },
+    ],
+    [onClose, onSelect]
+  );
+
+  const emptyMessage = loading
+    ? '거래처 목록을 불러오는 중...'
+    : loaded
+      ? '조회된 거래처가 없습니다.'
+      : '거래처 목록을 불러오는 중...';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
@@ -125,54 +158,14 @@ export default function CustomerCodePicker({
 
         {error ? <div className="px-4 pt-4 text-sm text-red-600">{error}</div> : null}
 
-        <div className="overflow-auto px-4 pb-4 pt-4">
-          <table className="w-full text-sm">
-            <thead className="sticky top-0 bg-gray-50">
-              <tr>
-                <th className="px-2 py-2 text-left">대표자명</th>
-                <th className="px-2 py-2 text-left">거래처코드</th>
-                <th className="px-2 py-2 text-left">거래처명</th>
-                <th className="px-2 py-2 text-left">사업자번호</th>
-                <th className="w-24 px-2 py-2"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {result.content.map((row) => (
-                <tr
-                  key={`${row.cstCd}_${row.cstNm}_${row.regNo}`}
-                  className="border-t"
-                  onDoubleClick={() => {
-                    onSelect(row);
-                    onClose();
-                  }}
-                >
-                  <td className="px-2 py-2">{row.ceoNm}</td>
-                  <td className="px-2 py-2">{row.cstCd}</td>
-                  <td className="px-2 py-2">{row.cstNm}</td>
-                  <td className="px-2 py-2">{row.regNo}</td>
-                  <td className="px-2 py-2 text-right">
-                    <button
-                      className="rounded-lg border px-3 py-1 hover:bg-gray-50"
-                      onClick={() => {
-                        onSelect(row);
-                        onClose();
-                      }}
-                    >
-                      선택
-                    </button>
-                  </td>
-                </tr>
-              ))}
-              {result.content.length == 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-2 py-8 text-center text-sm text-gray-400">
-                    {loading ? '거래처 목록을 불러오는 중...' : emptyMessage}
-                  </td>
-                </tr>
-              ) : null}
-            </tbody>
-          </table>
-        </div>
+        <PopupGrid
+          result={result}
+          columns={columns}
+          rowKey={(row) => `${row.cstCd}_${row.cstNm}_${row.regNo}`}
+          emptyText={emptyMessage}
+          loading={loading}
+          onPageChange={(page) => void search(customerName, page)}
+        />
       </div>
     </div>
   );
