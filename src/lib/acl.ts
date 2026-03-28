@@ -1,4 +1,4 @@
-import type { MenuItem, TreeNode } from '@/lib/types';
+import type { MenuItem, TreeNode } from '@/lib/menuInfo';
 
 // 역할 허용 판단
 export function hasAccess(allowRoles: string[] | undefined, userRoles: string[]): boolean {

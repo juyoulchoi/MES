@@ -51,19 +51,3 @@ export type AuthRow = {
   MENU_ID: string;
   SER_AUTH: 'Y' | 'N';
 };
-
-export const MathGb = {
-  ALL: '전체',
-  A: '원자재',
-  B: '반제품',
-  C: '제품',
-} as const;
-
-export type MathGbKey = keyof typeof MathGb;
-export type MathGb = (typeof MathGb)[MathGbKey]; // 원자재 구분, ALL: 전체, A: 원자재, B: 반제품, C: 제품
-export const MathGbLabel: Record<keyof typeof MathGb, string> = {
-  ALL: '전체',
-  A: '원자재',
-  B: '반제품',
-  C: '제품',
-};

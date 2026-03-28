@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { UINode } from '@/lib/types';
+import type { UINode } from '@/lib/menuInfo';
 
 type TreeMenuProps = {
   nodes?: UINode[];

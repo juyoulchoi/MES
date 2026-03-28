@@ -1,4 +1,4 @@
-import type { MenuItem, TreeNode, NavPayload, UINode } from './types';
+import type { MenuItem, TreeNode, NavPayload, UINode } from './menuInfo';
 
 const toStringSafe = (v: unknown): string => {
   try {

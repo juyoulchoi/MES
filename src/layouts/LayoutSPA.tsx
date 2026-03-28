@@ -5,7 +5,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import PageRenderer from '@/routes/PageRenderer';
-import type { NavPayload, UserPayload, TreeNode } from '@/lib/types';
+import type { NavPayload, UserPayload, TreeNode } from '@/lib/menuInfo';
 import { http } from '@/lib/http';
 import { sanitizeNavPayload, toSafeTree } from '@/lib/guards';
 import { filterTreeByRole } from '@/lib/acl';

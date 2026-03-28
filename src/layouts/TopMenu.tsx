@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { getMaskedPage, setMaskedPage } from '@/app/routeMask';
 import { cn } from '@/lib/utils';
-import type { MenuItem } from '@/lib/types';
+import type { MenuItem } from '@/lib/menuInfo';
 
 type TopMenuNode = MenuItem & { children?: MenuItem[] };
 type AnchorPos = { left: number; top: number; width: number; height: number };
