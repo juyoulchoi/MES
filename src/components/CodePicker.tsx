@@ -14,14 +14,12 @@ export interface CodePickerProps {
   onClose: () => void;
   code: string;
   name: string;
-  pageable?: string;
 }
 
 type SearchForm = {
   searchCode?: string;
   searchName?: string;
   status?: string;
-  pageable?: string;
 };
 
 async function fetchtems(form: SearchForm, page = 0, size = PAGE_SIZE): Promise<ResultRow> {
@@ -29,7 +27,6 @@ async function fetchtems(form: SearchForm, page = 0, size = PAGE_SIZE): Promise<
     searchCode: form.searchCode,
     searchName: form.searchName,
     status: 'ACTIVE',
-    pageable: form.pageable,
     page: String(page),
     size: String(size),
   });
@@ -42,7 +39,6 @@ export default function CodePicker({
   onClose,
   code,
   name,
-  pageable,
 }: CodePickerProps) {
   const [searchName, setSearchName] = useState(name ?? '');
   const [result, setResult] = useState<ResultRow>(() => EmptyPageResult(0, PAGE_SIZE));

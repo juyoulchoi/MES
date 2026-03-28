@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import { type PageResult, EmptyPageResult, PAGE_SIZE } from '@/lib/pagination';
-import { getApiFetch } from '@/services/common/getApiFetch';
+import { getApiFetch, type PageFetchRequest } from '@/services/common/getApiFetch';
 
 type RowItem = {
   itemCd: string;
@@ -14,18 +14,15 @@ type RowItem = {
   status: string;
 };
 
-export type MaterialCodePickerItem = RowItem;
-
 type SearchForm = {
   itemGb?: string;
   itemCd?: string;
   itemNm?: string;
-  pageable?: string;
 };
 
 type ResultList = PageResult<RowItem>;
 
-interface MaterialCodePickerProps {
+interface ItemCodePickerProps {
   title: string;
   onSelect: (value: RowItem) => void;
   onClose: () => void;
@@ -34,25 +31,24 @@ interface MaterialCodePickerProps {
   itemNm?: string;
 }
 
-const fetchItems = getApiFetch<SearchForm, RowItem>({
+const fetchList = getApiFetch<SearchForm, RowItem>({
   apiPath: '/api/v1/mdm/iteminfo/searchProductInfoList',
-  mapParams: (form) => ({
+  mapParams: ({ form }: PageFetchRequest<SearchForm>) => ({
     itemCd: form.itemCd,
     itemNm: form.itemNm,
     itemgb: form.itemGb,
     status: 'ACTIVE',
-    pageable: form.pageable,
   }),
 });
 
-export default function MaterialCodePicker({
+export default function ItemInfoCodePicker({
   title,
   itemGb,
   itemCd,
   itemNm,
   onSelect,
   onClose,
-}: MaterialCodePickerProps) {
+}: ItemCodePickerProps) {
   const [itemCode, setItemCode] = useState(itemCd ?? '');
   const [itemName, setItemName] = useState(itemNm ?? '');
   const [result, setResult] = useState<ResultList>(() => EmptyPageResult(0, PAGE_SIZE));
@@ -67,15 +63,15 @@ export default function MaterialCodePicker({
 
       try {
         setResult(
-          await fetchItems(
-            {
+          await fetchList({
+            form: {
               itemGb,
               itemCd: nextCode,
               itemNm: nextName,
             },
-            0,
-            PAGE_SIZE
-          )
+            page: 0,
+            pageSize: PAGE_SIZE,
+          })
         );
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));

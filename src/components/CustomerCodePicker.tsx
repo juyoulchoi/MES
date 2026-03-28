@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import { type PageResult, EmptyPageResult, PAGE_SIZE } from '@/lib/pagination';
-import { getApiFetch } from '@/services/common/getApiFetch';
+import { getApiFetch, type PageFetchRequest } from '@/services/common/getApiFetch';
 import { LabeledInput } from '@/components/ui/labeled-input';
 
 type RowItem = {
@@ -11,12 +11,9 @@ type RowItem = {
   regNo: string;
 };
 
-export type CustomerCodePickerItem = RowItem;
-
 type SearchForm = {
   custGb?: string;
   cstNm?: string;
-  pageable?: string;
 };
 
 type ResultList = PageResult<RowItem>;
@@ -30,38 +27,43 @@ interface CustomerCodePickerProps {
   cstNm?: string;
 }
 
-const fetchCustomer = getApiFetch<SearchForm, RowItem>({
+const fetchList = getApiFetch<SearchForm, RowItem>({
   apiPath: '/api/v1/mdm/cust/searchCustList',
-  mapParams: (form) => ({
+  mapParams: ({ form }: PageFetchRequest<SearchForm>) => ({
     custGb: form.custGb,
     cstNm: form.cstNm,
     status: 'ACTIVE',
-    pageable: form.pageable,
   }),
 });
 
-export default function CustomerCodePicker({ title, custGb, cstNm, onSelect, onClose }: CustomerCodePickerProps) {
+export default function CustomerCodePicker({
+  title,
+  custGb,
+  cstNm,
+  onSelect,
+  onClose,
+}: CustomerCodePickerProps) {
   const [customerName, setCustomerName] = useState(cstNm ?? '');
   const [result, setResult] = useState<ResultList>(() => EmptyPageResult(0, PAGE_SIZE));
   const [loading, setLoading] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const searchCustomers = useCallback(
+  const search = useCallback(
     async (nextName: string) => {
       setLoading(true);
       setError(null);
 
       try {
         setResult(
-          await fetchCustomer(
-            {
+          await fetchList({
+            form: {
               custGb,
               cstNm: nextName,
             },
-            0,
-            PAGE_SIZE
-          )
+            page: 0,
+            pageSize: PAGE_SIZE,
+          })
         );
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
@@ -81,8 +83,8 @@ export default function CustomerCodePicker({ title, custGb, cstNm, onSelect, onC
     setLoaded(false);
     setResult(EmptyPageResult(0, PAGE_SIZE));
 
-    void searchCustomers(initialName);
-  }, [cstNm, custGb, searchCustomers]);
+    void search(initialName);
+  }, [cstNm, custGb, search]);
 
   const emptyMessage = loaded ? '조회된 거래처가 없습니다.' : '거래처 목록을 불러오는 중...';
 
@@ -107,13 +109,13 @@ export default function CustomerCodePicker({ title, custGb, cstNm, onSelect, onC
               inputClassName="h-10 rounded-xl border px-3 outline-none focus:ring"
               onChange={(e) => setCustomerName(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter') void searchCustomers(customerName);
+                if (e.key === 'Enter') void search(customerName);
               }}
             />
             <button
               type="button"
               className="h-10 rounded-xl border px-4 hover:bg-gray-50 disabled:opacity-50"
-              onClick={() => void searchCustomers(customerName)}
+              onClick={() => void search(customerName)}
               disabled={loading}
             >
               {loading ? '조회중...' : '조회'}

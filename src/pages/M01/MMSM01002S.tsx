@@ -1,7 +1,7 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { EmptyPageResult } from '@/lib/pagination';
 import CustomerCodePicker from '@/components/CustomerCodePicker';
-import MaterialCodePicker from '@/components/MaterialCodePicker';
+import MaterialCodePicker from '@/components/ItemCodePicker';
 import CommonCodeSelectBox from '@/components/CommonCodeSelectBox';
 import ExportCsvButton from '@/components/ExportCsvButton';
 import MasterSearchField from '@/components/MasterSearchField';
@@ -47,7 +47,13 @@ const MMSM01002S: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      setResult(await onSearch(form, nextPage, PAGE_SIZE));
+      setResult(
+        await onSearch({
+          form,
+          page: nextPage,
+          pageSize: PAGE_SIZE,
+        })
+      );
     } catch (e) {
       setResult(EmptyPageResult(nextPage, PAGE_SIZE));
       setError(e instanceof Error ? e.message : String(e));
