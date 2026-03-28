@@ -1,5 +1,5 @@
 import { type TableColumn } from '@/components/table/BaseTable';
-import { getApiFetch } from '@/services/common/getApiFetch';
+import { getApiFetch, type PageFetchRequest } from '@/services/common/getApiFetch';
 import { type PageResult } from '@/lib/pagination';
 import { formatNumber, toYmd } from '@/lib/utils';
 
@@ -116,7 +116,7 @@ export const mapExportRow = (r: RowItem) => [
 
 export const fetchList = getApiFetch<SearchForm, RowItem>({
   apiPath: '/api/v1/material/pomst/search',
-  mapParams: (form) => ({
+  mapParams: ({ form }: PageFetchRequest<SearchForm>) => ({
     poYmdS: toYmd(form.startDate),
     poYmdE: toYmd(form.endDate),
     cstCd: form.cstCd || '',
