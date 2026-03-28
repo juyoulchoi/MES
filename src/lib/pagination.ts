@@ -22,7 +22,7 @@ export interface PageResult<T> {
   numberOfElements: number;
 }
 
-export function createEmptyPageResult<T>(page = 0, size = 10): PageResult<T> {
+export function EmptyPageResult<T>(page = 0, size = 10): PageResult<T> {
   return {
     content: [],
     totalElements: 0,
