@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { createEmptyPageResult } from '@/lib/pagination';
+import { EmptyPageResult } from '@/lib/pagination';
 import CustomerCodePicker from '@/components/CustomerCodePicker';
 import MaterialCodePicker from '@/components/MaterialCodePicker';
 import CommonCodeSelectBox from '@/components/CommonCodeSelectBox';
@@ -33,7 +33,7 @@ const MMSM01002S: React.FC = () => {
     itemGb: '',
   });
 
-  const [result, setResult] = useState<ListResult>(() => createEmptyPageResult(0, PAGE_SIZE));
+  const [result, setResult] = useState<ListResult>(() => EmptyPageResult(0, PAGE_SIZE));
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -49,7 +49,7 @@ const MMSM01002S: React.FC = () => {
     try {
       setResult(await onSearch(form, nextPage, PAGE_SIZE));
     } catch (e) {
-      setResult(createEmptyPageResult(nextPage, PAGE_SIZE));
+      setResult(EmptyPageResult(nextPage, PAGE_SIZE));
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
@@ -172,7 +172,12 @@ const MMSM01002S: React.FC = () => {
           itemNm={form.itemNm}
           onClose={() => setMaterialPickerOpen(false)}
           onSelect={(value) => {
-            setForm((prev) => ({ ...prev, itemCd: value.code, itemNm: value.name }));
+            setForm((prev) => ({
+              ...prev,
+              itemGb: value.itemgb,
+              itemCd: value.itemCd,
+              itemNm: value.itemNm,
+            }));
           }}
         />
       ) : null}

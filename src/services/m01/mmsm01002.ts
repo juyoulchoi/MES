@@ -1,6 +1,6 @@
-import { getApi } from '@/lib/axiosClient';
-import { toPageResult, type PageResult } from '@/lib/pagination';
 import { type TableColumn } from '@/components/table/BaseTable';
+import { getApiFetch } from '@/services/common/getApiFetch';
+import { type PageResult } from '@/lib/pagination';
 import { formatNumber, toYmd } from '@/lib/utils';
 
 export interface SearchForm {
@@ -114,15 +114,13 @@ export const mapExportRow = (r: RowItem) => [
   r.description,
 ];
 
-export async function fetchList(form: SearchForm, page = 0, size = 10): Promise<ListResult> {
-  const data = await getApi<unknown>('/api/v1/material/pomst/search', {
+export const fetchList = getApiFetch<SearchForm, RowItem>({
+  apiPath: '/api/v1/material/pomst/search',
+  mapParams: (form) => ({
     poYmdS: toYmd(form.startDate),
     poYmdE: toYmd(form.endDate),
     cstCd: form.cstCd || '',
     itemCd: form.itemCd || '',
     itemGb: form.itemGb || '',
-    page: String(page),
-    size: String(size),
-  });
-  return toPageResult(data, page, size);
-}
+  }),
+});

@@ -3,7 +3,7 @@ import { X } from 'lucide-react';
 
 import { getApi } from '@/lib/axiosClient';
 import { LabeledInput } from '@/components/ui/labeled-input';
-import { toPageResult, type PageResult, createEmptyPageResult, PAGE_SIZE } from '@/lib/pagination';
+import { toPageResult, type PageResult, EmptyPageResult, PAGE_SIZE } from '@/lib/pagination';
 
 export type CodeItem = { code: string; name: string };
 type ResultRow = PageResult<CodeItem>;
@@ -45,7 +45,7 @@ export default function CodePicker({
   pageable,
 }: CodePickerProps) {
   const [searchName, setSearchName] = useState(name ?? '');
-  const [result, setResult] = useState<ResultRow>(() => createEmptyPageResult(0, PAGE_SIZE));
+  const [result, setResult] = useState<ResultRow>(() => EmptyPageResult(0, PAGE_SIZE));
   const [loading, setLoading] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);

@@ -1,101 +1,104 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { X } from 'lucide-react';
+import { type PageResult, EmptyPageResult, PAGE_SIZE } from '@/lib/pagination';
+import { getApiFetch } from '@/services/common/getApiFetch';
 
-import { getApi } from '@/lib/axiosClient';
-
-export type MaterialCodePickerItem = {
-  code: string;
-  name: string;
+type RowItem = {
+  itemCd: string;
+  itemNm: string;
+  itemgb: string;
+  itemGbNm: string;
+  unitCd: string;
+  obtGb: string;
+  obtNm: string;
+  status: string;
 };
 
-export interface MaterialCodePickerProps {
-  title: string;
-  itemGb: 'FG' | 'SFG' | 'RAW' | 'SUB';
-  onSelect: (value: MaterialCodePickerItem) => void;
-  onClose: () => void;
-  itemCd?: string;
-  itemNm?: string;
-}
+export type MaterialCodePickerItem = RowItem;
 
-type MaterialSearchRow = Record<string, unknown>;
-
-type MaterialSearchParams = {
-  itemCd?: string;
-  itemNm?: string;
+type SearchForm = {
   itemGb?: string;
+  itemCd?: string;
+  itemNm?: string;
+  pageable?: string;
 };
 
-function pickString(source: Record<string, unknown>, keys: string[]): string {
-  for (const key of keys) {
-    const value = source[key];
-    if (value !== undefined && value !== null && value !== '') {
-      return String(value);
-    }
-  }
+type ResultList = PageResult<RowItem>;
 
-  return '';
+interface MaterialCodePickerProps {
+  title: string;
+  onSelect: (value: RowItem) => void;
+  onClose: () => void;
+  itemGb: 'FG' | 'SFG' | 'RAW' | 'SUB';
+  itemCd?: string;
+  itemNm?: string;
 }
 
-async function fetchMaterialItems({ itemCd = '', itemNm = '', itemGb = '' }: MaterialSearchParams) {
-  const rows = await getApi<MaterialSearchRow[]>('/api/v1/mdm/iteminfo/search', {
-    itemCd: itemCd,
-    itemNm: itemNm,
-    itemgb: itemGb,
-  });
-
-  return (Array.isArray(rows) ? rows : [])
-    .map((row) => ({
-      code: pickString(row, ['itemCd', 'ITEM_CD', 'code', 'CODE', 'id', 'ID']),
-      name: pickString(row, ['itemNm', 'ITEM_NM', 'name', 'NAME', 'text', 'TEXT']),
-    }))
-    .filter((row) => row.code || row.name);
-}
+const fetchItems = getApiFetch<SearchForm, RowItem>({
+  apiPath: '/api/v1/mdm/iteminfo/searchProductInfoList',
+  mapParams: (form) => ({
+    itemCd: form.itemCd,
+    itemNm: form.itemNm,
+    itemgb: form.itemGb,
+    status: 'ACTIVE',
+    pageable: form.pageable,
+  }),
+});
 
 export default function MaterialCodePicker({
   title,
   itemGb,
-  onSelect,
-  onClose,
   itemCd,
   itemNm,
+  onSelect,
+  onClose,
 }: MaterialCodePickerProps) {
-  const [materialCode, setMaterialCode] = useState(itemCd ?? '');
-  const [materialName, setMaterialName] = useState(itemNm ?? '');
-  const [rows, setRows] = useState<MaterialCodePickerItem[]>([]);
+  const [itemCode, setItemCode] = useState(itemCd ?? '');
+  const [itemName, setItemName] = useState(itemNm ?? '');
+  const [result, setResult] = useState<ResultList>(() => EmptyPageResult(0, PAGE_SIZE));
   const [loading, setLoading] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const searchItems = useCallback(
+    async (nextCode: string, nextName: string) => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        setResult(
+          await fetchItems(
+            {
+              itemGb,
+              itemCd: nextCode,
+              itemNm: nextName,
+            },
+            0,
+            PAGE_SIZE
+          )
+        );
+      } catch (e) {
+        setError(e instanceof Error ? e.message : String(e));
+      } finally {
+        setLoaded(true);
+        setLoading(false);
+      }
+    },
+    [itemGb]
+  );
+
   useEffect(() => {
-    setMaterialCode(itemCd ?? '');
-    setMaterialName(itemNm ?? '');
+    const initialCode = itemCd ?? '';
+    const initialName = itemNm ?? '';
+
+    setItemCode(initialCode);
+    setItemName(initialName);
     setError(null);
     setLoaded(false);
-    setRows([]);
-  }, [itemCd, itemNm]);
+    setResult(EmptyPageResult(0, PAGE_SIZE));
 
-  const searchMaterials = useCallback(async (nextCode: string, nextName: string) => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const list = await fetchMaterialItems({
-        itemCd: nextCode.trim(),
-        itemNm: nextName.trim(),
-      });
-      setRows(list);
-    } catch (e) {
-      setRows([]);
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setLoaded(true);
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void searchMaterials(itemCd ?? '', itemNm ?? '');
-  }, [itemCd, itemNm, itemGb, searchMaterials]);
+    void searchItems(initialCode, initialName);
+  }, [itemCd, itemNm, itemGb, searchItems]);
 
   const emptyMessage = loaded ? '조회된 원자재가 없습니다.' : '원자재 목록을 불러오는 중...';
 
@@ -114,10 +117,10 @@ export default function MaterialCodePicker({
             <label className="text-sm text-gray-600">
               <span className="mb-1 block">원자재코드</span>
               <input
-                value={materialCode}
-                onChange={(e) => setMaterialCode(e.target.value)}
+                value={itemCode}
+                onChange={(e) => setItemCode(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter') void searchMaterials(materialCode, materialName);
+                  if (e.key === 'Enter') void searchItems(itemCode, itemName);
                 }}
                 placeholder="원자재코드"
                 className="h-10 w-full rounded-xl border px-3 outline-none focus:ring"
@@ -127,10 +130,10 @@ export default function MaterialCodePicker({
             <label className="text-sm text-gray-600">
               <span className="mb-1 block">원자재명</span>
               <input
-                value={materialName}
-                onChange={(e) => setMaterialName(e.target.value)}
+                value={itemName}
+                onChange={(e) => setItemName(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter') void searchMaterials(materialCode, materialName);
+                  if (e.key === 'Enter') void searchItems(itemCode, itemName);
                 }}
                 placeholder="원자재명"
                 className="h-10 w-full rounded-xl border px-3 outline-none focus:ring"
@@ -140,7 +143,7 @@ export default function MaterialCodePicker({
             <button
               type="button"
               className="h-10 rounded-xl border px-4 hover:bg-gray-50 disabled:opacity-50"
-              onClick={() => void searchMaterials(materialCode, materialName)}
+              onClick={() => void searchItems(itemCode, itemName)}
               disabled={loading}
             >
               {loading ? '조회중...' : '조회'}
@@ -160,10 +163,10 @@ export default function MaterialCodePicker({
               </tr>
             </thead>
             <tbody>
-              {rows.map((row) => (
-                <tr key={`${row.code}_${row.name}`} className="border-t">
-                  <td className="px-2 py-2">{row.code}</td>
-                  <td className="px-2 py-2">{row.name}</td>
+              {result.content.map((row) => (
+                <tr key={`${row.itemCd}_${row.itemNm}`} className="border-t">
+                  <td className="px-2 py-2">{row.itemCd}</td>
+                  <td className="px-2 py-2">{row.itemNm}</td>
                   <td className="px-2 py-2 text-right">
                     <button
                       className="rounded-lg border px-3 py-1 hover:bg-gray-50"
@@ -177,7 +180,7 @@ export default function MaterialCodePicker({
                   </td>
                 </tr>
               ))}
-              {rows.length === 0 ? (
+              {result.content.length === 0 ? (
                 <tr>
                   <td colSpan={3} className="px-2 py-8 text-center text-sm text-gray-400">
                     {loading ? '원자재 목록을 불러오는 중...' : emptyMessage}

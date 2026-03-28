@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { X } from 'lucide-react';
-import { toPageResult, type PageResult, createEmptyPageResult, PAGE_SIZE } from '@/lib/pagination';
-import { getApi } from '@/lib/axiosClient';
+import { type PageResult, EmptyPageResult, PAGE_SIZE } from '@/lib/pagination';
+import { getApiFetch } from '@/services/common/getApiFetch';
 import { LabeledInput } from '@/components/ui/labeled-input';
 
 type RowItem = {
@@ -13,13 +13,13 @@ type RowItem = {
 
 export type CustomerCodePickerItem = RowItem;
 
-export type SearchForm = {
+type SearchForm = {
   custGb?: string;
   cstNm?: string;
   pageable?: string;
 };
 
-export type CustomerResult = PageResult<RowItem>;
+type ResultList = PageResult<RowItem>;
 
 interface CustomerCodePickerProps {
   title: string;
@@ -30,27 +30,19 @@ interface CustomerCodePickerProps {
   cstNm?: string;
 }
 
-async function fetchCustomer(form: SearchForm, page = 0, size = 10): Promise<CustomerResult> {
-  const data = await getApi<unknown>('/api/v1/mdm/cust/searchCustList', {
+const fetchCustomer = getApiFetch<SearchForm, RowItem>({
+  apiPath: '/api/v1/mdm/cust/searchCustList',
+  mapParams: (form) => ({
     custGb: form.custGb,
     cstNm: form.cstNm,
     status: 'ACTIVE',
     pageable: form.pageable,
-    page: String(page),
-    size: String(size),
-  });
-  return toPageResult(data, page, size);
-}
+  }),
+});
 
-export default function CustomerCodePicker({
-  title,
-  onSelect,
-  onClose,
-  custGb,
-  cstNm,
-}: CustomerCodePickerProps) {
+export default function CustomerCodePicker({ title, custGb, cstNm, onSelect, onClose }: CustomerCodePickerProps) {
   const [customerName, setCustomerName] = useState(cstNm ?? '');
-  const [result, setResult] = useState<CustomerResult>(() => createEmptyPageResult(0, PAGE_SIZE));
+  const [result, setResult] = useState<ResultList>(() => EmptyPageResult(0, PAGE_SIZE));
   const [loading, setLoading] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -87,7 +79,7 @@ export default function CustomerCodePicker({
     setCustomerName(initialName);
     setError(null);
     setLoaded(false);
-    setResult(createEmptyPageResult(0, PAGE_SIZE));
+    setResult(EmptyPageResult(0, PAGE_SIZE));
 
     void searchCustomers(initialName);
   }, [cstNm, custGb, searchCustomers]);
