@@ -1,4 +1,3 @@
-import { LabeledInput } from '@/components/ui/labeled-input';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 
@@ -39,7 +38,7 @@ export default function MasterSearchField({
             id={`${id}-name`}
             value={name}
             readOnly
-            placeholder={codePlaceholder}
+            placeholder={namePlaceholder}
             className="h-9 w-full rounded-lg bg-gray-100 pl-3 pr-14"
           />
           <button
