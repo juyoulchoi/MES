@@ -1,10 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { X } from 'lucide-react';
-import { type PageResult, EmptyPageResult, PAGE_SIZE } from '@/lib/pagination';
-import { getApiFetch, type PageFetchRequest } from '@/services/common/getApiFetch';
-import { LabeledInput } from '@/components/ui/labeled-input';
 import PopupGrid from '@/components/PopupGrid';
 import type { TableColumn } from '@/components/table/BaseTable';
+import { LabeledInput } from '@/components/ui/labeled-input';
+import { EmptyPageResult, PAGE_SIZE, type PageResult } from '@/lib/pagination';
+import { getApiFetch, type PageFetchRequest } from '@/services/common/getApiFetch';
+import { X } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 
 type RowItem = {
   ceoNm: string;
@@ -12,6 +12,8 @@ type RowItem = {
   cstNm: string;
   regNo: string;
 };
+
+export type CustomerCodePickerItem = RowItem;
 
 type SearchForm = {
   custGb?: string;
@@ -30,7 +32,7 @@ interface CustomerCodePickerProps {
 }
 
 const fetchList = getApiFetch<SearchForm, RowItem>({
-  apiPath: '/api/v1/mdm/cust/searchCustList',
+  apiPath: '/api/v1/mdm/cust/search',
   mapParams: ({ form }: PageFetchRequest<SearchForm>) => ({
     custGb: form.custGb,
     cstNm: form.cstNm,
@@ -50,6 +52,15 @@ export default function CustomerCodePicker({
   const [loading, setLoading] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const lastSearchKeyRef = useRef<string>('');
+
+  const selectRow = useCallback(
+    (row: RowItem) => {
+      onSelect(row);
+      onClose();
+    },
+    [onClose, onSelect]
+  );
 
   const search = useCallback(
     async (nextName: string, nextPage = 0) => {
@@ -84,6 +95,10 @@ export default function CustomerCodePicker({
     setError(null);
     setLoaded(false);
     setResult(EmptyPageResult(0, PAGE_SIZE));
+    const searchKey = `${cstNm}:${initialName}`;
+
+    if (lastSearchKeyRef.current === searchKey) return;
+    lastSearchKeyRef.current = searchKey;
 
     void search(initialName);
   }, [cstNm, custGb, search]);
@@ -102,17 +117,14 @@ export default function CustomerCodePicker({
         render: (row) => (
           <button
             className="rounded-lg border px-3 py-1 hover:bg-gray-50"
-            onClick={() => {
-              onSelect(row);
-              onClose();
-            }}
+            onClick={() => selectRow(row)}
           >
             선택
           </button>
         ),
       },
     ],
-    [onClose, onSelect]
+    [selectRow]
   );
 
   const emptyMessage = loading
@@ -165,6 +177,10 @@ export default function CustomerCodePicker({
           emptyText={emptyMessage}
           loading={loading}
           onPageChange={(page) => void search(customerName, page)}
+          getRowProps={(row) => ({
+            onDoubleClick: () => selectRow(row),
+            className: 'cursor-pointer',
+          })}
         />
       </div>
     </div>
