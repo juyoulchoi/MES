@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from 'react';
+import type { CSSProperties, HTMLAttributes, ReactNode } from 'react';
 import type { PageResult } from '@/lib/pagination';
 
 type Align = 'left' | 'center' | 'right';
@@ -54,6 +54,7 @@ export interface BaseTableProps<T> {
   pageResult?: PageResult<T>;
   columns: TableColumn<T>[];
   rowKey?: keyof T | ((row: T, rowIndex: number) => string | number);
+  getRowProps?: (row: T, rowIndex: number) => HTMLAttributes<HTMLTableRowElement>;
   emptyText?: ReactNode;
   emptyColSpan?: number;
   classNames?: BaseTableClassNames;
@@ -141,6 +142,7 @@ export function BaseTable<T>({
   pageResult,
   columns,
   rowKey,
+  getRowProps,
   emptyText = '데이터가 없습니다.',
   emptyColSpan,
   classNames,
@@ -171,37 +173,42 @@ export function BaseTable<T>({
             </tr>
           </thead>
           <tbody className={classNames?.tbody}>
-            {resolvedRows.map((row, rowIndex) => (
-              <tr
-                key={resolveRowKey(row, rowIndex, rowKey)}
-                className={
-                  typeof classNames?.bodyRow === 'function'
-                    ? classNames.bodyRow(rowIndex)
-                    : classNames?.bodyRow
-                }
-              >
-                {columns.map((column) => {
-                  const cellClassName =
-                    typeof column.cellClassName === 'function'
-                      ? column.cellClassName(row, rowIndex)
-                      : column.cellClassName;
-                  const cellStyle =
-                    typeof column.cellStyle === 'function'
-                      ? column.cellStyle(row, rowIndex)
-                      : column.cellStyle;
+            {resolvedRows.map((row, rowIndex) => {
+              const rowProps = getRowProps?.(row, rowIndex);
+              const rowClassName =
+                typeof classNames?.bodyRow === 'function'
+                  ? classNames.bodyRow(rowIndex)
+                  : classNames?.bodyRow;
 
-                  return (
-                    <td
-                      key={column.key}
-                      className={`${toClassName(classNames?.bodyCell)} ${toClassName(cellClassName)}`.trim()}
-                      style={{ textAlign: column.align ?? 'left', ...(cellStyle ?? {}) }}
-                    >
-                      {resolveCellValue(column, row, rowIndex)}
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
+              return (
+                <tr
+                  key={resolveRowKey(row, rowIndex, rowKey)}
+                  {...rowProps}
+                  className={`${toClassName(rowClassName)} ${toClassName(rowProps?.className)}`.trim()}
+                >
+                  {columns.map((column) => {
+                    const cellClassName =
+                      typeof column.cellClassName === 'function'
+                        ? column.cellClassName(row, rowIndex)
+                        : column.cellClassName;
+                    const cellStyle =
+                      typeof column.cellStyle === 'function'
+                        ? column.cellStyle(row, rowIndex)
+                        : column.cellStyle;
+
+                    return (
+                      <td
+                        key={column.key}
+                        className={`${toClassName(classNames?.bodyCell)} ${toClassName(cellClassName)}`.trim()}
+                        style={{ textAlign: column.align ?? 'left', ...(cellStyle ?? {}) }}
+                      >
+                        {resolveCellValue(column, row, rowIndex)}
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
             {resolvedRows.length === 0 && (
               <tr className={classNames?.emptyRow}>
                 <td colSpan={colSpan} className={classNames?.emptyCell}>
