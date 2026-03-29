@@ -1,3 +1,4 @@
+import type { HTMLAttributes } from 'react';
 import { BaseTable, type BaseTableClassNames, type TableColumn } from '@/components/table/BaseTable';
 import type { PageResult } from '@/lib/pagination';
 
@@ -21,6 +22,7 @@ type PopupGridProps<T> = {
   emptyText: string;
   loading?: boolean;
   onPageChange?: (page: number) => void;
+  getRowProps?: (row: T, rowIndex: number) => HTMLAttributes<HTMLTableRowElement>;
 };
 
 export default function PopupGrid<T>({
@@ -30,12 +32,14 @@ export default function PopupGrid<T>({
   emptyText,
   loading,
   onPageChange,
+  getRowProps,
 }: PopupGridProps<T>) {
   return (
     <BaseTable
       pageResult={result}
       columns={columns}
       rowKey={rowKey}
+      getRowProps={getRowProps}
       emptyText={emptyText}
       classNames={popupGridClassNames}
       pagination={
