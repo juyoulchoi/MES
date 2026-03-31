@@ -1,4 +1,4 @@
-type FromToDateSearchFieldProps = {
+type FromToDateFieldProps = {
   label: string;
   fromValue: string;
   toValue: string;
@@ -6,13 +6,13 @@ type FromToDateSearchFieldProps = {
   onToChange: (value: string) => void;
 };
 
-export default function FromToDateSearchField({
+export default function FromToDateField({
   label,
   fromValue,
   toValue,
   onFromChange,
   onToChange,
-}: FromToDateSearchFieldProps) {
+}: FromToDateFieldProps) {
   const hasRange = Boolean(fromValue && toValue);
   const isRangeInvalid = hasRange && fromValue > toValue;
   const inputBaseClass = 'h-9 w-[150px] rounded-lg border px-2';
