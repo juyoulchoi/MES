@@ -1,8 +1,8 @@
 import PopupGrid from '@/components/PopupGrid';
 import type { TableColumn } from '@/components/table/BaseTable';
 import { LabeledInput } from '@/components/ui/labeled-input';
-import { EmptyPageResult, PAGE_SIZE, type PageResult } from '@/lib/pagination';
-import { getApiFetch, type PageFetchRequest } from '@/services/common/getApiFetch';
+import { PAGE_SIZE } from '@/lib/pagination';
+import { usePageApiFetch, type PageFetchRequest } from '@/services/common/getApiFetch';
 import { X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 
@@ -20,8 +20,6 @@ type SearchForm = {
   cstNm?: string;
 };
 
-type ResultList = PageResult<RowItem>;
-
 interface CustomerCodePickerProps {
   title: string;
   onSelect: (value: RowItem) => void;
@@ -31,14 +29,14 @@ interface CustomerCodePickerProps {
   cstNm?: string;
 }
 
-const fetchList = getApiFetch<SearchForm, RowItem>({
-  apiPath: '/api/v1/mdm/cust/search',
-  mapParams: ({ form }: PageFetchRequest<SearchForm>) => ({
-    custGb: form.custGb,
-    cstNm: form.cstNm,
-    status: 'ACTIVE',
-  }),
-});
+// const ResultList = getApiDataFetch<SearchForm, RowItem>({
+//   apiPath: '/api/v1/mdm/cust/search',
+//   mapParams: ({ form }: PageFetchRequest<SearchForm>) => ({
+//     custGb: form.custGb,
+//     cstNm: form.cstNm,
+//     status: 'ACTIVE',
+//   }),
+// });
 
 export default function CustomerCodePicker({
   title,
@@ -48,11 +46,11 @@ export default function CustomerCodePicker({
   onClose,
 }: CustomerCodePickerProps) {
   const [customerName, setCustomerName] = useState(cstNm ?? '');
-  const [result, setResult] = useState<ResultList>(() => EmptyPageResult(0, PAGE_SIZE));
-  const [loading, setLoading] = useState(false);
-  const [loaded, setLoaded] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const lastSearchKeyRef = useRef<string>('');
+
+  const [form, setForm] = useState<SearchForm>({
+    custGb: custGb,
+    cstNm: customerName,
+  });
 
   const selectRow = useCallback(
     (row: RowItem) => {
@@ -62,76 +60,27 @@ export default function CustomerCodePicker({
     [onClose, onSelect]
   );
 
-  const search = useCallback(
-    async (nextName: string, nextPage = 0) => {
-      setLoading(true);
-      setError(null);
-
-      try {
-        setResult(
-          await fetchList({
-            form: {
-              custGb,
-              cstNm: nextName,
-            },
-            page: nextPage,
-            pageSize: PAGE_SIZE,
-          })
-        );
-      } catch (e) {
-        setError(e instanceof Error ? e.message : String(e));
-      } finally {
-        setLoaded(true);
-        setLoading(false);
-      }
-    },
-    [custGb]
-  );
-
-  useEffect(() => {
-    const initialName = cstNm ?? '';
-
-    setCustomerName(initialName);
-    setError(null);
-    setLoaded(false);
-    setResult(EmptyPageResult(0, PAGE_SIZE));
-    const searchKey = `${cstNm}:${initialName}`;
-
-    if (lastSearchKeyRef.current === searchKey) return;
-    lastSearchKeyRef.current = searchKey;
-
-    void search(initialName);
-  }, [cstNm, custGb, search]);
-
   const columns = useMemo<TableColumn<RowItem>[]>(
     () => [
       { key: 'ceoNm', header: '대표자명', accessor: 'ceoNm' },
       { key: 'cstCd', header: '거래처코드', accessor: 'cstCd' },
       { key: 'cstNm', header: '거래처명', accessor: 'cstNm' },
       { key: 'regNo', header: '사업자번호', accessor: 'regNo' },
-      {
-        key: 'select',
-        header: '',
-        width: 96,
-        align: 'right',
-        render: (row) => (
-          <button
-            className="rounded-lg border px-3 py-1 hover:bg-gray-50"
-            onClick={() => selectRow(row)}
-          >
-            선택
-          </button>
-        ),
-      },
     ],
     [selectRow]
   );
 
-  const emptyMessage = loading
-    ? '거래처 목록을 불러오는 중...'
-    : loaded
-      ? '조회된 거래처가 없습니다.'
-      : '거래처 목록을 불러오는 중...';
+  const { result, loading, error, fetchList } = usePageApiFetch<SearchForm, RowItem>({
+    apiPath: '/api/v1/mdm/cust/search',
+    form,
+    pageSize: PAGE_SIZE,
+    mapParams: ({ form }: PageFetchRequest<SearchForm>) => ({
+      custGb: form.custGb,
+      cstNm: form.cstNm,
+    }),
+  });
+
+  const emptyMessage = loading ? '거래처 목록을 불러오는 중...' : '조회된 거래처가 없습니다.';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
@@ -154,13 +103,13 @@ export default function CustomerCodePicker({
               inputClassName="h-10 rounded-xl border px-3 outline-none focus:ring"
               onChange={(e) => setCustomerName(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter') void search(customerName);
+                if (e.key === 'Enter') void fetchList(0);
               }}
             />
             <button
               type="button"
               className="h-10 rounded-xl border px-4 hover:bg-gray-50 disabled:opacity-50"
-              onClick={() => void search(customerName)}
+              onClick={() => void fetchList(0)}
               disabled={loading}
             >
               {loading ? '조회중...' : '조회'}
@@ -176,7 +125,7 @@ export default function CustomerCodePicker({
           rowKey={(row) => `${row.cstCd}_${row.cstNm}_${row.regNo}`}
           emptyText={emptyMessage}
           loading={loading}
-          onPageChange={(page) => void search(customerName, page)}
+          onPageChange={(page) => void fetchList(page)}
           getRowProps={(row) => ({
             onDoubleClick: () => selectRow(row),
             className: 'cursor-pointer',
