@@ -1,9 +1,8 @@
-import type { MenuItem, TreeNode, NavPayload, UINode } from './menuInfo';
+import type { MenuItem, TreeNode, NavPayload, UINode, UserPayload } from './menuInfo';
 
 const toStringSafe = (v: unknown): string => {
   try {
-    if (typeof v === 'function' || typeof v === 'symbol') return ''; // ⬅️ 추가
-
+    if (typeof v === 'function' || typeof v === 'symbol') return '';
     return typeof v === 'string' ? v : v == null ? '' : String(v);
   } catch {
     return '';
@@ -19,165 +18,145 @@ const toNumberSafe = (v: unknown, fallback = 0): number => {
   return fallback;
 };
 
-const normalizeMenuPath = (topMenu: string, menuid: string): string => {
-  if (!menuid) return '';
-  const folder = topMenu && topMenu !== '*' ? topMenu : menuid;
-  return `/${folder}/${menuid}.ts`;
-};
+function toRoleList(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+
+  return raw
+    .map((entry) => {
+      if (typeof entry === 'string') return toStringSafe(entry);
+      if (!entry || typeof entry !== 'object') return '';
+      const any = entry as Record<string, unknown>;
+      return toStringSafe(any.role) || toStringSafe(any.roleCd) || toStringSafe(any.authCd);
+    })
+    .filter(Boolean);
+}
+
+function extractListCandidate(raw: unknown): unknown[] {
+  if (Array.isArray(raw)) return raw;
+  if (!raw || typeof raw !== 'object') return [];
+
+  const any = raw as Record<string, unknown>;
+  return Array.isArray(any.data) ? (any.data as unknown[]) : [];
+}
+
+function normalizeProgramPath(pgmUrl: unknown, menuId: string): string {
+  const raw = toStringSafe(pgmUrl).trim();
+  if (!raw) return `/app/${menuId}.ts`;
+
+  const normalized = raw.replace(/\\/g, '/');
+  const fileName = normalized.split('/').filter(Boolean).pop() || `${menuId}.ts`;
+  return `/app/${fileName.replace(/^~\//, '')}`;
+}
+
+export function sanitizeUserPayload(raw: unknown): UserPayload['user'] | null {
+  if (!raw || typeof raw !== 'object') return null;
+
+  const root = raw as Record<string, unknown>;
+  const source = root.user && typeof root.user === 'object' ? (root.user as Record<string, unknown>) : root;
+
+  const userid = toStringSafe(source.userid);
+  const usrNm = toStringSafe(source.usrNm);
+  if (!userid && !usrNm) return null;
+
+  const usrGrpCd = toStringSafe(source.usrGrpCd);
+  const deptCd = toStringSafe(source.deptCd);
+  const phone = toStringSafe(source.phone);
+  const email = toStringSafe(source.email);
+  const roles = [
+    ...toRoleList(source.roles),
+    ...toRoleList(source.authorities),
+    ...(usrGrpCd ? [usrGrpCd] : []),
+  ].filter(Boolean);
+
+  return {
+    userid: userid || usrNm,
+    usrNm: usrNm || userid,
+    usrGrpCd,
+    deptCd,
+    phone,
+    email,
+    roles: Array.from(new Set(roles)),
+  };
+}
 
 export function sanitizeMenu(items: unknown): MenuItem[] {
-  if (!Array.isArray(items)) return [];
+  const source = extractListCandidate(items);
 
-  return items
+  return source
     .map((raw, idx) => {
       if (!raw || typeof raw !== 'object') return null;
-
       const any = raw as Record<string, unknown>;
 
-      const menuId =
-        toStringSafe(any.menuId) ||
-        toStringSafe(any.menuid) ||
-        toStringSafe(any.MENU_ID) ||
-        toStringSafe(any.id) ||
-        `menu-${idx}`;
-      const menuNm =
-        toStringSafe(any.menuNm) ||
-        toStringSafe(any.menunm) ||
-        toStringSafe(any.MENU_NM) ||
-        toStringSafe(any.label) ||
-        menuId;
-      const pgmId =
-        toStringSafe(any.pgmId) || toStringSafe(any.pgmid) || toStringSafe(any.PGM_ID) || menuId;
-      const lvl = toNumberSafe(any.lvl ?? any.LVL, 0);
-      const topMenu =
-        toStringSafe(any.topMenu) || toStringSafe(any.topmenu) || toStringSafe(any.TOP_MENU) || '*';
-      const dspSeq = toNumberSafe(any.dspSeq ?? any.DSP_SEQ, idx);
-      const roles = Array.isArray(any.roles)
-        ? (any.roles as unknown[]).map(toStringSafe).filter(Boolean)
-        : undefined;
+      const menuid = toStringSafe(any.menuId) || `menu-${idx}`;
+      const menunm = toStringSafe(any.menuNm) || menuid;
+      const pgmid = toStringSafe(any.pgmId) || menuid;
+      const topMenu = toStringSafe(any.topMenu) || '*';
+      const dspSeq = toNumberSafe(any.dspSeq, idx);
+      const lvl = toNumberSafe(any.lvl, 0);
+      const path = normalizeProgramPath(any.pgmUrl, menuid);
 
       return {
-        menuid: menuId,
-        menunm: menuNm,
-        path: normalizeMenuPath(topMenu, menuId),
-        pgmid: pgmId,
-        lvl,
+        menuid,
+        menunm,
+        path,
+        pgmid,
         topMenu,
         dspSeq,
-        roles,
+        lvl,
       } as MenuItem;
     })
     .filter((x): x is MenuItem => !!x);
 }
 
 export function sanitizeTree(nodes: unknown): TreeNode[] {
-  if (!Array.isArray(nodes)) return [];
-  const looksLikeMenuRows = nodes.some((raw) => {
-    if (!raw || typeof raw !== 'object') return false;
-    const any = raw as Record<string, unknown>;
-    return 'menuId' in any || 'menuid' in any || 'MENU_ID' in any;
-  });
+  const menu = sanitizeMenu(nodes);
+  if (menu.length === 0) return [];
 
-  if (looksLikeMenuRows) {
-    const menu = sanitizeMenu(nodes);
-    if (menu.length === 0) return [];
+  const seqById = new Map<string, number>();
+  const nodeById = new Map<string, TreeNode>();
+  const roots: TreeNode[] = [];
 
-    const seqById = new Map<string, number>();
-    const nodeById = new Map<string, TreeNode>();
-    const roots: TreeNode[] = [];
-
-    for (const m of menu) {
-      seqById.set(m.menuid, m.dspSeq);
-      nodeById.set(m.menuid, {
-        menuid: m.menuid,
-        menunm: m.menunm,
-        path: m.path || undefined,
-        pgmid: m.pgmid,
-        roles: m.roles,
-        defaultExpanded: m.lvl <= 1,
-        children: [],
-      });
-    }
-
-    for (const m of menu) {
-      const current = nodeById.get(m.menuid);
-      if (!current) continue;
-      const parentId = m.topMenu;
-      if (parentId && parentId !== '*' && nodeById.has(parentId)) {
-        const parent = nodeById.get(parentId);
-        parent?.children?.push(current);
-      } else {
-        roots.push(current);
-      }
-    }
-
-    const sortTree = (arr: TreeNode[]): TreeNode[] =>
-      arr
-        .sort((a, b) => (seqById.get(a.menuid) ?? 0) - (seqById.get(b.menuid) ?? 0))
-        .map((n) => ({
-          ...n,
-          children: n.children && n.children.length > 0 ? sortTree(n.children) : undefined,
-        }));
-
-    return sortTree(roots);
+  for (const m of menu) {
+    seqById.set(m.menuid, m.dspSeq);
+    nodeById.set(m.menuid, {
+      menuid: m.menuid,
+      menunm: m.menunm,
+      path: m.path || undefined,
+      pgmid: m.pgmid,
+      defaultExpanded: m.lvl <= 1,
+      children: [],
+    });
   }
 
-  const work = (arr: unknown[], prefix = 'n'): TreeNode[] =>
+  for (const m of menu) {
+    const current = nodeById.get(m.menuid);
+    if (!current) continue;
+
+    const parentId = m.topMenu;
+    if (parentId && parentId !== '*' && parentId !== m.menuid && nodeById.has(parentId)) {
+      nodeById.get(parentId)?.children?.push(current);
+    } else {
+      roots.push(current);
+    }
+  }
+
+  const sortTree = (arr: TreeNode[]): TreeNode[] =>
     arr
-      .map((raw, idx) => {
-        if (!raw || typeof raw !== 'object') return null;
-        const any = raw as Record<string, unknown>;
-        const menuid =
-          toStringSafe(any.menuid) ||
-          toStringSafe(any.menuId) ||
-          toStringSafe(any.MENU_ID) ||
-          toStringSafe(any.id) ||
-          `${prefix}-${idx}`;
-        const menunm =
-          toStringSafe(any.menunm) ||
-          toStringSafe(any.menuNm) ||
-          toStringSafe(any.MENU_NM) ||
-          toStringSafe(any.label) ||
-          menuid;
-        const path = any.path == null ? undefined : toStringSafe(any.path);
-        const pgmid =
-          toStringSafe(any.pgmid) || toStringSafe(any.pgmId) || toStringSafe(any.PGM_ID) || menuid;
-        const roles = Array.isArray(any.roles)
-          ? (any.roles as unknown[]).map(toStringSafe).filter(Boolean)
-          : undefined;
-        const defaultExpanded = Boolean(any.defaultExpanded);
-        const children = Array.isArray(any.children)
-          ? work(any.children as unknown[], `${menuid}`)
-          : undefined;
-        return {
-          menuid,
-          menunm,
-          path,
-          pgmid,
-          roles,
-          defaultExpanded,
-          children,
-        } as TreeNode;
-      })
-      .filter((x): x is TreeNode => !!x);
-  return work(nodes);
+      .sort((a, b) => (seqById.get(a.menuid) ?? 0) - (seqById.get(b.menuid) ?? 0))
+      .map((node) => ({
+        ...node,
+        children: node.children && node.children.length > 0 ? sortTree(node.children) : undefined,
+      }));
+
+  return sortTree(roots);
 }
 
 export function sanitizeNavPayload(raw: unknown): NavPayload {
-  if (Array.isArray(raw)) {
-    const menu = sanitizeMenu(raw);
-    const tree = sanitizeTree(raw);
-
-    return { menu, tree };
-  }
-
-  const any = (raw ?? {}) as Record<string, unknown>;
-  const menu = sanitizeMenu(any.menu);
-  const tree = sanitizeTree(any.tree);
+  const menu = sanitizeMenu(raw);
+  const tree = sanitizeTree(raw);
   return { menu, tree };
 }
 
-// ✅ TreeNode[] → UINode[] 로 강제 정규화(렌더 안전)
 export function toSafeTree(nodes: TreeNode[] | undefined): UINode[] {
   if (!Array.isArray(nodes)) return [];
   const norm = (arr: TreeNode[], pfx = 'n'): UINode[] =>
@@ -186,7 +165,7 @@ export function toSafeTree(nodes: TreeNode[] | undefined): UINode[] {
       menunm: toStringSafe(n.menunm) || `${pfx}-${i}`,
       path: n.path ? toStringSafe(n.path) : undefined,
       pgmid: toStringSafe(n.pgmid) || toStringSafe(n.menuid) || `${pfx}-${i}`,
-      roles: Array.isArray(n.roles) ? n.roles.map((r) => toStringSafe(r)).filter(Boolean) : [],
+      roles: [],
       defaultExpanded: !!n.defaultExpanded,
       children: Array.isArray(n.children) ? norm(n.children, `${pfx}-${i}`) : [],
     }));
