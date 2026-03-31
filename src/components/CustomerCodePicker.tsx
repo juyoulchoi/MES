@@ -4,7 +4,7 @@ import { LabeledInput } from '@/components/ui/labeled-input';
 import { PAGE_SIZE } from '@/lib/pagination';
 import { usePageApiFetch, type PageFetchRequest } from '@/services/common/getApiFetch';
 import { X } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 type RowItem = {
   ceoNm: string;
@@ -38,10 +38,14 @@ export default function CustomerCodePicker({
 }: CustomerCodePickerProps) {
   const [customerName, setCustomerName] = useState(cstNm ?? '');
   const lastSearchKeyRef = useRef<string>('');
-  const [form, setForm] = useState<SearchForm>({
-    custGb: custGb,
-    cstNm: customerName,
-  });
+
+  const form = useMemo<SearchForm>(
+    () => ({
+      custGb,
+      cstNm: customerName,
+    }),
+    [custGb, customerName]
+  );
 
   const selectRow = useCallback(
     (row: RowItem) => {
@@ -58,13 +62,8 @@ export default function CustomerCodePicker({
       { key: 'cstNm', header: '거래처명', accessor: 'cstNm' },
       { key: 'regNo', header: '사업자번호', accessor: 'regNo' },
     ],
-    [selectRow]
+    []
   );
-
-  const searchKey = `${cstNm}`;
-
-  if (lastSearchKeyRef.current === searchKey) return;
-  lastSearchKeyRef.current = searchKey;
 
   const { result, loading, error, fetchList } = usePageApiFetch<SearchForm, RowItem>({
     apiPath: '/api/v1/mdm/cust/search',
@@ -75,6 +74,15 @@ export default function CustomerCodePicker({
       cstNm: form.cstNm,
     }),
   });
+
+  useEffect(() => {
+    const searchKey = `${custGb ?? ''}_${customerName}`;
+
+    if (lastSearchKeyRef.current === searchKey) return;
+    lastSearchKeyRef.current = searchKey;
+
+    void fetchList(0);
+  }, [custGb, customerName, fetchList]);
 
   const emptyMessage = loading ? '거래처 목록을 불러오는 중...' : '조회된 거래처가 없습니다.';
 

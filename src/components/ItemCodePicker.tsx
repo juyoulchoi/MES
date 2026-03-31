@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { X } from 'lucide-react';
-import { type PageResult, EmptyPageResult, PAGE_SIZE } from '@/lib/pagination';
+import { PAGE_SIZE } from '@/lib/pagination';
 import { usePageApiFetch, type PageFetchRequest } from '@/services/common/getApiFetch';
 import PopupGrid from '@/components/PopupGrid';
 import type { TableColumn } from '@/components/table/BaseTable';
@@ -42,11 +42,15 @@ export default function ItemInfoCodePicker({
 }: ItemCodePickerProps) {
   const [itemName, setItemName] = useState(itemNm ?? '');
   const lastSearchKeyRef = useRef<string>('');
-  const [form, setForm] = useState<SearchForm>({
-    itemGb: itemGb,
-    itemNm: itemName,
-    status: 'ACTIVE',
-  });
+
+  const form = useMemo<SearchForm>(
+    () => ({
+      itemGb,
+      itemNm: itemName,
+      status: 'ACTIVE',
+    }),
+    [itemGb, itemName]
+  );
 
   const selectRow = useCallback(
     (row: RowItem) => {
@@ -58,16 +62,11 @@ export default function ItemInfoCodePicker({
 
   const columns = useMemo<TableColumn<RowItem>[]>(
     () => [
-      { key: 'itemCd', header: '코드', accessor: 'itemCd' },
-      { key: 'itemNm', header: '이름', accessor: 'itemNm' },
+      { key: 'itemCd', header: '자재코드', accessor: 'itemCd' },
+      { key: 'itemNm', header: '자재명', accessor: 'itemNm' },
     ],
-    [selectRow]
+    []
   );
-
-  const searchKey = `${itemName}`;
-
-  if (lastSearchKeyRef.current === searchKey) return;
-  lastSearchKeyRef.current = searchKey;
 
   const { result, loading, error, fetchList } = usePageApiFetch<SearchForm, RowItem>({
     apiPath: '/api/v1/mdm/item/search',
@@ -79,6 +78,15 @@ export default function ItemInfoCodePicker({
       status: form.status,
     }),
   });
+
+  useEffect(() => {
+    const searchKey = `${itemGb ?? ''}_${itemName}`;
+
+    if (lastSearchKeyRef.current === searchKey) return;
+    lastSearchKeyRef.current = searchKey;
+
+    void fetchList(0);
+  }, [itemGb, itemName, fetchList]);
 
   const emptyMessage = loading ? '원자재 목록을 불러오는 중...' : '조회된 원자재가 없습니다.';
 
@@ -103,15 +111,13 @@ export default function ItemInfoCodePicker({
               inputClassName="h-10 rounded-xl border px-3 outline-none focus:ring"
               onChange={(e) => setItemName(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter') fetchList(0);
+                if (e.key === 'Enter') void fetchList(0);
               }}
             />
             <button
               type="button"
               className="h-10 rounded-xl border px-4 hover:bg-gray-50 disabled:opacity-50"
-              onClick={() => {
-                fetchList(0);
-              }}
+              onClick={() => void fetchList(0)}
               disabled={loading}
             >
               {loading ? '조회중...' : '조회'}
