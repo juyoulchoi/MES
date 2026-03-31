@@ -4,7 +4,7 @@ import ItemCodePicker from '@/components/ItemCodePicker';
 import CommonCodeSelectBox from '@/components/CommonCodeSelectBox';
 import ExportCsvButton from '@/components/ExportCsvButton';
 import CodeNameField from '@/components/CodeNameField';
-import FromToDateSearchField from '@/components/FromToDateSearchField';
+import FromToDateField from '@/components/FromToDateField';
 import { BaseTable, tableClassNames } from '@/components/table/BaseTable';
 import { useAutoTableHeight } from '@/lib/hooks/useAutoTableHeight';
 import { usePageApiFetch } from '@/services/common/getApiFetch';
@@ -20,6 +20,10 @@ import {
 const MMSM01002S: React.FC = () => {
   const today = useMemo(() => new Date(), []);
   const first = useMemo(() => new Date(today.getFullYear(), today.getMonth(), 1), [today]);
+  const [customerOpen, setCustomerOpen] = useState(false);
+  const [itemPickerOpen, setitemPickerOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const tableHeight = useAutoTableHeight(containerRef);
 
   const [form, setForm] = useState<SearchForm>({
     startDate: first.toISOString().slice(0, 10),
@@ -30,12 +34,6 @@ const MMSM01002S: React.FC = () => {
     itemNm: '',
     itemGb: '',
   });
-
-  const [customerOpen, setCustomerOpen] = useState(false);
-  const [itemPickerOpen, setMaterialPickerOpen] = useState(false);
-
-  const containerRef = useRef<HTMLDivElement>(null);
-  const tableHeight = useAutoTableHeight(containerRef);
 
   const { result, loading, error, fetchList } = usePageApiFetch<SearchForm, RowItem>({
     apiPath: '/api/v1/material/pomst/search',
@@ -54,7 +52,7 @@ const MMSM01002S: React.FC = () => {
     <div className="flex h-full flex-col gap-3 p-4" ref={containerRef}>
       <div className="rounded-2xl border bg-white p-3 shadow-sm">
         <div className="grid [grid-template-columns:600px_600px_300px_1fr] gap-2 items-end">
-          <FromToDateSearchField
+          <FromToDateField
             label="요청일자"
             fromValue={form.startDate}
             toValue={form.endDate}
@@ -72,21 +70,18 @@ const MMSM01002S: React.FC = () => {
             onSearch={() => setCustomerOpen(true)}
           />
 
-          <div className="w-[300px] grid grid-cols-[100px_170px_1fr] items-center gap-2">
-            <label className="text-sm text-gray-600">자재구분</label>
-            <CommonCodeSelectBox
-              codeGroup="ITEM_GB"
-              label="자재구분"
-              showAllOption={true}
-              searchEnabled={false}
-              onValueChange={(value) =>
-                setForm({
-                  ...form,
-                  itemGb: String(value),
-                })
-              }
-            />
-          </div>
+          <CommonCodeSelectBox
+            codeGroup="ITEM_GB"
+            label="자재구분"
+            showAllOption={true}
+            searchEnabled={false}
+            onValueChange={(value) =>
+              setForm({
+                ...form,
+                itemGb: String(value),
+              })
+            }
+          />
         </div>
 
         <div className="mt-2">
@@ -97,7 +92,7 @@ const MMSM01002S: React.FC = () => {
             name={form.itemNm}
             codePlaceholder="코드"
             namePlaceholder="제품 선택"
-            onSearch={() => setMaterialPickerOpen(true)}
+            onSearch={() => setitemPickerOpen(true)}
           />
         </div>
 
@@ -163,7 +158,7 @@ const MMSM01002S: React.FC = () => {
           title="원자재 정보"
           itemGb="RAW,SUB"
           itemNm={form.itemNm}
-          onClose={() => setMaterialPickerOpen(false)}
+          onClose={() => setitemPickerOpen(false)}
           onSelect={(value) => {
             setForm((prev) => ({
               ...prev,
