@@ -5,15 +5,40 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import PageRenderer from '@/routes/PageRenderer';
-import type { NavPayload, UserPayload, TreeNode } from '@/lib/menuInfo';
-import { http } from '@/lib/http';
-import { sanitizeNavPayload, toSafeTree } from '@/lib/guards';
+import type { UserPayload, TreeNode } from '@/lib/menuInfo';
+import { sanitizeNavPayload, sanitizeUserPayload, toSafeTree } from '@/lib/guards';
 import { filterTreeByRole } from '@/lib/acl';
 import { ensureMaskedPage, setMaskedPage, getMaskedPage } from '@/app/routeMask';
+import { EmptyPageResult, PAGE_SIZE, toPageResult, type PageResult } from '@/lib/pagination';
+import { getApiDataFetch, type FetchRequest } from '@/services/common/getApiFetch';
 import TopMenu from './TopMenu';
 import TreeMenu from './TreeMenu';
 
-// 로딩/에러 컴포넌트
+type AuthFetchForm = Record<string, never>;
+
+type RowItem = {
+  dspSeq: string;
+  lvl: string;
+  menuGb: string;
+  menuId: string;
+  menuNm: string;
+  pgmId: string;
+  pgmUrl: string;
+  topMenu: string;
+};
+
+type ResultList = PageResult<RowItem>;
+
+const fetchMe = getApiDataFetch<AuthFetchForm, UserPayload>({
+  apiPath: '/api/v1/auth/me',
+  mapParams: () => ({}),
+});
+
+const fetchMenuPgmInfoList = getApiDataFetch<AuthFetchForm, RowItem[]>({
+  apiPath: '/api/v1/auth/menu/searchMenuPgmInfoList',
+  mapParams: () => ({}),
+});
+
 export const LoadingBlock = ({ text = '불러오는 중...' }) => (
   <div className="flex items-center gap-2 text-muted-foreground text-sm p-3">
     <div className="animate-spin h-4 w-4 rounded-full border-2 border-muted-foreground/40 border-t-transparent" />
@@ -48,14 +73,13 @@ export function useSmartNav() {
   };
 }
 
-// 레이아웃
 export default function LayoutSPA() {
   const location = useLocation();
   const [maskVersion, setMaskVersion] = useState(0);
   const lastMaskedRef = useRef<string | undefined>(undefined);
   const initLoadedRef = useRef(false);
   const [user, setUser] = useState<UserPayload['user'] | null>(null);
-  const [nav, setNav] = useState<NavPayload | null>(null);
+  const [menuResult, setMenuResult] = useState<ResultList>(() => EmptyPageResult(0, PAGE_SIZE));
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<unknown>(null);
   const navigate = useNavigate();
@@ -65,13 +89,11 @@ export default function LayoutSPA() {
     setError(null);
 
     try {
-      const [me, n] = await Promise.all([
-        http<UserPayload>('/api/v1/auth/me'),
-        http<unknown>('/api/v1/auth/menu/searchMenuPgmInfoList'),
-      ]);
+      const request: FetchRequest<AuthFetchForm> = { form: {} };
+      const [me, menuRows] = await Promise.all([fetchMe(request), fetchMenuPgmInfoList(request)]);
 
-      setUser(me.user);
-      setNav(sanitizeNavPayload(n));
+      setUser(sanitizeUserPayload(me));
+      setMenuResult(toPageResult<RowItem>(menuRows, 0, menuRows.length || PAGE_SIZE));
     } catch (e) {
       if (e instanceof Error && /\b(401|403)\b/.test(e.message)) {
         localStorage.removeItem('token');
@@ -92,32 +114,27 @@ export default function LayoutSPA() {
     void load();
   }, [load]);
 
+  const nav = useMemo(() => sanitizeNavPayload({ data: menuResult.content }), [menuResult]);
+
   const menuData = useMemo<TreeNode[]>(() => {
-    const roles = user?.roles ?? [];
-    return filterTreeByRole(nav?.tree ?? [], roles);
+    const tree = nav.tree ?? [];
+    const roles = user?.roles?.filter(Boolean) ?? [];
+    if (roles.length === 0) return tree;
+    return filterTreeByRole(tree, roles);
   }, [nav, user]);
 
   const topMenuItems = useMemo(
     () =>
-      menuData.map((m, idx) => ({
-        menuid: m.menuid,
-        menunm: m.menunm,
-        path: m.path ?? '',
-        pgmid: m.pgmid ?? m.menuid,
-        topMenu: '*',
-        lvl: 1,
-        dspSeq: idx,
-        children: (m.children ?? []).map((c, cIdx) => ({
-          menuid: c.menuid,
-          menunm: c.menunm,
-          path: c.path ?? '',
-          pgmid: c.pgmid ?? c.menuid,
-          topMenu: m.menuid,
-          lvl: 2,
-          dspSeq: cIdx,
+      nav.menu
+        .filter((item) => item.lvl === 1)
+        .sort((a, b) => a.dspSeq - b.dspSeq)
+        .map((item) => ({
+          ...item,
+          children: nav.menu
+            .filter((child) => child.topMenu === item.menuid)
+            .sort((a, b) => a.dspSeq - b.dspSeq),
         })),
-      })),
-    [menuData]
+    [nav]
   );
 
   const onOpenPath = (path?: string) => {
@@ -126,7 +143,6 @@ export default function LayoutSPA() {
     setMaskedPage(pageId, navigate, { replace: false });
   };
 
-  // 주소 마스킹: /app/<page>.ts 접근 시 항상 /app/default.ts로 표시
   useEffect(() => {
     const p = location.pathname;
     if (p === '/app' || p === '/app/') {
@@ -146,7 +162,6 @@ export default function LayoutSPA() {
     }
   }, [location.pathname, navigate]);
 
-  // 마스크 페이지 변경 시 렌더 강제 갱신 (동일 경로 내 상태 변경 대응)
   useEffect(() => {
     const masked = (location.state as any)?.maskedPage as string | undefined;
     if (masked !== undefined && masked !== lastMaskedRef.current) {
@@ -155,7 +170,6 @@ export default function LayoutSPA() {
     }
   }, [location.state]);
 
-  // 세션 변경 이벤트 수신 (state 미변경 케이스 보완)
   useEffect(() => {
     const onMaskedChange = (e: Event) => {
       const pageId = (e as CustomEvent).detail?.pageId as string | undefined;
@@ -250,3 +264,4 @@ export default function LayoutSPA() {
     </div>
   );
 }
+
