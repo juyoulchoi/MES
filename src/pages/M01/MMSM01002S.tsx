@@ -71,7 +71,7 @@ const MMSM01002S: React.FC = () => {
           />
 
           <CommonCodeSelectBox
-            codeGroup="ITEM_GB"
+            codeGroup="ITEM"
             label="자재구분"
             showAllOption={true}
             searchEnabled={false}
