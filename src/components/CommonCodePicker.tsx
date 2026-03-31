@@ -1,9 +1,9 @@
 import { X } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 
 import { LabeledInput } from '@/components/ui/labeled-input';
 import { EmptyPageResult, PAGE_SIZE, type PageResult } from '@/lib/pagination';
-import { getApiFetch, type PageFetchRequest } from '@/services/common/getApiFetch';
+import { usePageApiFetch, type PageFetchRequest } from '@/services/common/getApiFetch';
 import type { TableColumn } from '@/components/table/BaseTable';
 import PopupGrid from '@/components/PopupGrid';
 
@@ -16,8 +16,6 @@ type SearchForm = {
   status?: string;
 };
 
-type ResultList = PageResult<RowItem>;
-
 export interface CommonCodePickerProps {
   title: string;
   onSelect: (v: RowItem) => void;
@@ -26,16 +24,6 @@ export interface CommonCodePickerProps {
   codeCd: string;
   codeNm: string;
 }
-
-const fetchList = getApiFetch<SearchForm, RowItem>({
-  apiPath: '/api/v1/mdm/code/comcode',
-  mapParams: ({ form }: PageFetchRequest<SearchForm>) => ({
-    grpCd: form.grpCd,
-    code: form.codeCd,
-    name: form.codeNm,
-    status: 'ACTIVE',
-  }),
-});
 
 export default function CommonCodePicker({
   title,
@@ -47,81 +35,60 @@ export default function CommonCodePicker({
 }: CommonCodePickerProps) {
   const [searchCd, setSearchCd] = useState(codeCd ?? '');
   const [searchNm, setSearchNm] = useState(codeNm ?? '');
-  const [result, setResult] = useState<ResultList>(() => EmptyPageResult(0, PAGE_SIZE));
-  const [loading, setLoading] = useState(false);
-  const [loaded, setLoaded] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const lastSearchKeyRef = useRef<string>('');
 
-  const searchCommonCode = useCallback(
-    async (nextCode: string, nextName: string, nextPage = 0) => {
-      setLoading(true);
-      setError(null);
-
-      try {
-        setResult(
-          await fetchList({
-            form: {
-              grpCd,
-              codeCd: nextCode,
-              codeNm: nextName,
-            },
-            page: nextPage,
-            pageSize: PAGE_SIZE,
-          })
-        );
-      } catch (e) {
-        setError(e instanceof Error ? e.message : String(e));
-      } finally {
-        setLoaded(true);
-        setLoading(false);
-      }
-    },
-    [grpCd]
+  const form = useMemo<SearchForm>(
+    () => ({
+      grpCd,
+      codeCd: searchCd,
+      codeNm: searchNm,
+    }),
+    [grpCd, searchCd, searchNm]
   );
 
-  useEffect(() => {
-    const initialCode = codeCd ?? '';
-    const initialName = codeNm ?? '';
-
-    setSearchCd(initialCode);
-    setSearchNm(initialName);
-    setError(null);
-    setLoaded(false);
-    setResult(EmptyPageResult(0, PAGE_SIZE));
-
-    void searchCommonCode(initialCode, initialName);
-  }, [grpCd, codeCd, codeNm, searchCommonCode]);
+  const selectRow = useCallback(
+    (row: RowItem) => {
+      onSelect(row);
+      onClose();
+    },
+    [onClose, onSelect]
+  );
 
   const columns = useMemo<TableColumn<RowItem>[]>(
     () => [
       { key: 'cstCd', header: '코드' },
       { key: 'cstNm', header: '코드명' },
-      {
-        key: 'select',
-        header: '',
-        width: 96,
-        align: 'right',
-        render: (row) => (
-          <button
-            className="rounded-lg border px-3 py-1 hover:bg-gray-50"
-            onClick={() => {
-              onSelect(row);
-              onClose();
-            }}
-          >
-            선택
-          </button>
-        ),
-      },
     ],
-    [onClose, onSelect]
+    []
   );
 
-  const emptyMessage = loading
-    ? '거래처 목록을 불러오는 중...'
-    : loaded
-      ? '조회된 거래처가 없습니다.'
-      : '거래처 목록을 불러오는 중...';
+  const { result, loading, error, fetchList } = usePageApiFetch<SearchForm, RowItem>({
+    apiPath: '/api/v1/mdm/code/comcode',
+    form,
+    pageSize: PAGE_SIZE,
+    mapParams: ({ form }: PageFetchRequest<SearchForm>) => ({
+      grpCd: form.grpCd,
+      codeCd: form.codeCd,
+      codeNm: form.codeNm,
+      status: 'ACTIVE',
+    }),
+  });
+
+  useEffect(() => {
+    const initialCode = codeCd ?? '';
+    const initialName = codeNm ?? '';
+    const searchKey = `${grpCd ?? ''}_${searchCd ?? ''}_${searchNm ?? ''}`;
+
+    setSearchCd(initialCode);
+    setSearchNm(initialName);
+
+    if (lastSearchKeyRef.current === searchKey) return;
+    lastSearchKeyRef.current = searchKey;
+
+    void fetchList(0);
+  }, [grpCd, searchCd, searchNm, fetchList]);
+
+  const emptyMessage = loading ? '거래처 목록을 불러오는 중...' : '조회된 거래처가 없습니다.';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
@@ -144,7 +111,7 @@ export default function CommonCodePicker({
               inputClassName="h-10 rounded-xl border px-3 outline-none focus:ring"
               onChange={(e) => setSearchCd(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter') void searchCommonCode(searchCd, searchNm);
+                if (e.key === 'Enter') void fetchList(0);
               }}
             />
             <LabeledInput
@@ -156,13 +123,13 @@ export default function CommonCodePicker({
               inputClassName="h-10 rounded-xl border px-3 outline-none focus:ring"
               onChange={(e) => setSearchNm(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter') void searchCommonCode(searchCd, searchNm);
+                if (e.key === 'Enter') void fetchList(0);
               }}
             />
             <button
               type="button"
               className="h-10 rounded-xl border px-4 hover:bg-gray-50 disabled:opacity-50"
-              onClick={() => void searchCommonCode(searchCd, searchNm)}
+              onClick={() => void fetchList(0)}
               disabled={loading}
             >
               {loading ? '조회중...' : '조회'}
@@ -178,7 +145,7 @@ export default function CommonCodePicker({
           rowKey={(row) => `${row.codeCd}`}
           emptyText={emptyMessage}
           loading={loading}
-          onPageChange={(page) => void searchCommonCode(searchCd, searchNm, page)}
+          onPageChange={(page) => void fetchList(page)}
         />
       </div>
     </div>
