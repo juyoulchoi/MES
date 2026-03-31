@@ -33,9 +33,15 @@ interface ItemCodePickerProps {
   itemNm?: string;
 }
 
-export default function ItemInfoCodePicker({ title, itemGb, itemNm, onSelect, onClose }: ItemCodePickerProps) {
+export default function ItemInfoCodePicker({
+  title,
+  itemGb,
+  itemNm,
+  onSelect,
+  onClose,
+}: ItemCodePickerProps) {
   const [itemName, setItemName] = useState(itemNm ?? '');
-
+  const lastSearchKeyRef = useRef<string>('');
   const [form, setForm] = useState<SearchForm>({
     itemGb: itemGb,
     itemNm: itemName,
@@ -57,6 +63,11 @@ export default function ItemInfoCodePicker({ title, itemGb, itemNm, onSelect, on
     ],
     [selectRow]
   );
+
+  const searchKey = `${itemName}`;
+
+  if (lastSearchKeyRef.current === searchKey) return;
+  lastSearchKeyRef.current = searchKey;
 
   const { result, loading, error, fetchList } = usePageApiFetch<SearchForm, RowItem>({
     apiPath: '/api/v1/mdm/item/search',

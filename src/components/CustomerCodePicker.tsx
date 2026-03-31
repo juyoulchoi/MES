@@ -29,15 +29,6 @@ interface CustomerCodePickerProps {
   cstNm?: string;
 }
 
-// const ResultList = getApiDataFetch<SearchForm, RowItem>({
-//   apiPath: '/api/v1/mdm/cust/search',
-//   mapParams: ({ form }: PageFetchRequest<SearchForm>) => ({
-//     custGb: form.custGb,
-//     cstNm: form.cstNm,
-//     status: 'ACTIVE',
-//   }),
-// });
-
 export default function CustomerCodePicker({
   title,
   custGb,
@@ -46,7 +37,7 @@ export default function CustomerCodePicker({
   onClose,
 }: CustomerCodePickerProps) {
   const [customerName, setCustomerName] = useState(cstNm ?? '');
-
+  const lastSearchKeyRef = useRef<string>('');
   const [form, setForm] = useState<SearchForm>({
     custGb: custGb,
     cstNm: customerName,
@@ -69,6 +60,11 @@ export default function CustomerCodePicker({
     ],
     [selectRow]
   );
+
+  const searchKey = `${cstNm}`;
+
+  if (lastSearchKeyRef.current === searchKey) return;
+  lastSearchKeyRef.current = searchKey;
 
   const { result, loading, error, fetchList } = usePageApiFetch<SearchForm, RowItem>({
     apiPath: '/api/v1/mdm/cust/search',
