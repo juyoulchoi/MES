@@ -68,16 +68,19 @@ function CommonCodeSelectBox({
   }, [apiPath, autoLoad, codeGroup, extraParamsKey, resolvedFallbackItems]);
 
   return (
-    <SelectBox
-      dataSource={items}
-      valueExpr="code"
-      displayExpr="name"
-      groupExpr="groupCode"
-      searchEnabled
-      {...props}
-      disabled={props.disabled || loading}
-      noDataText={loaded ? noDataText : '불러오는 중...'}
-    />
+    <div className="w-[300px] grid grid-cols-[100px_170px_1fr] items-center gap-2">
+      <label className="text-sm text-gray-600">{props.label}</label>
+      <SelectBox
+        dataSource={items}
+        valueExpr="code"
+        displayExpr="name"
+        groupExpr="groupCode"
+        searchEnabled
+        {...props}
+        disabled={props.disabled || loading}
+        noDataText={loaded ? noDataText : '불러오는 중...'}
+      />
+    </div>
   );
 }
 
