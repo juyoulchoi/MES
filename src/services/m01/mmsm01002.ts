@@ -1,7 +1,5 @@
 import { type TableColumn } from '@/components/table/BaseTable';
-import { getApiFetch, type PageFetchRequest } from '@/services/common/getApiFetch';
-import { type PageResult } from '@/lib/pagination';
-import { formatNumber, toYmd } from '@/lib/utils';
+import { formatNumber } from '@/lib/utils';
 
 export interface SearchForm {
   startDate: string;
@@ -36,7 +34,7 @@ export interface RowItem {
   description: string;
 }
 
-export type ListResult = PageResult<RowItem>;
+// export type ListResult = PageResult<RowItem>;
 
 export const columns: TableColumn<RowItem>[] = [
   { key: 'RNUM', header: '순번', width: 80, align: 'center', accessor: 'rnum' },
@@ -113,14 +111,3 @@ export const mapExportRow = (r: RowItem) => [
   r.status,
   r.description,
 ];
-
-export const fetchList = getApiFetch<SearchForm, RowItem>({
-  apiPath: '/api/v1/material/pomst/search',
-  mapParams: ({ form }: PageFetchRequest<SearchForm>) => ({
-    poYmdS: toYmd(form.startDate),
-    poYmdE: toYmd(form.endDate),
-    cstCd: form.cstCd || '',
-    itemCd: form.itemCd || '',
-    itemGb: form.itemGb || '',
-  }),
-});
