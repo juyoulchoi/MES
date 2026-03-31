@@ -1,7 +1,7 @@
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 
-type MasterSearchFieldProps = {
+type CodeNameFieldProps = {
   label: string;
   id: string;
   code: string;
@@ -12,7 +12,7 @@ type MasterSearchFieldProps = {
   searchLabel?: string;
 };
 
-export default function MasterSearchField({
+export default function CodeNameField({
   label,
   id,
   code,
@@ -21,7 +21,7 @@ export default function MasterSearchField({
   codePlaceholder = '',
   namePlaceholder = '',
   searchLabel = '검색',
-}: MasterSearchFieldProps) {
+}: CodeNameFieldProps) {
   return (
     <div className="w-[550px]">
       <div className="grid grid-cols-[100px_120px_300px] items-center gap-2">
