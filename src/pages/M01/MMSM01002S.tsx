@@ -1,23 +1,21 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { EmptyPageResult } from '@/lib/pagination';
 import CustomerCodePicker from '@/components/CustomerCodePicker';
-import MaterialCodePicker from '@/components/ItemCodePicker';
+import ItemCodePicker from '@/components/ItemCodePicker';
 import CommonCodeSelectBox from '@/components/CommonCodeSelectBox';
 import ExportCsvButton from '@/components/ExportCsvButton';
-import MasterSearchField from '@/components/MasterSearchField';
+import CodeNameField from '@/components/CodeNameField';
 import FromToDateSearchField from '@/components/FromToDateSearchField';
 import { BaseTable, tableClassNames } from '@/components/table/BaseTable';
 import { useAutoTableHeight } from '@/lib/hooks/useAutoTableHeight';
+import { usePageApiFetch } from '@/services/common/getApiFetch';
+import { PAGE_SIZE } from '@/lib/pagination';
 import {
   columns,
-  fetchList as onSearch,
   exportHeaders,
   mapExportRow,
-  type ListResult,
+  type RowItem,
   type SearchForm,
 } from '@/services/m01/mmsm01002';
-
-const PAGE_SIZE = 10;
 
 const MMSM01002S: React.FC = () => {
   const today = useMemo(() => new Date(), []);
@@ -33,34 +31,24 @@ const MMSM01002S: React.FC = () => {
     itemGb: '',
   });
 
-  const [result, setResult] = useState<ListResult>(() => EmptyPageResult(0, PAGE_SIZE));
-
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [customerOpen, setCustomerOpen] = useState(false);
-  const [materialPickerOpen, setMaterialPickerOpen] = useState(false);
+  const [itemPickerOpen, setMaterialPickerOpen] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const tableHeight = useAutoTableHeight(containerRef);
 
-  const fetchList = async (nextPage = 0) => {
-    setLoading(true);
-    setError(null);
-    try {
-      setResult(
-        await onSearch({
-          form,
-          page: nextPage,
-          pageSize: PAGE_SIZE,
-        })
-      );
-    } catch (e) {
-      setResult(EmptyPageResult(nextPage, PAGE_SIZE));
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { result, loading, error, fetchList } = usePageApiFetch<SearchForm, RowItem>({
+    apiPath: '/api/v1/material/pomst/search',
+    form,
+    pageSize: PAGE_SIZE,
+    mapParams: ({ form }) => ({
+      poYmdS: form.startDate,
+      poYmdE: form.endDate,
+      cstCd: form.cstCd || '',
+      itemCd: form.itemCd || '',
+      itemGb: form.itemGb || '',
+    }),
+  });
 
   return (
     <div className="flex h-full flex-col gap-3 p-4" ref={containerRef}>
@@ -74,7 +62,7 @@ const MMSM01002S: React.FC = () => {
             onToChange={(value) => setForm({ ...form, endDate: value })}
           />
 
-          <MasterSearchField
+          <CodeNameField
             label="거래처명"
             id="cust"
             code={form.cstCd}
@@ -102,7 +90,7 @@ const MMSM01002S: React.FC = () => {
         </div>
 
         <div className="mt-2">
-          <MasterSearchField
+          <CodeNameField
             label="제품명"
             id="cust"
             code={form.itemCd}
@@ -170,11 +158,10 @@ const MMSM01002S: React.FC = () => {
         />
       ) : null}
 
-      {materialPickerOpen ? (
-        <MaterialCodePicker
+      {itemPickerOpen ? (
+        <ItemCodePicker
           title="원자재 정보"
-          itemGb="RAW"
-          itemCd={form.itemCd}
+          itemGb="RAW,SUB"
           itemNm={form.itemNm}
           onClose={() => setMaterialPickerOpen(false)}
           onSelect={(value) => {
