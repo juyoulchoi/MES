@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import type { CSSProperties, HTMLAttributes, ReactNode } from 'react';
 import type { PageResult } from '@/lib/pagination';
 
@@ -32,6 +33,7 @@ export interface BaseTableClassNames {
   paginationStatus?: string;
   paginationControls?: string;
   paginationButton?: string;
+  paginationSelect?: string;
 }
 
 export const tableClassNames: BaseTableClassNames = {
@@ -47,12 +49,30 @@ export interface TablePagination<T> {
   result: PageResult<T>;
   onPageChange: (page: number) => void;
   loading?: boolean;
+  showPageSizeSelector?: boolean;
+  pageSizeOptions?: number[];
+  onPageSizeChange?: (size: number) => void;
+}
+
+export interface BaseTableCheckboxColumn<T> {
+  key?: string;
+  header?: ReactNode;
+  width?: string | number;
+  align?: Align;
+  headerClassName?: string;
+  cellClassName?: string | ((row: T, rowIndex: number) => string | undefined);
+  headerStyle?: CSSProperties;
+  cellStyle?: CSSProperties | ((row: T, rowIndex: number) => CSSProperties | undefined);
+  checked: (row: T, rowIndex: number) => boolean;
+  onChange: (row: T, rowIndex: number, checked: boolean) => void;
+  disabled?: (row: T, rowIndex: number) => boolean;
 }
 
 export interface BaseTableProps<T> {
   rows?: T[];
   pageResult?: PageResult<T>;
   columns: TableColumn<T>[];
+  checkboxColumn?: BaseTableCheckboxColumn<T>;
   rowKey?: keyof T | ((row: T, rowIndex: number) => string | number);
   getRowProps?: (row: T, rowIndex: number) => HTMLAttributes<HTMLTableRowElement>;
   emptyText?: ReactNode;
@@ -107,6 +127,22 @@ function TablePaginationBar<T>({
         총 {result.totalElements.toLocaleString()}건
       </span>
       <div className={toClassName(classNames?.paginationControls) || 'flex items-center gap-2'}>
+        {pagination.showPageSizeSelector && pagination.onPageSizeChange && (
+          <select
+            value={String(result.size)}
+            onChange={(event) => pagination.onPageSizeChange?.(Number(event.target.value))}
+            className={
+              toClassName(classNames?.paginationSelect) ||
+              'h-8 rounded border px-2 text-sm outline-none'
+            }
+          >
+            {(pagination.pageSizeOptions ?? []).map((size) => (
+              <option key={size} value={size}>
+                {size}개씩
+              </option>
+            ))}
+          </select>
+        )}
         <span className={toClassName(classNames?.paginationStatus) || ''}>
           {result.totalPages > 0 ? `${currentPage} / ${result.totalPages} 페이지` : '0 / 0 페이지'}
         </span>
@@ -141,6 +177,7 @@ export function BaseTable<T>({
   rows,
   pageResult,
   columns,
+  checkboxColumn,
   rowKey,
   getRowProps,
   emptyText = '데이터가 없습니다.',
@@ -149,7 +186,7 @@ export function BaseTable<T>({
   pagination,
 }: BaseTableProps<T>) {
   const resolvedRows = pageResult?.content ?? rows ?? [];
-  const colSpan = emptyColSpan ?? columns.length;
+  const colSpan = emptyColSpan ?? columns.length + (checkboxColumn ? 1 : 0);
 
   return (
     <>
@@ -157,6 +194,19 @@ export function BaseTable<T>({
         <table className={classNames?.table}>
           <thead className={classNames?.thead}>
             <tr className={classNames?.headerRow}>
+              {checkboxColumn && (
+                <th
+                  key={checkboxColumn.key ?? '__checkbox__'}
+                  className={`${toClassName(classNames?.headerCell)} ${toClassName(checkboxColumn.headerClassName)}`.trim()}
+                  style={{
+                    textAlign: checkboxColumn.align ?? 'center',
+                    ...resolveWidthStyle(checkboxColumn.width ?? 48),
+                    ...(checkboxColumn.headerStyle ?? {}),
+                  }}
+                >
+                  {checkboxColumn.header ?? '선택'}
+                </th>
+              )}
               {columns.map((column) => (
                 <th
                   key={column.key}
@@ -186,6 +236,30 @@ export function BaseTable<T>({
                   {...rowProps}
                   className={`${toClassName(rowClassName)} ${toClassName(rowProps?.className)}`.trim()}
                 >
+                  {checkboxColumn && (
+                    <td
+                      className={`${toClassName(classNames?.bodyCell)} ${toClassName(
+                        typeof checkboxColumn.cellClassName === 'function'
+                          ? checkboxColumn.cellClassName(row, rowIndex)
+                          : checkboxColumn.cellClassName
+                      )}`.trim()}
+                      style={{
+                        textAlign: checkboxColumn.align ?? 'center',
+                        ...(typeof checkboxColumn.cellStyle === 'function'
+                          ? checkboxColumn.cellStyle(row, rowIndex)
+                          : (checkboxColumn.cellStyle ?? {})),
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checkboxColumn.checked(row, rowIndex)}
+                        disabled={checkboxColumn.disabled?.(row, rowIndex)}
+                        onChange={(event) =>
+                          checkboxColumn.onChange(row, rowIndex, event.target.checked)
+                        }
+                      />
+                    </td>
+                  )}
                   {columns.map((column) => {
                     const cellClassName =
                       typeof column.cellClassName === 'function'
@@ -262,3 +336,6 @@ export function Td({
     </td>
   );
 }
+
+
+
