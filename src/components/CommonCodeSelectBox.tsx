@@ -23,6 +23,8 @@ function CommonCodeSelectBox({
   fallbackItems,
   autoLoad = true,
   noDataText = '공통코드 데이터가 없습니다.',
+  label,
+  className,
   ...props
 }: CommonCodeSelectBoxProps) {
   const resolvedFallbackItems = fallbackItems ?? EMPTY_ITEMS;
@@ -68,8 +70,8 @@ function CommonCodeSelectBox({
   }, [apiPath, autoLoad, codeGroup, extraParamsKey, resolvedFallbackItems]);
 
   return (
-    <div className="w-[300px] grid grid-cols-[100px_170px_1fr] items-center gap-2">
-      <label className="text-sm text-gray-600">{props.label}</label>
+    <div className="grid w-full grid-cols-[100px_minmax(0,1fr)] items-center gap-2">
+      {label ? <div className="text-sm text-gray-600">{label}</div> : null}
       <SelectBox
         dataSource={items}
         valueExpr="code"
@@ -77,6 +79,8 @@ function CommonCodeSelectBox({
         groupExpr="groupCode"
         searchEnabled
         {...props}
+        className={className ?? 'w-full'}
+        labelMode="hidden"
         disabled={props.disabled || loading}
         noDataText={loaded ? noDataText : '불러오는 중...'}
       />
@@ -86,3 +90,5 @@ function CommonCodeSelectBox({
 
 export default CommonCodeSelectBox;
 export { CommonCodeSelectBox };
+
+
