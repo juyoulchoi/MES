@@ -5,7 +5,7 @@ import CommonCodeSelectBox from '@/components/CommonCodeSelectBox';
 import ExportCsvButton from '@/components/ExportCsvButton';
 import CodeNameField from '@/components/CodeNameField';
 import FromToDateField from '@/components/FromToDateField';
-import { BaseTable, tableClassNames } from '@/components/table/BaseTable';
+import { Column, DataGrid } from '@/components/table/DataGrid';
 import { useAutoTableHeight } from '@/lib/hooks/useAutoTableHeight';
 import { usePageApiFetch } from '@/services/common/getApiFetch';
 import { PAGE_SIZE } from '@/lib/pagination';
@@ -40,8 +40,8 @@ const MMSM01002S: React.FC = () => {
     form,
     pageSize: PAGE_SIZE,
     mapParams: ({ form }) => ({
-      poYmdS: form.startDate,
-      poYmdE: form.endDate,
+      poYmdS: form.startDate.split('-').join(''),
+      poYmdE: form.endDate.split('-').join(''),
       cstCd: form.cstCd || '',
       itemCd: form.itemCd || '',
       itemGb: form.itemGb || '',
@@ -125,18 +125,18 @@ const MMSM01002S: React.FC = () => {
 
       <div className="rounded-2xl border bg-white shadow-sm overflow-hidden">
         <div className="max-w-full overflow-auto" style={{ height: tableHeight }}>
-          <BaseTable
-            pageResult={result}
-            columns={columns}
-            rowKey={(row, i) => row.rnum ?? i}
-            classNames={tableClassNames}
-            emptyText="데이터가 없습니다. 조건을 변경하고 조회를 눌러주세요."
-            pagination={{
-              result,
-              loading,
-              onPageChange: fetchList,
-            }}
-          />
+          <DataGrid dataSource={result.content} keyExpr="itemCd" showBorders={true}>
+            {columns.map((column, index) => (
+              <Column
+                key={`${String(column.dataField)}-${index}`}
+                dataField={column.dataField}
+                caption={column.caption}
+                width={column.width}
+                alignment={column.alignment}
+                cellRender={column.cellRender}
+              />
+            ))}
+          </DataGrid>
         </div>
       </div>
 
