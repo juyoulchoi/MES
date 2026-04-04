@@ -32,6 +32,8 @@ type DataGridColumnProps<T> = {
   cellRender?: (row: T, rowIndex: number) => ReactNode;
 };
 
+export type GridColumn<T> = DataGridColumnProps<T>;
+
 // 제네릭 없는 <CheckColumn /> 문법을 위해 row 타입을 느슨하게 받습니다.
 type CheckColumnProps = BaseTableCheckboxColumn<any>;
 
@@ -317,3 +319,4 @@ export function DataGrid<T>({
     />
   );
 }
+
