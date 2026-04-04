@@ -1,4 +1,4 @@
-import { type TableColumn } from '@/components/table/BaseTable';
+import type { GridColumn } from '@/components/table/DataGrid';
 import { formatNumber } from '@/lib/utils';
 
 export interface SearchForm {
@@ -34,36 +34,32 @@ export interface RowItem {
   description: string;
 }
 
-// export type ListResult = PageResult<RowItem>;
-
-export const columns: TableColumn<RowItem>[] = [
-  { key: 'RNUM', header: '순번', width: 80, align: 'center', accessor: 'rnum' },
+export const columns: GridColumn<RowItem>[] = [
+  { dataField: 'rnum', caption: '순번', width: 80, alignment: 'center' },
   {
-    key: 'PO_YMD',
-    header: '발주일자',
+    dataField: 'poYmd',
+    caption: '발주일자',
     width: 100,
-    align: 'center',
-    accessor: 'poYmd',
-    render: (row) => `${row.poYmd}_${row.poSeq}_${row.poSubSeq}`,
+    alignment: 'center',
+    cellRender: (row) => `${row.poYmd}_${row.poSeq}_${row.poSubSeq}`,
   },
-  { key: 'ITEM_GB', header: '원자재구분', width: 100, align: 'center', accessor: 'itemGb' },
-  { key: 'ITEM_NM', header: '원자재명', width: 160, accessor: 'itemNm' },
-  { key: 'CST_NM', header: '거래처명', width: 160, accessor: 'cstNm' },
+  { dataField: 'itemGb', caption: '원자재구분', width: 100, alignment: 'center' },
+  { dataField: 'itemNm', caption: '원자재명', width: 160 },
+  { dataField: 'cstNm', caption: '거래처명', width: 160 },
   {
-    key: 'TOT_AMT',
-    header: '총금액',
+    dataField: 'totAmt',
+    caption: '총금액',
     width: 120,
-    align: 'right',
-    accessor: 'totAmt',
-    render: (row) => formatNumber(row.totAmt),
+    alignment: 'right',
+    cellRender: (row) => formatNumber(row.totAmt),
   },
-  { key: 'PRE_IV_QTY', header: '기입고량', width: 120, align: 'right', accessor: 'preIvQty' },
-  { key: 'IV_QTY', header: '입고량', width: 120, align: 'right', accessor: 'ivQty' },
-  { key: 'ITEM_CD', header: '품목코드', width: 120, align: 'center', accessor: 'itemCd' },
-  { key: 'GI_YMD', header: '출고일자', width: 120, align: 'center', accessor: 'giYmd' },
-  { key: 'REQ_YMD', header: '입고요청일', width: 120, align: 'center', accessor: 'reqYmd' },
-  { key: 'IV_YMD', header: '입고일', width: 120, align: 'center', accessor: 'ivYmd' },
-  { key: 'END_YN', header: '완료여부', width: 120, align: 'center', accessor: 'endYn' },
+  { dataField: 'preIvQty', caption: '기입고량', width: 120, alignment: 'right' },
+  { dataField: 'ivQty', caption: '입고량', width: 120, alignment: 'right' },
+  { dataField: 'itemCd', caption: '품목코드', width: 120, alignment: 'center' },
+  { dataField: 'giYmd', caption: '출고일자', width: 120, alignment: 'center' },
+  { dataField: 'reqYmd', caption: '입고요청일', width: 120, alignment: 'center' },
+  { dataField: 'ivYmd', caption: '입고일', width: 120, alignment: 'center' },
+  { dataField: 'endYn', caption: '완료여부', width: 120, alignment: 'center' },
 ];
 
 export const exportHeaders = [
@@ -111,3 +107,5 @@ export const mapExportRow = (r: RowItem) => [
   r.status,
   r.description,
 ];
+
+
