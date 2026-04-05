@@ -73,7 +73,7 @@ type DataGridProps<T> = {
   getRowProps?: (row: T, rowIndex: number) => HTMLAttributes<HTMLTableRowElement>;
 };
 
-const dataGridClassNames: BaseTableClassNames = {
+export const dataGridClassNames: BaseTableClassNames = {
   ...tableClassNames,
   wrapper: 'overflow-auto',
   table: 'w-full text-sm',
@@ -191,18 +191,6 @@ function resolveRowKey<T>(
   return keyExpr as keyof T;
 }
 
-const gridclassNames: BaseTableClassNames = {
-  ...tableClassNames,
-  wrapper: '',
-  table: 'w-full text-sm',
-  thead: 'sticky top-0 bg-background',
-  headerRow: 'border-b',
-  headerCell: 'p-2',
-  bodyRow: 'border-b hover:bg-muted/30',
-  bodyCell: 'p-2',
-  emptyCell: 'p-3 text-center text-muted-foreground',
-};
-
 export function DataGrid<T>({
   dataSource = [],
   pageResult,
@@ -212,7 +200,7 @@ export function DataGrid<T>({
   showBorders = false,
   loading,
   emptyText = '데이터가 없습니다.',
-  classNames = gridclassNames,
+  classNames = dataGridClassNames,
   children,
   onPageChange,
   onPageSizeChange,
@@ -319,4 +307,7 @@ export function DataGrid<T>({
     />
   );
 }
+
+
+
 
