@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
 import { http } from '@/lib/http';
+import { useEffect, useRef, useState } from 'react';
 
 export type Code = { code: string; name: string };
 
@@ -7,6 +7,11 @@ export function useCodes(group: string, fallback: Code[] = []) {
   const [codes, setCodes] = useState<Code[]>(fallback);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const fallbackRef = useRef(fallback);
+
+  useEffect(() => {
+    fallbackRef.current = fallback;
+  }, [fallback]);
 
   useEffect(() => {
     let mounted = true;
@@ -18,7 +23,7 @@ export function useCodes(group: string, fallback: Code[] = []) {
         if (mounted) setCodes(list);
       } catch (e) {
         if (mounted) setError(e instanceof Error ? e.message : String(e));
-        if (mounted && fallback.length) setCodes(fallback);
+        if (mounted && fallbackRef.current.length) setCodes(fallbackRef.current);
       } finally {
         if (mounted) setLoading(false);
       }
@@ -31,3 +36,5 @@ export function useCodes(group: string, fallback: Code[] = []) {
 
   return { codes, loading, error };
 }
+
+
