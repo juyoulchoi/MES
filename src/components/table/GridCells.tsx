@@ -24,6 +24,7 @@ interface GridSelectCellOptions extends GridCellBaseOptions {
   options: GridCellOption[];
   onChange: (event: ChangeEvent<HTMLSelectElement>) => void;
   placeholder?: ReactNode;
+  required?: boolean;
 }
 
 export const gridCellClassNames = {
@@ -77,10 +78,14 @@ export function renderGridSelectCell({
   placeholder,
   className,
   align,
+  required = false,
 }: GridSelectCellOptions): ReactElement {
+  const resolvedValue = resolveValue(value);
+  const fallbackValue = required ? (options[0]?.value ?? '') : '';
+
   return (
     <select
-      value={resolveValue(value)}
+      value={resolvedValue === '' ? fallbackValue : resolvedValue}
       onChange={onChange}
       className={cn(
         'border-input h-8 w-full rounded-md border bg-transparent px-2 text-sm outline-none',
@@ -89,7 +94,7 @@ export function renderGridSelectCell({
         className
       )}
     >
-      <option value="">{placeholder ?? ''}</option>
+      {!required ? <option value="">{placeholder ?? ''}</option> : null}
       {options.map((option) => (
         <option key={option.value} value={option.value}>
           {option.label}
