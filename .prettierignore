@@ -1,6 +1,9 @@
 dist
 node_modules
 coverage
+build
+.vite
+.cache
 *.log
 package-lock.json
 tsconfig.tsbuildinfo
