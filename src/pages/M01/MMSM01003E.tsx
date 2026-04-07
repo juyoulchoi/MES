@@ -1,12 +1,24 @@
 import { useEffect, useRef, useState } from 'react';
-import * as XLSX from 'xlsx';
 import DateEdit from '@/components/DateEdit';
 import CustomerCodePicker from '@/components/CustomerCodePicker';
 import ItemCodePicker from '@/components/ItemCodePicker';
 import CommonCodeSelectBox from '@/components/CommonCodeSelectBox';
 import CodeNameField from '@/components/CodeNameField';
 import { CheckColumn, Column, DataGrid } from '@/components/table/DataGrid';
-import { renderGridInputCell, renderGridReadOnlyCell } from '@/components/table/GridCells';
+import { normalizeString, toYmd } from '@/lib/excel';
+import {
+  exportExcelTemplate,
+  parseExcelUploadFile,
+  validateExcelUploadRows,
+} from '@/lib/excelUpload';
+import { patchCheckedRow, removeCheckedRows, toggleCheckedRow } from '@/lib/gridRows';
+import { fetchCommonCodes, type CommonCodeItem } from '@/services/common/commonCode';
+import {
+  renderGridInputCell,
+  renderGridReadOnlyCell,
+  renderGridSelectCell,
+  type GridCellOption,
+} from '@/components/table/GridCells';
 import { http } from '@/lib/http';
 import { PAGE_SIZE } from '@/lib/pagination';
 import { usePageApiFetch } from '@/services/common/getApiFetch';
@@ -26,6 +38,7 @@ type MasterRow = {
   itemNm: string;
   unitCd: string;
   ivQty: number;
+  status: string;
   description: string;
 };
 
@@ -36,24 +49,24 @@ type DetailRow = {
   unitCd: string;
   qty: number | string;
   description: string;
-  soSubSeq: number;
+  poSubSeq: number;
 };
 
 type SaveDetailRow = {
-  SO_SUB_SEQ: number | string;
-  DESC: string;
-  ITEM_CD: string;
-  UNIT_CD: string;
-  QTY: number | string;
+  poSubSeq: number | string;
+  desc: string;
+  itemCd: string;
+  unitCd: string;
+  qty: number | string;
 };
 
 type SaveMasterRow = {
-  METHOD: 'I' | 'D';
-  USER_ID: string;
-  CST_CD: string;
-  SO_YMD: string;
-  SO_SEQ: string;
-  DESC: string;
+  method: 'I' | 'D';
+  userId: string;
+  cstCd: string;
+  poYmd: string;
+  poSeq: string;
+  desc: string;
 };
 
 type SavePayload = {
@@ -64,12 +77,20 @@ type SavePayload = {
 type AuthMeResponse = {
   user?: {
     userid?: string;
+    userId?: string;
+  };
+  data?: {
+    user?: {
+      userid?: string;
+      userId?: string;
+    };
   };
 };
 
 type ExcelUploadRow = {
   itemCd: string;
   itemNm?: string;
+  unitCd?: string;
   qty: number | string;
   desc?: string;
 };
@@ -83,8 +104,6 @@ type ExcelValidateResponse = {
   }>;
 };
 
-type RawExcelRow = Record<string, string | number | null | undefined>;
-
 const EXCEL_TEMPLATE_HEADERS = ['품목코드', '품목명', '수량', '비고'];
 
 export default function MMSM01003E() {
@@ -94,8 +113,9 @@ export default function MMSM01003E() {
   const [itemPickerOpen, setMaterialPickerOpen] = useState(false);
   const [masterRows, setMasterRows] = useState<MasterRow[]>([]);
   const [detailRows, setDetailRows] = useState<DetailRow[]>([]);
-  const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploadWarnings, setUploadWarnings] = useState<string[]>([]);
@@ -108,43 +128,6 @@ export default function MMSM01003E() {
     itemNm: '',
     itemGb: '',
   }));
-
-  function toYmd(value: string) {
-    if (!value) return '';
-    return value.replace(/-/g, '');
-  }
-
-  function normalizeString(value: unknown) {
-    if (value === null || value === undefined) return '';
-    return String(value).trim();
-  }
-
-  function normalizeQty(value: unknown) {
-    if (typeof value === 'number') return value;
-    const text = normalizeString(value).replace(/,/g, '');
-    if (!text) return '';
-    const parsed = Number(text);
-    return Number.isFinite(parsed) ? parsed : text;
-  }
-
-  function isBlankExcelRow(row: RawExcelRow) {
-    return Object.values(row).every((value) => normalizeString(value) === '');
-  }
-
-  function downloadExcelFile(workbook: XLSX.WorkBook, filename: string) {
-    const arrayBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
-    const blob = new Blob([arrayBuffer], {
-      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = filename;
-    document.body.appendChild(anchor);
-    anchor.click();
-    document.body.removeChild(anchor);
-    URL.revokeObjectURL(url);
-  }
 
   const {
     result: masterResult,
@@ -185,31 +168,24 @@ export default function MMSM01003E() {
   }, [masterResult.content]);
 
   useEffect(() => {
-    setDetailRows(detailResult.content.map((row) => ({ ...row, CHECK: false })));
+    setDetailRows(
+      detailResult.content.map((row) => ({
+        ...row,
+        CHECK: false,
+      }))
+    );
   }, [detailResult.content]);
 
   function toggleMaster(rowIndex: number, checked: boolean) {
-    setMasterRows((prev) => {
-      const next = [...prev];
-      next[rowIndex] = { ...next[rowIndex], CHECK: checked };
-      return next;
-    });
+    setMasterRows((prev) => toggleCheckedRow(prev, rowIndex, checked));
   }
 
   function toggleDetail(rowIndex: number, checked: boolean) {
-    setDetailRows((prev) => {
-      const next = [...prev];
-      next[rowIndex] = { ...next[rowIndex], CHECK: checked };
-      return next;
-    });
+    setDetailRows((prev) => toggleCheckedRow(prev, rowIndex, checked));
   }
 
   function onDetailChange(rowIndex: number, patch: Partial<DetailRow>) {
-    setDetailRows((prev) => {
-      const next = [...prev];
-      next[rowIndex] = { ...next[rowIndex], ...patch, CHECK: true };
-      return next;
-    });
+    setDetailRows((prev) => patchCheckedRow(prev, rowIndex, patch));
   }
 
   function onAddFromMaster() {
@@ -224,7 +200,7 @@ export default function MMSM01003E() {
         unitCd: row.unitCd ?? '',
         qty: row.ivQty ?? '',
         description: row.description ?? '',
-        soSubSeq: prev.length + index + 1,
+        poSubSeq: prev.length + index + 1,
       }));
 
       return [...additions, ...prev];
@@ -232,7 +208,7 @@ export default function MMSM01003E() {
   }
 
   function onDeleteDetail() {
-    setDetailRows((prev) => prev.filter((row) => !row.CHECK));
+    setDetailRows((prev) => removeCheckedRows(prev));
   }
 
   function onUploadCsv() {
@@ -285,82 +261,11 @@ export default function MMSM01003E() {
   }
 
   async function parseExcelFile(file: File): Promise<ExcelUploadRow[]> {
-    const buffer = await file.arrayBuffer();
-    const workbook = XLSX.read(buffer, { type: 'array' });
-    const firstSheetName = workbook.SheetNames[0];
-
-    if (!firstSheetName) {
-      throw new Error('엑셀 시트를 찾을 수 없습니다.');
-    }
-
-    const sheet = workbook.Sheets[firstSheetName];
-    const rawRows = XLSX.utils.sheet_to_json<RawExcelRow>(sheet, {
-      defval: '',
-      raw: false,
-    });
-
-    const rows = rawRows.filter((row) => !isBlankExcelRow(row));
-
-    if (rows.length === 0) {
-      throw new Error('업로드할 데이터가 없습니다.');
-    }
-
-    return rows.map((row, index) => {
-      const itemCd = normalizeString(row['품목코드']);
-      const qty = normalizeQty(row['수량']);
-
-      if (!itemCd) {
-        throw new Error(`${index + 2}행 품목코드 값이 비어 있습니다.`);
-      }
-
-      if (qty === '') {
-        throw new Error(`${index + 2}행 수량 값이 비어 있습니다.`);
-      }
-
-      if (typeof qty !== 'number') {
-        throw new Error(`${index + 2}행 수량 값은 숫자여야 합니다.`);
-      }
-
-      return {
-        itemCd,
-        itemNm: normalizeString(row['품목명']),
-        qty,
-        desc: normalizeString(row['비고']),
-      } satisfies ExcelUploadRow;
-    });
+    return parseExcelUploadFile(file);
   }
 
   async function validateExcelRows(rows: ExcelUploadRow[]): Promise<ExcelValidateResponse> {
-    const validRows: ExcelUploadRow[] = [];
-    const errors: NonNullable<ExcelValidateResponse['errors']> = [];
-
-    rows.forEach((row, index) => {
-      const rowNo = index + 2;
-      const itemCd = normalizeString(row.itemCd);
-      const qty = row.qty;
-      let hasError = false;
-
-      if (!itemCd) {
-        errors.push({ rowNo, field: '품목코드', message: '품목코드는 필수입니다.' });
-        hasError = true;
-      }
-
-      if (qty === '' || qty === null || qty === undefined) {
-        errors.push({ rowNo, field: '수량', message: '수량은 필수입니다.' });
-        hasError = true;
-      }
-
-      if (!hasError) {
-        validRows.push({
-          itemCd,
-          itemNm: normalizeString(row.itemNm),
-          qty,
-          desc: normalizeString(row.desc),
-        });
-      }
-    });
-
-    return { validRows, errors };
+    return validateExcelUploadRows(rows);
   }
 
   function applyUploadedRows(rows: ExcelUploadRow[]) {
@@ -369,10 +274,10 @@ export default function MMSM01003E() {
         CHECK: true,
         itemCd: row.itemCd ?? '',
         itemNm: row.itemNm ?? '',
-        unitCd: '',
+        unitCd: row.unitCd ?? '',
         qty: row.qty ?? '',
         description: row.desc ?? '',
-        soSubSeq: index + 1,
+        poSubSeq: index + 1,
       }))
     );
   }
@@ -395,24 +300,35 @@ export default function MMSM01003E() {
 
     try {
       const me = await http<AuthMeResponse>('/api/v1/auth/me');
-      const userId = me?.user?.userid ?? '';
+      const userId = (
+        me.user?.userid ??
+        me.user?.userId ??
+        me.data?.user?.userid ??
+        me.data?.user?.userId ??
+        ''
+      ).trim();
+
+      if (!userId) {
+        setSaveError('사용자 정보를 확인할 수 없습니다. 다시 로그인 후 시도하세요.');
+        return;
+      }
 
       const detailData: SaveDetailRow[] = detailRows.map((row, index) => ({
-        SO_SUB_SEQ: row.soSubSeq ?? index + 1,
-        DESC: row.description ?? '',
-        ITEM_CD: row.itemCd ?? '',
-        UNIT_CD: row.unitCd ?? '',
-        QTY: row.qty ?? '',
+        poSubSeq: row.poSubSeq ?? index + 1,
+        desc: row.description ?? '',
+        itemCd: row.itemCd ?? '',
+        unitCd: row.unitCd ?? '',
+        qty: row.qty ?? '',
       }));
 
       const masterData: SaveMasterRow[] = [
         {
-          METHOD: detailData.length === 0 ? 'D' : 'I',
-          USER_ID: userId,
-          CST_CD: form.cstCd || '',
-          SO_YMD: toYmd(form.ivDate),
-          SO_SEQ: '',
-          DESC: '',
+          method: detailData.length === 0 ? 'D' : 'I',
+          userId: userId,
+          cstCd: form.cstCd || '',
+          poYmd: toYmd(form.ivDate),
+          poSeq: '',
+          desc: '',
         },
       ];
 
@@ -421,7 +337,7 @@ export default function MMSM01003E() {
         detailData,
       };
 
-      await http('/api/m01/mmsm01003/save', { method: 'POST', body: payload });
+      await http('/api/v1/material/pomst/savePayload', { method: 'POST', body: payload });
       await Promise.all([fetchMasterList(0), fetchDetailList(0)]);
     } catch (e) {
       setSaveError(e instanceof Error ? e.message : String(e));
@@ -431,23 +347,19 @@ export default function MMSM01003E() {
   }
 
   function onExportCsv() {
-    const workbook = XLSX.utils.book_new();
-    const worksheet = XLSX.utils.json_to_sheet(
+    exportExcelTemplate(
+      '원자재입고등록양식.xlsx',
       [
         {
           품목코드: 'RM001',
           품목명: '원자재명',
+          단위: 'EA',
           수량: 100,
           비고: '비고',
         },
       ],
-      {
-        header: EXCEL_TEMPLATE_HEADERS,
-      }
+      EXCEL_TEMPLATE_HEADERS
     );
-
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'upload');
-    downloadExcelFile(workbook, '원자재입고등록양식.xlsx');
   }
 
   return (
@@ -495,14 +407,14 @@ export default function MMSM01003E() {
             disabled={masterLoading || detailLoading || saving || uploading}
             className="h-8 px-3 border rounded bg-primary text-primary-foreground disabled:opacity-50"
           >
-            조회
+            {loading ? '조회중...' : '조회'}
           </button>
           <button
             onClick={() => onSave()}
             disabled={masterLoading || detailLoading || saving || uploading}
             className="h-8 px-3 border rounded"
           >
-            저장
+            {saving ? '저장 중...' : '저장'}
           </button>
           <button
             onClick={onUploadCsv}
@@ -511,7 +423,10 @@ export default function MMSM01003E() {
           >
             {uploading ? '업로드 중...' : '엑셀 업로드'}
           </button>
-          <button onClick={onExportCsv} className="h-8 px-3 border rounded">
+          <button
+            onClick={onExportCsv}
+            className="h-10 rounded-lg border border-emerald-200 bg-emerald-50 px-4 text-sm font-medium text-emerald-700 transition hover:bg-emerald-100"
+          >
             양식 다운로드
           </button>
         </div>
@@ -596,11 +511,11 @@ export default function MMSM01003E() {
               }
             />
             <Column
-              dataField="soSubSeq"
-              caption="영업상세순번"
+              dataField="poSubSeq"
+              caption="발주상세순번"
               width={96}
               alignment="center"
-              cellRender={(row) => renderGridReadOnlyCell(row.soSubSeq, { align: 'center' })}
+              cellRender={(row) => renderGridReadOnlyCell(row.poSubSeq, { align: 'center' })}
             />
           </DataGrid>
         </div>
