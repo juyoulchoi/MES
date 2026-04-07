@@ -18,7 +18,8 @@ const modules = import.meta.glob(
 // 2) 모듈 키 정규화: /src/pages/..., @/pages/... 모두 커버
 function normalizeKey(k: string) {
   return k
-    .replace(/^@?\/*src\/pages\//i, '') // "@/pages/" 혹은 "/src/pages/" 제거
+    .replace(/^@\/pages\//i, '') // "@/pages/" 제거
+    .replace(/^@?\/*src\/pages\//i, '') // "/src/pages/" 제거
     .replace(/\.tsx$/i, '')
     .replace(/^[\/]+|[\/]+$/g, '') // 앞/뒤 슬래시 제거
     .toLowerCase();
@@ -28,7 +29,7 @@ function normalizeKey(k: string) {
 function normalizeUrlPath(p: string) {
   return p
     .replace(/^[\/]+|[\/]+$/g, '') // 앞/뒤 슬래시 제거
-    .replace(/\.ts$/i, '') // 표시용 .ts 확장자 제거
+    .replace(/\.tsx?$/i, '') // 표시용 .ts/.tsx 확장자 제거
     .replace(/\.js$/i, '')
     .toLowerCase(); // 소문자화
 }
@@ -54,7 +55,7 @@ export default function PageRenderer({
     const trimmed = normalizeUrlPath(raw);
     const baseSub = trimmed.length === 0 ? fallback : trimmed;
     // 마스킹: /app/default.ts & sessionStorage.maskedPage 존재 시 실제 페이지로 교체
-    if (/\/default\.ts$/i.test(pathname)) {
+    if (/\/default\.tsx?$/i.test(pathname)) {
       const stateMasked: string | undefined = state?.maskedPage;
       const masked = stateMasked ?? sessionStorage.getItem('maskedPage');
       if (masked && masked !== 'default') {
