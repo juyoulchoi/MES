@@ -139,7 +139,7 @@ export default function LayoutSPA() {
 
   const onOpenPath = (path?: string) => {
     if (!path) return;
-    const pageId = path.replace(/^.*\//, '').replace(/\.ts$/i, '');
+    const pageId = path.replace(/^.*\//, '').replace(/\.tsx?$/i, '');
     setMaskedPage(pageId, navigate, { replace: false });
   };
 
@@ -149,8 +149,8 @@ export default function LayoutSPA() {
       ensureMaskedPage(navigate, 'default', true);
       return;
     }
-    if (p.startsWith('/app/') && /\.ts$/i.test(p) && p !== '/app/default.ts') {
-      const pageId = p.replace(/^\/app\//, '').replace(/\.ts$/i, '');
+    if (p.startsWith('/app/') && /\.tsx?$/i.test(p) && !/^\/app\/default\.tsx?$/i.test(p)) {
+      const pageId = p.replace(/^.*\//, '').replace(/\.tsx?$/i, '');
       setMaskedPage(pageId, navigate, { replace: true });
       return;
     }
