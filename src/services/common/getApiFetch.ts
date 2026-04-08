@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { getApi } from '@/lib/axiosClient';
-import { EmptyPageResult, toPageResult, type PageResult, PAGE_SIZE } from '@/lib/pagination';
+import { EmptyPageResult, toPageResult, type PageResult, type PageableResponse, PAGE_SIZE } from '@/lib/pagination';
 
 type QueryValue = string | number | boolean | null | undefined;
 type QueryParams = Record<string, QueryValue>;
@@ -48,7 +48,7 @@ function getApiFetch<TForm, TRow>({ apiPath, mapParams }: ApiFetchOption<PageFet
   return async (request: PageFetchRequest<TForm>): Promise<PageResult<TRow>> => {
     const page = request.page ?? 0;
     const size = request.pageSize ?? PAGE_SIZE;
-    const data = await getApi<unknown>(
+    const data = await getApi<PageableResponse<TRow> | TRow[]>(
       apiPath,
       toApiParams({
         ...mapParams(request),
@@ -105,3 +105,4 @@ export function usePageApiFetch<TForm, TRow>({
     fetchList,
   };
 }
+

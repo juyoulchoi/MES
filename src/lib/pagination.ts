@@ -1,6 +1,6 @@
 export const PAGE_SIZE = 10;
 
-interface PageableResponse<T> {
+export interface PageableResponse<T> {
   content?: T[];
   totalElements?: number;
   totalPages?: number;
@@ -66,3 +66,4 @@ export function toPageResult<T>(
     numberOfElements: data?.numberOfElements ?? content.length,
   };
 }
+
