@@ -2,7 +2,7 @@ import CodeNameField from '@/components/CodeNameField';
 import CustomerCodePicker from '@/components/CustomerCodePicker';
 import FromToDateField from '@/components/FromToDateField';
 import { CheckColumn, Column, DataGrid } from '@/components/table/DataGrid';
-import { normalizeString, toYmd } from '@/lib/excel';
+import { toYmd } from '@/lib/excel';
 import {
   exportExcelTemplate,
   parseExcelUploadFile,
@@ -10,19 +10,10 @@ import {
 } from '@/lib/excelUpload';
 import { patchCheckedRow, removeCheckedRows, toggleCheckedRow } from '@/lib/gridRows';
 import { http } from '@/lib/http';
-import { PAGE_SIZE } from '@/lib/pagination';
+import { EmptyPageResult, PAGE_SIZE } from '@/lib/pagination';
 import { usePageApiFetch } from '@/services/common/getApiFetch';
+import { fetchMmsm01001Detail, type DetailRow, type SearchForm } from '@/services/m01/mmsm01001';
 import { useEffect, useRef, useState } from 'react';
-
-type SearchForm = {
-  startDate: string;
-  endDate: string;
-  cstCd: string;
-  cstNm: string;
-  itemCd: string;
-  itemNm: string;
-  itemGb: string;
-};
 
 type MasterRow = {
   CHECK?: boolean;
@@ -30,17 +21,6 @@ type MasterRow = {
   itemCd?: string;
   itemNm?: string;
   qty?: number | string;
-};
-
-type DetailRow = {
-  CHECK?: boolean;
-  poSubSeq?: number | string;
-  itemCd?: string;
-  itemNm?: string;
-  unitCd?: string;
-  qty?: number | string;
-  itemTp?: string;
-  description?: string;
 };
 
 type SaveDetailRow = {
@@ -99,21 +79,19 @@ const EXCEL_TEMPLATE_HEADERS = ['품목코드', '품목명', '수량', '비고']
 
 export default function MMSM01001E() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const [poYn, setPoYn] = useState(false);
   const [customerOpen, setCustomerOpen] = useState(false);
   const [cstCd, setCstCd] = useState('');
   const [cstNm, setCstNm] = useState('');
-  const [master, setMaster] = useState<MasterRow[]>([]);
-  const [detail, setDetail] = useState<DetailRow[]>([]);
-  const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploadWarnings, setUploadWarnings] = useState<string[]>([]);
   const [masterRows, setMasterRows] = useState<MasterRow[]>([]);
   const [detailRows, setDetailRows] = useState<DetailRow[]>([]);
+  const [detailResult, setDetailResult] = useState(() => EmptyPageResult<DetailRow>(0, PAGE_SIZE));
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
 
   const [form, setForm] = useState<SearchForm>(() => ({
     startDate: new Date().toISOString().slice(0, 10),
@@ -142,22 +120,35 @@ export default function MMSM01001E() {
     }),
   });
 
-  const {
-    result: detailResult,
-    loading: detailLoading,
-    error: detailError,
-    fetchList: fetchDetailList,
-  } = usePageApiFetch<SearchForm, DetailRow>({
-    apiPath: '/api/v1/mdm/item/searchItemCustList',
-    form,
-    pageSize: PAGE_SIZE,
-    mapParams: ({ form: currentForm }) => ({
-      itemGb: currentForm.itemGb || '',
-      itemCd: currentForm.itemCd || '',
-      itemNm: currentForm.itemNm || '',
-      cstCd: currentForm.cstCd || '',
-    }),
-  });
+  async function fetchDetailList(nextPage = 0) {
+    setDetailLoading(true);
+    setDetailError(null);
+
+    try {
+      setDetailResult(
+        await fetchMmsm01001Detail({
+          form,
+          page: nextPage,
+          pageSize: PAGE_SIZE,
+        })
+      );
+    } catch (e) {
+      setDetailResult(EmptyPageResult<DetailRow>(nextPage, PAGE_SIZE));
+      setDetailError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setDetailLoading(false);
+    }
+  }
+
+  async function onSearch() {
+    if (!form.cstCd) {
+      window.alert('거래처 코드는 조회 필수값입니다.');
+      return;
+    }
+
+    setDetailError(null);
+    await Promise.all([fetchMasterList(0), fetchDetailList(0)]);
+  }
 
   useEffect(() => {
     setMasterRows(masterResult.content.map((row) => ({ ...row, CHECK: false })));
@@ -266,7 +257,7 @@ export default function MMSM01001E() {
   }
 
   function applyUploadedRows(rows: ExcelUploadRow[]) {
-    setDetail(
+    setDetailRows(
       rows.map((row, index) => ({
         CHECK: true,
         poSubSeq: index + 1,
@@ -382,19 +373,19 @@ export default function MMSM01001E() {
             <CodeNameField
               label="거래처명"
               id="cust"
-              code={cstCd}
-              name={cstNm}
+              code={form.cstCd}
+              name={form.cstNm}
               codePlaceholder="코드"
               namePlaceholder="거래처 선택"
               onSearch={() => setCustomerOpen(true)}
             />
             <div className="flex flex-wrap items-end justify-end gap-2">
               <button
-                onClick={() => fetchMasterList(0)}
+                onClick={onSearch}
                 disabled={masterLoading || detailLoading || saving || uploading}
                 className="h-10 rounded-lg bg-slate-900 px-4 text-sm font-medium text-white transition hover:bg-slate-800 disabled:opacity-50"
               >
-                {loading ? '조회중...' : '조회'}
+                {masterLoading || detailLoading ? '조회중...' : '조회'}
               </button>
               <button
                 onClick={() => onSave()}
@@ -420,9 +411,9 @@ export default function MMSM01001E() {
           </div>
         </div>
 
-        {(error || saveError || uploadError) && (
+        {(masterError || detailError || saveError || uploadError) && (
           <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
-            {error ?? saveError ?? uploadError}
+            {masterError ?? detailError ?? saveError ?? uploadError}
           </div>
         )}
 
@@ -455,10 +446,8 @@ export default function MMSM01001E() {
                   checked={(row) => !!row.CHECK}
                   onChange={(_row, rowIndex, checked) => toggleMaster(rowIndex, checked)}
                 />
-                <Column dataField="cstNm" caption="거래처" width={120} alignment="center" />
                 <Column dataField="itemCd" caption="품목코드" width={120} alignment="center" />
                 <Column dataField="itemNm" caption="품목명" />
-                <Column dataField="qty" caption="수량" width={96} alignment="right" />
               </DataGrid>
             </div>
           </div>
@@ -564,6 +553,7 @@ export default function MMSM01001E() {
             onSelect={(value) => {
               setCstCd(value.cstCd);
               setCstNm(value.cstNm);
+              setForm((prev) => ({ ...prev, cstCd: value.cstCd, cstNm: value.cstNm }));
               setCustomerOpen(false);
             }}
           />
