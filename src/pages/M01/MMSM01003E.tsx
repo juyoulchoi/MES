@@ -5,19 +5,16 @@ import ItemCodePicker from '@/components/ItemCodePicker';
 import CommonCodeSelectBox from '@/components/CommonCodeSelectBox';
 import CodeNameField from '@/components/CodeNameField';
 import { CheckColumn, Column, DataGrid } from '@/components/table/DataGrid';
-import { normalizeString, toYmd } from '@/lib/excel';
+import { toYmd } from '@/lib/excel';
 import {
   exportExcelTemplate,
   parseExcelUploadFile,
   validateExcelUploadRows,
 } from '@/lib/excelUpload';
 import { patchCheckedRow, removeCheckedRows, toggleCheckedRow } from '@/lib/gridRows';
-import { fetchCommonCodes, type CommonCodeItem } from '@/services/common/commonCode';
 import {
   renderGridInputCell,
   renderGridReadOnlyCell,
-  renderGridSelectCell,
-  type GridCellOption,
 } from '@/components/table/GridCells';
 import { http } from '@/lib/http';
 import { PAGE_SIZE } from '@/lib/pagination';
@@ -44,15 +41,21 @@ type MasterRow = {
 
 type DetailRow = {
   CHECK?: boolean;
+  poYmd?: string;
+  poSeq?: number | string;
   itemCd: string;
   itemNm: string;
   unitCd: string;
   qty: number | string;
   description: string;
   poSubSeq: number;
+  method?: 'I' | 'U' | 'D';
 };
 
 type SaveDetailRow = {
+  method: 'I' | 'U' | 'D';
+  poYmd: string;
+  poSeq: string;
   poSubSeq: number | string;
   desc: string;
   itemCd: string;
@@ -113,8 +116,8 @@ export default function MMSM01003E() {
   const [itemPickerOpen, setMaterialPickerOpen] = useState(false);
   const [masterRows, setMasterRows] = useState<MasterRow[]>([]);
   const [detailRows, setDetailRows] = useState<DetailRow[]>([]);
+  const [deletedDetailRows, setDeletedDetailRows] = useState<DetailRow[]>([]);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -168,6 +171,7 @@ export default function MMSM01003E() {
   }, [masterResult.content]);
 
   useEffect(() => {
+    setDeletedDetailRows([]);
     setDetailRows(
       detailResult.content.map((row) => ({
         ...row,
@@ -185,7 +189,12 @@ export default function MMSM01003E() {
   }
 
   function onDetailChange(rowIndex: number, patch: Partial<DetailRow>) {
-    setDetailRows((prev) => patchCheckedRow(prev, rowIndex, patch));
+    setDetailRows((prev) =>
+      patchCheckedRow(prev, rowIndex, {
+        ...patch,
+        method: prev[rowIndex]?.method === 'I' ? 'I' : 'U',
+      })
+    );
   }
 
   function onAddFromMaster() {
@@ -195,6 +204,7 @@ export default function MMSM01003E() {
     setDetailRows((prev) => {
       const additions = selected.map((row, index) => ({
         CHECK: true,
+        method: 'I' as const,
         itemCd: row.itemCd ?? '',
         itemNm: row.itemNm ?? '',
         unitCd: row.unitCd ?? '',
@@ -208,7 +218,25 @@ export default function MMSM01003E() {
   }
 
   function onDeleteDetail() {
-    setDetailRows((prev) => removeCheckedRows(prev));
+    setDetailRows((prev) => {
+      const rowsToDelete = prev.filter((row) => row.CHECK);
+      if (rowsToDelete.length === 0) {
+        return prev;
+      }
+
+      setDeletedDetailRows((current) => [
+        ...current,
+        ...rowsToDelete
+          .filter((row) => row.method !== 'I' && row.poYmd && row.poSeq !== undefined)
+          .map((row) => ({
+            ...row,
+            CHECK: false,
+            method: 'D' as const,
+          })),
+      ]);
+
+      return removeCheckedRows(prev);
+    });
   }
 
   function onUploadCsv() {
@@ -269,9 +297,11 @@ export default function MMSM01003E() {
   }
 
   function applyUploadedRows(rows: ExcelUploadRow[]) {
+    setDeletedDetailRows([]);
     setDetailRows(
       rows.map((row, index) => ({
         CHECK: true,
+        method: 'I' as const,
         itemCd: row.itemCd ?? '',
         itemNm: row.itemNm ?? '',
         unitCd: row.unitCd ?? '',
@@ -283,7 +313,7 @@ export default function MMSM01003E() {
   }
 
   async function onSave() {
-    if (detailRows.length === 0) {
+    if (detailRows.length === 0 && deletedDetailRows.length === 0) {
       setSaveError('저장할 데이터가 없습니다.');
       return;
     }
@@ -313,7 +343,10 @@ export default function MMSM01003E() {
         return;
       }
 
-      const detailData: SaveDetailRow[] = detailRows.map((row, index) => ({
+      const activeDetailData: SaveDetailRow[] = detailRows.map((row, index) => ({
+        method: row.method ?? (row.poYmd && row.poSeq !== undefined ? 'U' : 'I'),
+        poYmd: row.poYmd ?? '',
+        poSeq: row.poSeq === undefined || row.poSeq === null ? '' : String(row.poSeq),
         poSubSeq: row.poSubSeq ?? index + 1,
         desc: row.description ?? '',
         itemCd: row.itemCd ?? '',
@@ -321,9 +354,24 @@ export default function MMSM01003E() {
         qty: row.qty ?? '',
       }));
 
+      const deletedData: SaveDetailRow[] = deletedDetailRows.map((row, index) => ({
+        method: 'D',
+        poYmd: row.poYmd ?? '',
+        poSeq: row.poSeq === undefined || row.poSeq === null ? '' : String(row.poSeq),
+        poSubSeq: row.poSubSeq ?? index + 1,
+        desc: row.description ?? '',
+        itemCd: row.itemCd ?? '',
+        unitCd: row.unitCd ?? '',
+        qty: row.qty ?? '',
+      }));
+
+      const detailData = [...activeDetailData, ...deletedData];
+      const hasInsert = detailData.some((row) => row.method === 'I');
+      const hasExistingChange = detailData.some((row) => row.method === 'U' || row.method === 'D');
+
       const masterData: SaveMasterRow[] = [
         {
-          method: detailData.length === 0 ? 'D' : 'I',
+          method: !hasInsert && hasExistingChange && detailRows.length === 0 ? 'D' : 'I',
           userId: userId,
           cstCd: form.cstCd || '',
           poYmd: toYmd(form.ivDate),
@@ -338,6 +386,7 @@ export default function MMSM01003E() {
       };
 
       await http('/api/v1/material/pomst/savePayload', { method: 'POST', body: payload });
+      setDeletedDetailRows([]);
       await Promise.all([fetchMasterList(0), fetchDetailList(0)]);
     } catch (e) {
       setSaveError(e instanceof Error ? e.message : String(e));
@@ -407,7 +456,7 @@ export default function MMSM01003E() {
             disabled={masterLoading || detailLoading || saving || uploading}
             className="h-8 px-3 border rounded bg-primary text-primary-foreground disabled:opacity-50"
           >
-            {loading ? '조회중...' : '조회'}
+            {masterLoading || detailLoading ? '조회중...' : '조회'}
           </button>
           <button
             onClick={() => onSave()}
@@ -553,3 +602,5 @@ export default function MMSM01003E() {
     </div>
   );
 }
+
+
