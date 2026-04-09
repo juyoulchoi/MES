@@ -5,12 +5,8 @@ type QueryValue = string | number | boolean | null | undefined;
 type QueryParams = Record<string, QueryValue>;
 
 export interface SearchForm {
-  startDate: string;
-  endDate: string;
+  poYmd: string;
   cstCd: string;
-  cstNm: string;
-  itemCd: string;
-  itemNm: string;
   itemGb: string;
 }
 
@@ -50,16 +46,14 @@ export async function fetchMmsm01001Detail({
   const data = await getApi<PageableResponse<DetailRow> | DetailRow[]>(
     '/api/v1/material/podet/search',
     toApiParams({
-      poYmdS: form.startDate.split('-').join(''),
-      poYmdE: form.endDate.split('-').join(''),
+      poYmd: form.poYmd.split('-').join(''),
       cstCd: form.cstCd || '',
       itemGb: form.itemGb || '',
-      itemCd: form.itemCd || '',
-      itemNm: form.itemNm || '',
       page,
-      size: pageSize,
+      pageSize,
     })
   );
 
   return toPageResult<DetailRow>(data, page, pageSize);
 }
+

@@ -1,6 +1,5 @@
 import CodeNameField from '@/components/CodeNameField';
 import CustomerCodePicker from '@/components/CustomerCodePicker';
-import FromToDateField from '@/components/FromToDateField';
 import { CheckColumn, Column, DataGrid } from '@/components/table/DataGrid';
 import { toYmd } from '@/lib/excel';
 import {
@@ -14,6 +13,7 @@ import { EmptyPageResult, PAGE_SIZE } from '@/lib/pagination';
 import { usePageApiFetch } from '@/services/common/getApiFetch';
 import { fetchMmsm01001Detail, type DetailRow, type SearchForm } from '@/services/m01/mmsm01001';
 import { useEffect, useRef, useState } from 'react';
+import DateEdit from '@/components/DateEdit';
 
 type MasterRow = {
   CHECK?: boolean;
@@ -83,7 +83,6 @@ const EXCEL_TEMPLATE_HEADERS = ['품목코드', '품목명', '수량', '비고']
 export default function MMSM01001E() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [customerOpen, setCustomerOpen] = useState(false);
-  const [cstCd, setCstCd] = useState('');
   const [cstNm, setCstNm] = useState('');
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -98,13 +97,10 @@ export default function MMSM01001E() {
   const [detailError, setDetailError] = useState<string | null>(null);
 
   const [form, setForm] = useState<SearchForm>(() => ({
-    startDate: new Date().toISOString().slice(0, 10),
-    endDate: new Date().toISOString().slice(0, 10),
+    poYmd: new Date().toISOString().slice(0, 10),
     cstCd: '',
-    cstNm: '',
-    itemCd: '',
-    itemNm: '',
     itemGb: '',
+    poSeq: '',
   }));
 
   const {
@@ -117,9 +113,8 @@ export default function MMSM01001E() {
     form,
     pageSize: PAGE_SIZE,
     mapParams: ({ form: currentForm }) => ({
+      poYmd: currentForm.poYmd,
       itemGb: currentForm.itemGb || '',
-      itemCd: currentForm.itemCd || '',
-      itemNm: currentForm.itemNm || '',
       cstCd: currentForm.cstCd || '',
     }),
   });
@@ -229,7 +224,7 @@ export default function MMSM01001E() {
   }
 
   function onUploadCsv() {
-    if (!form.startDate) {
+    if (!form.poYmd) {
       setUploadError('발주일자를 먼저 선택하세요.');
       return;
     }
@@ -308,7 +303,7 @@ export default function MMSM01001E() {
       return;
     }
 
-    if (!cstCd) {
+    if (!form.cstCd) {
       setSaveError('거래처를 선택하세요.');
       return;
     }
@@ -363,7 +358,7 @@ export default function MMSM01001E() {
         {
           method: !hasInsert && hasExistingChange && detailRows.length === 0 ? 'D' : 'I',
           userId,
-          cstCd,
+          cstCd: form.cstCd,
           poYmd: toYmd(new Date().toISOString().slice(0, 10)),
           poSeq: '',
           desc: '',
@@ -413,18 +408,12 @@ export default function MMSM01001E() {
 
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-[450px_420px_1fr]">
-            <FromToDateField
-              label="발주일자"
-              fromValue={form.startDate}
-              toValue={form.endDate}
-              onFromChange={(value) => setForm((prev) => ({ ...prev, startDate: value }))}
-              onToChange={(value) => setForm((prev) => ({ ...prev, endDate: value }))}
-            />
+            <DateEdit label="발주일자" value={form.poYmd} />
             <CodeNameField
-              label="거래처명"
+              label="거래처코드"
               id="cust"
               code={form.cstCd}
-              name={form.cstNm}
+              name={cstNm}
               codePlaceholder="코드"
               namePlaceholder="거래처 선택"
               onSearch={() => setCustomerOpen(true)}
@@ -508,13 +497,13 @@ export default function MMSM01001E() {
                 onClick={onAddFromMaster}
                 className="flex-1 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-3 text-sm font-medium text-emerald-700 transition hover:bg-emerald-100"
               >
-                상세 추가
+                추가
               </button>
               <button
                 onClick={onDeleteDetail}
                 className="flex-1 rounded-xl border border-rose-200 bg-rose-50 px-3 py-3 text-sm font-medium text-rose-700 transition hover:bg-rose-100"
               >
-                상세 삭제
+                삭제
               </button>
             </div>
           </div>
@@ -585,14 +574,12 @@ export default function MMSM01001E() {
           <CustomerCodePicker
             title="거래처 정보"
             custGb="CUSTOMER"
-            cstCd={cstCd}
+            cstCd={form.cstCd}
             cstNm={cstNm}
             onClose={() => setCustomerOpen(false)}
             onSelect={(value) => {
-              setCstCd(value.cstCd);
               setCstNm(value.cstNm);
-              setForm((prev) => ({ ...prev, cstCd: value.cstCd, cstNm: value.cstNm }));
-              setCustomerOpen(false);
+              setForm((prev) => ({ ...prev, cstCd: value.cstCd }));
             }}
           />
         ) : null}
@@ -600,3 +587,4 @@ export default function MMSM01001E() {
     </div>
   );
 }
+
