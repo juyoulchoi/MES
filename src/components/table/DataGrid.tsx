@@ -146,11 +146,11 @@ function formatCellValue<T>(
   return String(value ?? '');
 }
 
-function toTableColumn<T>(element: ReactElement<DataGridColumnProps<T>>): TableColumn<T> {
+function toTableColumn<T>(element: ReactElement<DataGridColumnProps<T>>, index: number): TableColumn<T> {
   const { dataField, caption, dataType, format, width, alignment, cellRender } = element.props;
 
   return {
-    key: String(dataField),
+    key: element.key ? String(element.key) : `${String(dataField)}-${index}`,
     header: caption ?? String(dataField),
     width,
     align: alignment ?? (dataType === 'number' ? 'right' : 'left'),
@@ -233,7 +233,7 @@ export function DataGrid<T>({
   const [localPageSize, setLocalPageSize] = useState(defaultPageSize);
 
   const columns = useMemo(
-    () => columnElements.map((column) => toTableColumn(column)),
+    () => columnElements.map((column, index) => toTableColumn(column, index)),
     [columnElements]
   );
 

@@ -8,6 +8,7 @@ export interface SearchForm {
   poYmd: string;
   cstCd: string;
   itemGb: string;
+  poSeq?: string;
 }
 
 export interface DetailRow {
@@ -19,6 +20,8 @@ export interface DetailRow {
   itemNm?: string;
   unitCd?: string;
   qty?: number | string;
+  regYmd?: string;
+  emGb?: string;
   itemTp?: string;
   description?: string;
   method?: 'I' | 'U' | 'D';
@@ -56,4 +59,6 @@ export async function fetchMmsm01001Detail({
 
   return toPageResult<DetailRow>(data, page, pageSize);
 }
+
+
 

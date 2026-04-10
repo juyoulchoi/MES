@@ -14,12 +14,14 @@ import { usePageApiFetch } from '@/services/common/getApiFetch';
 import { fetchMmsm01001Detail, type DetailRow, type SearchForm } from '@/services/m01/mmsm01001';
 import { useEffect, useRef, useState } from 'react';
 import DateEdit from '@/components/DateEdit';
+import { useCodes } from '@/lib/hooks/useCodes';
 
 type MasterRow = {
   CHECK?: boolean;
   cstNm?: string;
   itemCd?: string;
   itemNm?: string;
+  unitCd?: string;
   qty?: number | string;
 };
 
@@ -28,6 +30,8 @@ type SaveDetailRow = {
   poYmd: string;
   poSeq: string;
   poSubSeq: number | string;
+  regYmd: string;
+  emGb: string;
   desc: string;
   itemCd: string;
   unitCd: string;
@@ -80,6 +84,15 @@ type ExcelValidateResponse = {
 
 const EXCEL_TEMPLATE_HEADERS = ['품목코드', '품목명', '수량', '비고'];
 
+function getTodayYmd() {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+
+  return `${year}-${month}-${day}`;
+}
+
 export default function MMSM01001E() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [customerOpen, setCustomerOpen] = useState(false);
@@ -95,6 +108,7 @@ export default function MMSM01001E() {
   const [detailResult, setDetailResult] = useState(() => EmptyPageResult<DetailRow>(0, PAGE_SIZE));
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
+  const minPoYmd = getTodayYmd();
 
   const [form, setForm] = useState<SearchForm>(() => ({
     poYmd: new Date().toISOString().slice(0, 10),
@@ -102,6 +116,8 @@ export default function MMSM01001E() {
     itemGb: '',
     poSeq: '',
   }));
+
+  const { codes: emCodes } = useCodes('1100', []);
 
   const {
     result: masterResult,
@@ -140,6 +156,11 @@ export default function MMSM01001E() {
   }
 
   async function onSearch() {
+    if (form.poYmd < minPoYmd) {
+      window.alert('발주일자는 오늘 이전으로 선택할 수 없습니다.');
+      return;
+    }
+
     if (!form.cstCd) {
       window.alert('거래처 코드는 조회 필수값입니다.');
       return;
@@ -180,24 +201,34 @@ export default function MMSM01001E() {
     );
   }
 
+  function getNextPoSubSeq(rows: DetailRow[]) {
+    return rows.reduce((max, row) => {
+      const seq = Number(row.poSubSeq) || 0;
+      return Math.max(max, seq);
+    }, 0);
+  }
+
   function onAddFromMaster() {
     const selected = masterRows.filter((row) => row.CHECK);
     if (selected.length === 0) return;
 
     setDetailRows((prev) => {
+      const nextPoSubSeq = getNextPoSubSeq(prev);
       const additions = selected.map((row, index) => ({
         CHECK: true,
         method: 'I' as const,
-        poSubSeq: prev.length + index + 1,
+        poSubSeq: nextPoSubSeq + index + 1,
         itemCd: row.itemCd ?? '',
         itemNm: row.itemNm ?? '',
-        unitCd: '',
+        unitCd: row.unitCd ?? '',
         qty: row.qty ?? '',
+        regYmd: form.poYmd,
+        emGb: '',
         itemTp: '',
         description: '',
       }));
 
-      return [...additions, ...prev];
+      return [...prev, ...additions];
     });
   }
 
@@ -291,6 +322,8 @@ export default function MMSM01001E() {
         itemNm: row.itemNm ?? '',
         unitCd: row.unitCd ?? '',
         qty: row.qty ?? '',
+        regYmd: form.poYmd,
+        emGb: '',
         itemTp: '',
         description: row.desc ?? '',
       }))
@@ -300,6 +333,11 @@ export default function MMSM01001E() {
   async function onSave() {
     if (detailRows.length === 0 && deletedDetailRows.length === 0) {
       setSaveError('저장할 데이터가 없습니다.');
+      return;
+    }
+
+    if (form.poYmd < minPoYmd) {
+      setSaveError('발주일자는 오늘 이전으로 선택할 수 없습니다.');
       return;
     }
 
@@ -328,11 +366,27 @@ export default function MMSM01001E() {
         return;
       }
 
+      const invalidRegYmdRowIndex = detailRows.findIndex(
+        (row) => !row.regYmd || row.regYmd < form.poYmd
+      );
+      if (invalidRegYmdRowIndex >= 0) {
+        setSaveError('상세 ' + (invalidRegYmdRowIndex + 1) + '행의 납기 요청일을 확인하세요.');
+        return;
+      }
+
+      const invalidEmGbRowIndex = detailRows.findIndex((row) => !row.emGb);
+      if (invalidEmGbRowIndex >= 0) {
+        setSaveError('상세 ' + (invalidEmGbRowIndex + 1) + '행의 발주 구분을 선택하세요.');
+        return;
+      }
+
       const activeDetailData: SaveDetailRow[] = detailRows.map((row, index) => ({
         method: row.method ?? (row.poYmd && row.poSeq !== undefined ? 'U' : 'I'),
         poYmd: row.poYmd ?? '',
         poSeq: row.poSeq === undefined || row.poSeq === null ? '' : String(row.poSeq),
         poSubSeq: row.poSubSeq ?? index + 1,
+        regYmd: toYmd(row.regYmd ?? ''),
+        emGb: row.emGb ?? '',
         desc: row.description ?? '',
         itemCd: row.itemCd ?? '',
         unitCd: row.unitCd ?? '',
@@ -344,6 +398,8 @@ export default function MMSM01001E() {
         poYmd: row.poYmd ?? '',
         poSeq: row.poSeq === undefined || row.poSeq === null ? '' : String(row.poSeq),
         poSubSeq: row.poSubSeq ?? index + 1,
+        regYmd: toYmd(row.regYmd ?? ''),
+        emGb: row.emGb ?? '',
         desc: row.description ?? '',
         itemCd: row.itemCd ?? '',
         unitCd: row.unitCd ?? '',
@@ -359,7 +415,7 @@ export default function MMSM01001E() {
           method: !hasInsert && hasExistingChange && detailRows.length === 0 ? 'D' : 'I',
           userId,
           cstCd: form.cstCd,
-          poYmd: toYmd(new Date().toISOString().slice(0, 10)),
+          poYmd: toYmd(form.poYmd),
           poSeq: '',
           desc: '',
         },
@@ -408,7 +464,25 @@ export default function MMSM01001E() {
 
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-[450px_420px_1fr]">
-            <DateEdit label="발주일자" value={form.poYmd} />
+            <DateEdit
+              label="발주일자"
+              value={form.poYmd}
+              min={minPoYmd}
+              onChange={(value) => {
+                if (value < minPoYmd) {
+                  window.alert('발주일자는 오늘 이전으로 선택할 수 없습니다.');
+                  return;
+                }
+
+                setForm((prev) => ({ ...prev, poYmd: value }));
+                setDetailRows((prev) =>
+                  prev.map((row) => ({
+                    ...row,
+                    regYmd: row.regYmd && row.regYmd >= value ? row.regYmd : value,
+                  }))
+                );
+              }}
+            />
             <CodeNameField
               label="거래처코드"
               id="cust"
@@ -487,6 +561,7 @@ export default function MMSM01001E() {
                 />
                 <Column dataField="itemCd" caption="품목코드" width={120} alignment="center" />
                 <Column dataField="itemNm" caption="품목명" />
+                <Column dataField="unitCd" caption="단위  " />
               </DataGrid>
             </div>
           </div>
@@ -518,7 +593,9 @@ export default function MMSM01001E() {
               <DataGrid
                 dataSource={detailRows}
                 showBorders={true}
-                rowKey={(row, index) => row.poSubSeq || `${row.itemCd || 'detail'}-${index}`}
+                rowKey={(row, index) =>
+                  `${row.poYmd ?? form.poYmd ?? 'new'}-${row.poSeq ?? 'new'}-${row.poSubSeq ?? 'detail'}-${row.itemCd ?? 'item'}-${index}`
+                }
                 emptyText="발주 상세 데이터가 없습니다. 좌측 후보에서 선택 후 추가하세요."
               >
                 <CheckColumn
@@ -529,18 +606,41 @@ export default function MMSM01001E() {
                 <Column dataField="itemCd" caption="원자재코드" width={120} alignment="center" />
                 <Column dataField="itemNm" caption="원자재명" width={220} />
                 <Column
-                  dataField="unitCd"
-                  caption="단위"
-                  width={90}
+                  dataField="regYmd"
+                  caption="납기 요청일"
+                  width={140}
                   alignment="center"
                   cellRender={(row, rowIndex) => (
                     <input
+                      type="date"
                       className="h-8 w-full rounded border border-slate-200 px-2 text-center"
-                      value={row.unitCd || ''}
-                      onChange={(e) => onDetailChange(rowIndex, { unitCd: e.target.value })}
+                      min={form.poYmd}
+                      value={row.regYmd || form.poYmd}
+                      onChange={(e) => onDetailChange(rowIndex, { regYmd: e.target.value })}
                     />
                   )}
                 />
+                <Column
+                  dataField="emGb"
+                  caption="발주 구분"
+                  width={130}
+                  alignment="center"
+                  cellRender={(row, rowIndex) => (
+                    <select
+                      className="h-8 w-full rounded border border-slate-200 bg-white px-2 text-center"
+                      value={row.emGb || ''}
+                      onChange={(e) => onDetailChange(rowIndex, { emGb: e.target.value })}
+                    >
+                      <option value="">선택</option>
+                      {emCodes.map((code) => (
+                        <option key={code.code} value={code.code}>
+                          {code.name}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                />
+                <Column dataField="unitCd" caption="단위" width={90} alignment="center" />
                 <Column
                   dataField="qty"
                   caption="발주수량"
@@ -587,4 +687,11 @@ export default function MMSM01001E() {
     </div>
   );
 }
+
+
+
+
+
+
+
 
