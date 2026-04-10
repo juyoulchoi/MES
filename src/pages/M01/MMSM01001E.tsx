@@ -1,5 +1,11 @@
 import CodeNameField from '@/components/CodeNameField';
+import ActionButtonGroup from '@/components/ActionButtonGroup';
+import AlertBox from '@/components/AlertBox';
 import CustomerCodePicker from '@/components/CustomerCodePicker';
+import DateEdit from '@/components/DateEdit';
+import DateInput from '@/components/DateInput';
+import SectionCard from '@/components/SectionCard';
+import SectionHeader from '@/components/SectionHeader';
 import { CheckColumn, Column, DataGrid } from '@/components/table/DataGrid';
 import { toYmd } from '@/lib/excel';
 import {
@@ -13,7 +19,6 @@ import { EmptyPageResult, PAGE_SIZE } from '@/lib/pagination';
 import { usePageApiFetch } from '@/services/common/getApiFetch';
 import { fetchMmsm01001Detail, type DetailRow, type SearchForm } from '@/services/m01/mmsm01001';
 import { useEffect, useRef, useState } from 'react';
-import DateEdit from '@/components/DateEdit';
 import { useCodes } from '@/lib/hooks/useCodes';
 
 type MasterRow = {
@@ -117,7 +122,7 @@ export default function MMSM01001E() {
     poSeq: '',
   }));
 
-  const { codes: emCodes } = useCodes('1100', []);
+  const { codes: emCodes } = useCodes('A1100', []);
 
   const {
     result: masterResult,
@@ -170,6 +175,9 @@ export default function MMSM01001E() {
     await Promise.all([fetchMasterList(0), fetchDetailList(0)]);
   }
 
+  const isSearch = masterLoading || detailLoading || saving || uploading;
+  const isSave = masterLoading || detailLoading || saving || uploading;
+  const isUpload = saving || uploading;
   useEffect(() => {
     setMasterRows(masterResult.content.map((row) => ({ ...row, CHECK: false })));
   }, [masterResult.content]);
@@ -462,7 +470,7 @@ export default function MMSM01001E() {
           onChange={onFileChange}
         />
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <SectionCard span="full" padding="md">
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-[450px_420px_1fr]">
             <DateEdit
               label="발주일자"
@@ -492,62 +500,40 @@ export default function MMSM01001E() {
               namePlaceholder="거래처 선택"
               onSearch={() => setCustomerOpen(true)}
             />
-            <div className="flex flex-wrap items-end justify-end gap-2">
-              <button
-                onClick={onSearch}
-                disabled={masterLoading || detailLoading || saving || uploading}
-                className="h-10 rounded-lg bg-slate-900 px-4 text-sm font-medium text-white transition hover:bg-slate-800 disabled:opacity-50"
-              >
-                {masterLoading || detailLoading ? '조회중...' : '조회'}
-              </button>
-              <button
-                onClick={() => onSave()}
-                disabled={masterLoading || detailLoading || saving || uploading}
-                className="h-10 rounded-lg bg-emerald-600 px-4 text-sm font-medium text-white transition hover:bg-emerald-500 disabled:opacity-50"
-              >
-                {saving ? '저장 중...' : '저장'}
-              </button>
-              <button
-                onClick={onUploadCsv}
-                disabled={saving || uploading}
-                className="h-10 rounded-lg border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
-              >
-                {uploading ? '업로드 중...' : '엑셀 업로드'}
-              </button>
-              <button
-                onClick={onExportCsv}
-                className="h-10 rounded-lg border border-emerald-200 bg-emerald-50 px-4 text-sm font-medium text-emerald-700 transition hover:bg-emerald-100"
-              >
-                양식 다운로드
-              </button>
-            </div>
+            <ActionButtonGroup
+              onSearch={onSearch}
+              onSave={() => onSave()}
+              onUpload={onUploadCsv}
+              onExport={onExportCsv}
+              searchDisabled={isSearch}
+              saveDisabled={isSave}
+              uploadDisabled={isUpload}
+            />
           </div>
-        </div>
+        </SectionCard>
 
         {(masterError || detailError || saveError || uploadError) && (
-          <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
-            {masterError ?? detailError ?? saveError ?? uploadError}
-          </div>
+          <AlertBox tone="error">{masterError ?? detailError ?? saveError ?? uploadError}</AlertBox>
         )}
 
         {uploadWarnings.length > 0 && (
-          <div className="space-y-1 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+          <AlertBox tone="warning">
             {uploadWarnings.map((warning, index) => (
               <div key={`${warning}-${index}`}>{warning}</div>
             ))}
-          </div>
+          </AlertBox>
         )}
 
         <div className="grid grid-cols-12 gap-4">
-          <div className="col-span-12 rounded-2xl border border-slate-200 bg-white shadow-sm md:col-span-4">
-            <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
-              <div>
-                <h3 className="text-sm font-semibold text-slate-900">발주 예비 품목</h3>
-              </div>
-              <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
-                {masterRows.length}건
-              </span>
-            </div>
+          <SectionCard span="left" width="full">
+            <SectionHeader
+              title="발주 예비 품목"
+              right={
+                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
+                  {masterRows.length}건
+                </span>
+              }
+            />
             <div className="max-h-[68vh] overflow-auto">
               <DataGrid
                 dataSource={masterRows}
@@ -559,12 +545,12 @@ export default function MMSM01001E() {
                   checked={(row) => !!row.CHECK}
                   onChange={(_row, rowIndex, checked) => toggleMaster(rowIndex, checked)}
                 />
-                <Column dataField="itemCd" caption="품목코드" width={120} alignment="center" />
-                <Column dataField="itemNm" caption="품목명" />
-                <Column dataField="unitCd" caption="단위  " />
+                <Column dataField="itemCd" caption="품목코드" width={80} alignment="center" />
+                <Column dataField="itemNm" caption="품목명" width={120} alignment="left" />
+                <Column dataField="unitCd" caption="단위  " width={60} alignment="center" />
               </DataGrid>
             </div>
-          </div>
+          </SectionCard>
 
           <div className="col-span-12 flex items-center justify-center md:col-span-1">
             <div className="flex w-full flex-row gap-2 md:flex-col">
@@ -583,12 +569,8 @@ export default function MMSM01001E() {
             </div>
           </div>
 
-          <div className="col-span-12 rounded-2xl border border-slate-200 bg-white shadow-sm md:col-span-7">
-            <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
-              <div>
-                <h3 className="text-sm font-semibold text-slate-900">발주 등록 상세</h3>
-              </div>
-            </div>
+          <SectionCard span="right" width="full">
+            <SectionHeader title="발주 등록 상세" />
             <div className="max-h-[68vh] overflow-auto">
               <DataGrid
                 dataSource={detailRows}
@@ -611,12 +593,10 @@ export default function MMSM01001E() {
                   width={140}
                   alignment="center"
                   cellRender={(row, rowIndex) => (
-                    <input
-                      type="date"
-                      className="h-8 w-full rounded border border-slate-200 px-2 text-center"
+                    <DateInput
                       min={form.poYmd}
                       value={row.regYmd || form.poYmd}
-                      onChange={(e) => onDetailChange(rowIndex, { regYmd: e.target.value })}
+                      onChange={(value) => onDetailChange(rowIndex, { regYmd: value })}
                     />
                   )}
                 />
@@ -631,8 +611,7 @@ export default function MMSM01001E() {
                       value={row.emGb || ''}
                       onChange={(e) => onDetailChange(rowIndex, { emGb: e.target.value })}
                     >
-                      <option value="">선택</option>
-                      {emCodes.map((code) => (
+                      {emCodes?.map((code) => (
                         <option key={code.code} value={code.code}>
                           {code.name}
                         </option>
@@ -667,7 +646,7 @@ export default function MMSM01001E() {
                 />
               </DataGrid>
             </div>
-          </div>
+          </SectionCard>
         </div>
 
         {customerOpen ? (
@@ -687,11 +666,6 @@ export default function MMSM01001E() {
     </div>
   );
 }
-
-
-
-
-
 
 
 
