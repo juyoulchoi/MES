@@ -13,8 +13,8 @@ type SectionCardProps = {
 
 const spanClassNames: Record<SectionCardSpan, string> = {
   full: 'col-span-12',
-  left: 'col-span-12 md:col-span-4',
-  right: 'col-span-12 md:col-span-7',
+  left: 'col-span-12 md:col-span-3',
+  right: 'col-span-12 md:col-span-8',
 };
 
 const widthClassNames: Record<SectionCardWidth, string> = {
