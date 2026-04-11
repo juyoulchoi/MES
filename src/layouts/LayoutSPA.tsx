@@ -1,6 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Routes, Route, useNavigate, NavLink, Navigate, useLocation } from 'react-router-dom';
-import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import {
+  Panel,
+  PanelGroup,
+  PanelResizeHandle,
+  type ImperativePanelHandle,
+} from 'react-resizable-panels';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
@@ -73,11 +79,60 @@ export function useSmartNav() {
   };
 }
 
+type MenuToggleButtonProps = {
+  panelRef: React.RefObject<ImperativePanelHandle | null>;
+};
+
+const MenuToggleButton = memo(function MenuToggleButton({ panelRef }: MenuToggleButtonProps) {
+  const [collapsed, setCollapsed] = useState(false);
+
+  const handleToggle = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const panel = panelRef.current;
+    if (!panel) return;
+
+    if (panel.isCollapsed()) {
+      panel.expand();
+      setCollapsed(false);
+      return;
+    }
+
+    panel.collapse();
+    setCollapsed(true);
+  }, [panelRef]);
+
+  const stopPointer = useCallback((e: React.PointerEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
+
+  const stopMouse = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
+
+  return (
+    <button
+      type="button"
+      onPointerDown={stopPointer}
+      onMouseDown={stopMouse}
+      onClick={handleToggle}
+      className="z-10 flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:bg-slate-50"
+      aria-label={collapsed ? '좌측 메뉴 펼치기' : '좌측 메뉴 접기'}
+    >
+      {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+    </button>
+  );
+});
+
 export default function LayoutSPA() {
   const location = useLocation();
   const [maskVersion, setMaskVersion] = useState(0);
   const lastMaskedRef = useRef<string | undefined>(undefined);
   const initLoadedRef = useRef(false);
+  const leftPanelRef = useRef<ImperativePanelHandle | null>(null);
   const [user, setUser] = useState<UserPayload['user'] | null>(null);
   const [menuResult, setMenuResult] = useState<ResultList>(() => EmptyPageResult(0, PAGE_SIZE));
   const [loading, setLoading] = useState(true);
@@ -224,7 +279,13 @@ export default function LayoutSPA() {
       </header>
 
       <PanelGroup direction="horizontal" className="h-[calc(100vh-88px)]">
-        <Panel defaultSize={20} minSize={12} collapsible>
+        <Panel
+          ref={leftPanelRef}
+          defaultSize={16}
+          minSize={8}
+          collapsible
+          collapsedSize={0}
+        >
           <div className="h-full bg-muted/30">
             <div className="p-1 h-full flex flex-col">
               <Separator />
@@ -236,13 +297,15 @@ export default function LayoutSPA() {
                 </div>
               ) : (
                 <ScrollArea className="flex-1">
-                  <TreeMenu nodes={toSafeTree(menuData)} onOpen={onOpenPath} masked={maskedPage} />
+                  <TreeMenu nodes={toSafeTree(menuData)} onOpen={onOpenPath} masked={maskedPage ?? undefined} />
                 </ScrollArea>
               )}
             </div>
           </div>
         </Panel>
-        <PanelResizeHandle className="w-[1px] bg-border" />
+        <PanelResizeHandle className="relative flex w-3 items-center justify-center bg-border/70 transition hover:bg-border">
+<MenuToggleButton panelRef={leftPanelRef} />
+        </PanelResizeHandle>
         <Panel minSize={40} defaultSize={80}>
           <Routes>
             <Route index element={<Navigate to="default.ts" replace />} />
@@ -264,4 +327,3 @@ export default function LayoutSPA() {
     </div>
   );
 }
-
