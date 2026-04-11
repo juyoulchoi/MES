@@ -61,7 +61,7 @@ export default function MMSM01001E() {
   const minPoYmd = getTodayYmd();
 
   const [form, setForm] = useState<SearchForm>(() => ({
-    poYmd: new Date().toISOString().slice(0, 10),
+    poYmd: getTodayYmd(),
     cstCd: '',
     itemGb: '',
     poSeq: '',
@@ -335,18 +335,35 @@ export default function MMSM01001E() {
         return;
       }
 
-      const activeDetailData: SaveDetailRow[] = detailRows.map((row, index) => ({
-        method: row.method ?? (row.poYmd && row.poSeq !== undefined ? 'U' : 'I'),
-        poYmd: row.poYmd ?? '',
-        poSeq: row.poSeq === undefined || row.poSeq === null ? '' : String(row.poSeq),
-        poSubSeq: row.poSubSeq ?? index + 1,
-        reqYmd: toYmd(row.reqYmd ?? ''),
-        emGb: row.emGb ?? '',
-        desc: row.description ?? '',
-        itemCd: row.itemCd ?? '',
-        unitCd: row.unitCd ?? '',
-        qty: row.qty ?? '',
-      }));
+      const insertedDetailData: SaveDetailRow[] = detailRows
+        .filter((row) => (row.method ?? (row.poYmd && row.poSeq !== undefined ? 'U' : 'I')) === 'I')
+        .map((row) => ({
+          method: 'I',
+          poYmd: row.poYmd ?? '',
+          poSeq: row.poSeq === undefined || row.poSeq === null ? '' : String(row.poSeq),
+          poSubSeq: '',
+          reqYmd: toYmd(row.reqYmd ?? ''),
+          emGb: row.emGb ?? '',
+          desc: row.description ?? '',
+          itemCd: row.itemCd ?? '',
+          unitCd: row.unitCd ?? '',
+          qty: row.qty ?? '',
+        }));
+
+      const updatedDetailData: SaveDetailRow[] = detailRows
+        .filter((row) => (row.method ?? (row.poYmd && row.poSeq !== undefined ? 'U' : 'I')) === 'U')
+        .map((row, index) => ({
+          method: 'U',
+          poYmd: row.poYmd ?? '',
+          poSeq: row.poSeq === undefined || row.poSeq === null ? '' : String(row.poSeq),
+          poSubSeq: row.poSubSeq ?? index + 1,
+          reqYmd: toYmd(row.reqYmd ?? ''),
+          emGb: row.emGb ?? '',
+          desc: row.description ?? '',
+          itemCd: row.itemCd ?? '',
+          unitCd: row.unitCd ?? '',
+          qty: row.qty ?? '',
+        }));
 
       const deletedData: SaveDetailRow[] = deletedDetailRows.map((row, index) => ({
         method: 'D',
@@ -361,17 +378,22 @@ export default function MMSM01001E() {
         qty: row.qty ?? '',
       }));
 
-      const detailData = [...activeDetailData, ...deletedData];
-      const hasInsert = detailData.some((row) => row.method === 'I');
-      const hasExistingChange = detailData.some((row) => row.method === 'U' || row.method === 'D');
+      const detailData = [...insertedDetailData, ...updatedDetailData, ...deletedData];
+      const deleteTarget = deletedDetailRows.find(
+        (row) => row.poYmd && row.poSeq !== undefined && row.poSeq !== null
+      );
+      const shouldDeleteMaster = detailRows.length === 0 && !!deleteTarget;
 
       const masterData: SaveMasterRow[] = [
         {
-          method: !hasInsert && hasExistingChange && detailRows.length === 0 ? 'D' : 'I',
+          method: shouldDeleteMaster ? 'D' : 'I',
           userId,
           cstCd: form.cstCd,
-          poYmd: toYmd(form.poYmd),
-          poSeq: '',
+          poYmd: shouldDeleteMaster ? String(deleteTarget?.poYmd ?? '') : toYmd(form.poYmd),
+          poSeq:
+            shouldDeleteMaster && deleteTarget?.poSeq !== undefined && deleteTarget.poSeq !== null
+              ? String(deleteTarget.poSeq)
+              : '',
           desc: '',
         },
       ];
@@ -531,6 +553,7 @@ export default function MMSM01001E() {
                   checked={(row) => !!row.CHECK}
                   onChange={(_row, rowIndex, checked) => toggleDetail(rowIndex, checked)}
                 />
+                <Column dataField="poSeq" caption="발주순번" width={88} alignment="center" />
                 <Column dataField="poSubSeq" caption="상세순번" width={88} alignment="center" />
                 <Column dataField="itemCd" caption="원자재코드" width={120} alignment="center" />
                 <Column dataField="itemNm" caption="원자재명" width={220} />
