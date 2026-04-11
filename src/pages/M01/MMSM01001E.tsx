@@ -17,75 +17,20 @@ import { patchCheckedRow, removeCheckedRows, toggleCheckedRow } from '@/lib/grid
 import { http } from '@/lib/http';
 import { EmptyPageResult, PAGE_SIZE } from '@/lib/pagination';
 import { usePageApiFetch } from '@/services/common/getApiFetch';
-import { fetchMmsm01001Detail, type DetailRow, type SearchForm } from '@/services/m01/mmsm01001';
+import {
+  fetchMmsm01001Detail,
+  type AuthMeResponse,
+  type DetailRow,
+  type ExcelUploadRow,
+  type ExcelValidateResponse,
+  type MasterRow,
+  type SaveDetailRow,
+  type SaveMasterRow,
+  type SavePayload,
+  type SearchForm,
+} from '@/services/m01/mmsm01001';
 import { useEffect, useRef, useState } from 'react';
 import { useCodes } from '@/lib/hooks/useCodes';
-
-type MasterRow = {
-  CHECK?: boolean;
-  cstNm?: string;
-  itemCd?: string;
-  itemNm?: string;
-  unitCd?: string;
-  qty?: number | string;
-};
-
-type SaveDetailRow = {
-  method: 'I' | 'U' | 'D';
-  poYmd: string;
-  poSeq: string;
-  poSubSeq: number | string;
-  regYmd: string;
-  emGb: string;
-  desc: string;
-  itemCd: string;
-  unitCd: string;
-  qty: number | string;
-};
-
-type SaveMasterRow = {
-  method: 'I' | 'D';
-  userId: string;
-  cstCd: string;
-  poYmd: string;
-  poSeq: string;
-  desc: string;
-};
-
-type SavePayload = {
-  masterData: SaveMasterRow[];
-  detailData: SaveDetailRow[];
-};
-
-type AuthMeResponse = {
-  user?: {
-    userid?: string;
-    userId?: string;
-  };
-  data?: {
-    user?: {
-      userid?: string;
-      userId?: string;
-    };
-  };
-};
-
-type ExcelUploadRow = {
-  itemCd: string;
-  itemNm?: string;
-  unitCd?: string;
-  qty: number | string;
-  desc?: string;
-};
-
-type ExcelValidateResponse = {
-  validRows?: ExcelUploadRow[];
-  errors?: Array<{
-    rowNo: number;
-    field?: string;
-    message: string;
-  }>;
-};
 
 const EXCEL_TEMPLATE_HEADERS = ['품목코드', '품목명', '수량', '비고'];
 
@@ -122,7 +67,7 @@ export default function MMSM01001E() {
     poSeq: '',
   }));
 
-  const { codes: emCodes } = useCodes('A1100', []);
+  const { codes: emCodes } = useCodes('1100', []);
 
   const {
     result: masterResult,
@@ -187,10 +132,12 @@ export default function MMSM01001E() {
     setDetailRows(
       detailResult.content.map((row) => ({
         ...row,
+        reqYmd: row.reqYmd || form.poYmd,
+        emGb: row.emGb || emCodes[0]?.code || '',
         CHECK: false,
       }))
     );
-  }, [detailResult.content]);
+  }, [detailResult.content, emCodes]);
 
   function toggleMaster(rowIndex: number, checked: boolean) {
     setMasterRows((prev) => toggleCheckedRow(prev, rowIndex, checked));
@@ -230,8 +177,8 @@ export default function MMSM01001E() {
         itemNm: row.itemNm ?? '',
         unitCd: row.unitCd ?? '',
         qty: row.qty ?? '',
-        regYmd: form.poYmd,
-        emGb: '',
+        reqYmd: form.poYmd,
+        emGb: emCodes[0]?.code || '',
         itemTp: '',
         description: '',
       }));
@@ -330,8 +277,8 @@ export default function MMSM01001E() {
         itemNm: row.itemNm ?? '',
         unitCd: row.unitCd ?? '',
         qty: row.qty ?? '',
-        regYmd: form.poYmd,
-        emGb: '',
+        reqYmd: form.poYmd,
+        emGb: emCodes[0]?.code || '',
         itemTp: '',
         description: row.desc ?? '',
       }))
@@ -375,7 +322,7 @@ export default function MMSM01001E() {
       }
 
       const invalidRegYmdRowIndex = detailRows.findIndex(
-        (row) => !row.regYmd || row.regYmd < form.poYmd
+        (row) => !row.reqYmd || row.reqYmd < form.poYmd
       );
       if (invalidRegYmdRowIndex >= 0) {
         setSaveError('상세 ' + (invalidRegYmdRowIndex + 1) + '행의 납기 요청일을 확인하세요.');
@@ -393,7 +340,7 @@ export default function MMSM01001E() {
         poYmd: row.poYmd ?? '',
         poSeq: row.poSeq === undefined || row.poSeq === null ? '' : String(row.poSeq),
         poSubSeq: row.poSubSeq ?? index + 1,
-        regYmd: toYmd(row.regYmd ?? ''),
+        reqYmd: toYmd(row.reqYmd ?? ''),
         emGb: row.emGb ?? '',
         desc: row.description ?? '',
         itemCd: row.itemCd ?? '',
@@ -406,7 +353,7 @@ export default function MMSM01001E() {
         poYmd: row.poYmd ?? '',
         poSeq: row.poSeq === undefined || row.poSeq === null ? '' : String(row.poSeq),
         poSubSeq: row.poSubSeq ?? index + 1,
-        regYmd: toYmd(row.regYmd ?? ''),
+        reqYmd: toYmd(row.reqYmd ?? ''),
         emGb: row.emGb ?? '',
         desc: row.description ?? '',
         itemCd: row.itemCd ?? '',
@@ -486,7 +433,7 @@ export default function MMSM01001E() {
                 setDetailRows((prev) =>
                   prev.map((row) => ({
                     ...row,
-                    regYmd: row.regYmd && row.regYmd >= value ? row.regYmd : value,
+                    reqYmd: row.reqYmd && row.reqYmd >= value ? row.reqYmd : value,
                   }))
                 );
               }}
@@ -588,15 +535,15 @@ export default function MMSM01001E() {
                 <Column dataField="itemCd" caption="원자재코드" width={120} alignment="center" />
                 <Column dataField="itemNm" caption="원자재명" width={220} />
                 <Column
-                  dataField="regYmd"
+                  dataField="reqYmd"
                   caption="납기 요청일"
                   width={140}
                   alignment="center"
                   cellRender={(row, rowIndex) => (
                     <DateInput
                       min={form.poYmd}
-                      value={row.regYmd || form.poYmd}
-                      onChange={(value) => onDetailChange(rowIndex, { regYmd: value })}
+                      value={row.reqYmd || form.poYmd}
+                      onChange={(value) => onDetailChange(rowIndex, { reqYmd: value })}
                     />
                   )}
                 />
@@ -636,6 +583,7 @@ export default function MMSM01001E() {
                 <Column
                   dataField="description"
                   caption="비고"
+                  width={280}
                   cellRender={(row, rowIndex) => (
                     <input
                       className="h-8 w-full rounded border border-slate-200 px-2"
@@ -666,6 +614,7 @@ export default function MMSM01001E() {
     </div>
   );
 }
+
 
 
 
