@@ -1,7 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react';
 import AlertBox from '@/components/AlertBox';
 import CodeNameField from '@/components/CodeNameField';
-import CommonCodeSelectBox from '@/components/CommonCodeSelectBox';
 import CustomerCodePicker from '@/components/CustomerCodePicker';
 import ExportCsvButton from '@/components/ExportCsvButton';
 import FromToDateField from '@/components/FromToDateField';
@@ -55,7 +54,7 @@ const MMSM01002S: React.FC = () => {
     <div className="min-h-full bg-slate-50/60 p-4" ref={containerRef}>
       <div className="mx-auto flex max-w-[1680px] flex-col gap-4">
         <SectionCard span="full" padding="md">
-          <div className="grid grid-cols-1 gap-3 xl:grid-cols-[440px_440px_280px_1fr]">
+          <div className="grid grid-cols-1 gap-3 xl:grid-cols-[440px_440px_1fr]">
             <FromToDateField
               label="요청일자"
               fromValue={form.startDate}
@@ -74,19 +73,6 @@ const MMSM01002S: React.FC = () => {
               onSearch={() => setCustomerOpen(true)}
               onClear={() =>
                 setForm((prev) => ({ ...prev, cstCd: '', cstNm: '' }))
-              }
-            />
-
-            <CommonCodeSelectBox
-              codeGroup="ITEM"
-              label="자재구분"
-              showAllOption={true}
-              searchEnabled={false}
-              onValueChange={(value) =>
-                setForm({
-                  ...form,
-                  itemGb: String(value),
-                })
               }
             />
 
