@@ -45,6 +45,7 @@ function getTodayYmd() {
 
 export default function MMSM01001E() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const detailGridRef = useRef<HTMLDivElement | null>(null);
   const [customerOpen, setCustomerOpen] = useState(false);
   const [cstNm, setCstNm] = useState('');
   const [saving, setSaving] = useState(false);
@@ -58,6 +59,8 @@ export default function MMSM01001E() {
   const [detailResult, setDetailResult] = useState(() => EmptyPageResult<DetailRow>(0, PAGE_SIZE));
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
+  const [itemNameWidth, setItemNameWidth] = useState(220);
+  const [descriptionWidth, setDescriptionWidth] = useState(280);
   const minPoYmd = getTodayYmd();
 
   const [form, setForm] = useState<SearchForm>(() => ({
@@ -138,6 +141,34 @@ export default function MMSM01001E() {
       }))
     );
   }, [detailResult.content, emCodes]);
+
+  useEffect(() => {
+    const element = detailGridRef.current;
+    if (!element) return;
+
+    const updateWidths = () => {
+      const nextWidth = element.clientWidth;
+      if (!nextWidth) return;
+
+      const fixedWidth = 48 + 88 + 88 + 120 + 140 + 130 + 90 + 120 + 40;
+      const remaining = Math.max(nextWidth - fixedWidth, 360);
+      const nextItemNameWidth = Math.min(Math.max(Math.floor(remaining * 0.4), 180), 320);
+      const nextDescriptionWidth = Math.max(remaining - nextItemNameWidth, 180);
+
+      setItemNameWidth(nextItemNameWidth);
+      setDescriptionWidth(nextDescriptionWidth);
+    };
+
+    updateWidths();
+    const observer = new ResizeObserver(updateWidths);
+    observer.observe(element);
+    window.addEventListener('resize', updateWidths);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', updateWidths);
+    };
+  }, []);
 
   function toggleMaster(rowIndex: number, checked: boolean) {
     setMasterRows((prev) => toggleCheckedRow(prev, rowIndex, checked));
@@ -468,6 +499,10 @@ export default function MMSM01001E() {
               codePlaceholder="코드"
               namePlaceholder="거래처 선택"
               onSearch={() => setCustomerOpen(true)}
+              onClear={() => {
+                setCstNm('');
+                setForm((prev) => ({ ...prev, cstCd: '' }));
+              }}
             />
             <ActionButtonGroup
               onSearch={onSearch}
@@ -522,16 +557,16 @@ export default function MMSM01001E() {
           </SectionCard>
 
           <div className="col-span-12 flex items-center justify-center md:col-span-1">
-            <div className="flex w-full flex-row gap-2 md:flex-col">
+            <div className="flex w-full flex-row gap-2 md:w-[60px] md:min-w-[60px] md:flex-col">
               <button
                 onClick={onAddFromMaster}
-                className="flex-1 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-3 text-sm font-medium text-emerald-700 transition hover:bg-emerald-100"
+                className="flex-1 rounded-xl border border-emerald-200 bg-emerald-50 px-2 py-3 text-sm font-medium text-emerald-700 transition hover:bg-emerald-100"
               >
                 추가
               </button>
               <button
                 onClick={onDeleteDetail}
-                className="flex-1 rounded-xl border border-rose-200 bg-rose-50 px-3 py-3 text-sm font-medium text-rose-700 transition hover:bg-rose-100"
+                className="flex-1 rounded-xl border border-rose-200 bg-rose-50 px-2 py-3 text-sm font-medium text-rose-700 transition hover:bg-rose-100"
               >
                 삭제
               </button>
@@ -540,7 +575,7 @@ export default function MMSM01001E() {
 
           <SectionCard span="right" width="full">
             <SectionHeader title="발주 등록 상세" />
-            <div className="max-h-[68vh] overflow-auto">
+            <div ref={detailGridRef} className="max-h-[68vh] overflow-auto">
               <DataGrid
                 dataSource={detailRows}
                 showBorders={true}
@@ -556,7 +591,7 @@ export default function MMSM01001E() {
                 <Column dataField="poSeq" caption="발주순번" width={88} alignment="center" />
                 <Column dataField="poSubSeq" caption="상세순번" width={88} alignment="center" />
                 <Column dataField="itemCd" caption="원자재코드" width={120} alignment="center" />
-                <Column dataField="itemNm" caption="원자재명" width={220} />
+                <Column dataField="itemNm" caption="원자재명" width={itemNameWidth} />
                 <Column
                   dataField="reqYmd"
                   caption="납기 요청일"
@@ -606,7 +641,7 @@ export default function MMSM01001E() {
                 <Column
                   dataField="description"
                   caption="비고"
-                  width={280}
+                  width={descriptionWidth}
                   cellRender={(row, rowIndex) => (
                     <input
                       className="h-8 w-full rounded border border-slate-200 px-2"

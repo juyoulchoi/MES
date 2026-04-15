@@ -7,9 +7,11 @@ type CodeNameFieldProps = {
   code: string;
   name: string;
   onSearch: () => void;
+  onClear?: () => void;
   codePlaceholder?: string;
   namePlaceholder?: string;
   searchLabel?: string;
+  clearLabel?: string;
 };
 
 export default function CodeNameField({
@@ -18,10 +20,14 @@ export default function CodeNameField({
   code,
   name,
   onSearch,
+  onClear,
   codePlaceholder = '',
   namePlaceholder = '',
   searchLabel = '검색',
+  clearLabel = '초기화',
 }: CodeNameFieldProps) {
+  const hasValue = Boolean(code || name);
+
   return (
     <div className="w-[550px]">
       <div className="grid grid-cols-[100px_120px_300px] items-center gap-2">
@@ -39,15 +45,26 @@ export default function CodeNameField({
             value={name}
             readOnly
             placeholder={namePlaceholder}
-            className="h-9 w-full rounded-lg bg-gray-100 pl-3 pr-14"
+            className="h-9 w-full rounded-lg bg-gray-100 pl-3 pr-24"
           />
-          <button
-            type="button"
-            className="absolute right-1 top-1.5 rounded-md border px-2 py-0.5 text-sm hover:bg-gray-50"
-            onClick={onSearch}
-          >
-            {searchLabel}
-          </button>
+          <div className="absolute right-1 top-1.5 flex items-center gap-1">
+            {onClear && hasValue ? (
+              <button
+                type="button"
+                className="rounded-md border px-2 py-0.5 text-sm hover:bg-gray-50"
+                onClick={onClear}
+              >
+                {clearLabel}
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className="rounded-md border px-2 py-0.5 text-sm hover:bg-gray-50"
+              onClick={onSearch}
+            >
+              {searchLabel}
+            </button>
+          </div>
         </div>
       </div>
     </div>

@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
+import ActionButtonGroup from '@/components/ActionButtonGroup';
+import AlertBox from '@/components/AlertBox';
 import DateEdit from '@/components/DateEdit';
 import CustomerCodePicker from '@/components/CustomerCodePicker';
-import ItemCodePicker from '@/components/ItemCodePicker';
-import CommonCodeSelectBox from '@/components/CommonCodeSelectBox';
 import CodeNameField from '@/components/CodeNameField';
+import SectionCard from '@/components/SectionCard';
+import SectionHeader from '@/components/SectionHeader';
 import { CheckColumn, Column, DataGrid } from '@/components/table/DataGrid';
 import { toYmd } from '@/lib/excel';
 import {
@@ -109,11 +111,19 @@ type ExcelValidateResponse = {
 
 const EXCEL_TEMPLATE_HEADERS = ['품목코드', '품목명', '수량', '비고'];
 
+function getTodayYmd() {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+
+  return `${year}-${month}-${day}`;
+}
+
 export default function MMSM01003E() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [customerOpen, setCustomerOpen] = useState(false);
-  const [itemPickerOpen, setMaterialPickerOpen] = useState(false);
   const [masterRows, setMasterRows] = useState<MasterRow[]>([]);
   const [detailRows, setDetailRows] = useState<DetailRow[]>([]);
   const [deletedDetailRows, setDeletedDetailRows] = useState<DetailRow[]>([]);
@@ -124,7 +134,7 @@ export default function MMSM01003E() {
   const [uploadWarnings, setUploadWarnings] = useState<string[]>([]);
 
   const [form, setForm] = useState<SearchForm>(() => ({
-    ivDate: new Date().toISOString().slice(0, 10),
+    ivDate: getTodayYmd(),
     cstCd: '',
     cstNm: '',
     itemCd: '',
@@ -343,16 +353,31 @@ export default function MMSM01003E() {
         return;
       }
 
-      const activeDetailData: SaveDetailRow[] = detailRows.map((row, index) => ({
-        method: row.method ?? (row.poYmd && row.poSeq !== undefined ? 'U' : 'I'),
-        poYmd: row.poYmd ?? '',
-        poSeq: row.poSeq === undefined || row.poSeq === null ? '' : String(row.poSeq),
-        poSubSeq: row.poSubSeq ?? index + 1,
-        desc: row.description ?? '',
-        itemCd: row.itemCd ?? '',
-        unitCd: row.unitCd ?? '',
-        qty: row.qty ?? '',
-      }));
+      const insertedDetailData: SaveDetailRow[] = detailRows
+        .filter((row) => (row.method ?? (row.poYmd && row.poSeq !== undefined ? 'U' : 'I')) === 'I')
+        .map((row) => ({
+          method: 'I',
+          poYmd: row.poYmd ?? '',
+          poSeq: row.poSeq === undefined || row.poSeq === null ? '' : String(row.poSeq),
+          poSubSeq: '',
+          desc: row.description ?? '',
+          itemCd: row.itemCd ?? '',
+          unitCd: row.unitCd ?? '',
+          qty: row.qty ?? '',
+        }));
+
+      const updatedDetailData: SaveDetailRow[] = detailRows
+        .filter((row) => (row.method ?? (row.poYmd && row.poSeq !== undefined ? 'U' : 'I')) === 'U')
+        .map((row, index) => ({
+          method: 'U',
+          poYmd: row.poYmd ?? '',
+          poSeq: row.poSeq === undefined || row.poSeq === null ? '' : String(row.poSeq),
+          poSubSeq: row.poSubSeq ?? index + 1,
+          desc: row.description ?? '',
+          itemCd: row.itemCd ?? '',
+          unitCd: row.unitCd ?? '',
+          qty: row.qty ?? '',
+        }));
 
       const deletedData: SaveDetailRow[] = deletedDetailRows.map((row, index) => ({
         method: 'D',
@@ -365,17 +390,22 @@ export default function MMSM01003E() {
         qty: row.qty ?? '',
       }));
 
-      const detailData = [...activeDetailData, ...deletedData];
-      const hasInsert = detailData.some((row) => row.method === 'I');
-      const hasExistingChange = detailData.some((row) => row.method === 'U' || row.method === 'D');
+      const detailData = [...insertedDetailData, ...updatedDetailData, ...deletedData];
+      const deleteTarget = deletedDetailRows.find(
+        (row) => row.poYmd && row.poSeq !== undefined && row.poSeq !== null
+      );
+      const shouldDeleteMaster = detailRows.length === 0 && !!deleteTarget;
 
       const masterData: SaveMasterRow[] = [
         {
-          method: !hasInsert && hasExistingChange && detailRows.length === 0 ? 'D' : 'I',
-          userId: userId,
+          method: shouldDeleteMaster ? 'D' : 'I',
+          userId,
           cstCd: form.cstCd || '',
-          poYmd: toYmd(form.ivDate),
-          poSeq: '',
+          poYmd: shouldDeleteMaster ? String(deleteTarget?.poYmd ?? '') : toYmd(form.ivDate),
+          poSeq:
+            shouldDeleteMaster && deleteTarget?.poSeq !== undefined && deleteTarget.poSeq !== null
+              ? String(deleteTarget.poSeq)
+              : '',
           desc: '',
         },
       ];
@@ -411,196 +441,192 @@ export default function MMSM01003E() {
     );
   }
 
+  const isSearch = masterLoading || detailLoading || saving || uploading;
+  const isSave = masterLoading || detailLoading || saving || uploading;
+  const isUpload = saving || uploading;
+
   return (
-    <div className="p-3 space-y-3">
-      <div className="text-base font-semibold">원자재 입고 등록</div>
+    <div className="min-h-full bg-slate-50/60 p-4">
+      <div className="mx-auto flex max-w-[1680px] flex-col gap-4">
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".xlsx,.xls"
+          className="hidden"
+          onChange={onFileChange}
+        />
 
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept=".xlsx,.xls"
-        className="hidden"
-        onChange={onFileChange}
-      />
-
-      <div className="flex flex-col gap-2 xl:flex-row xl:items-end xl:justify-between">
-        <div className="flex flex-wrap items-end gap-2">
-          <DateEdit label="입고일자" value={form.ivDate} />
-
-          <CodeNameField
-            label="거래처명"
-            id="cust"
-            code={form.cstCd}
-            name={form.cstNm}
-            codePlaceholder="코드"
-            namePlaceholder="거래처 선택"
-            onSearch={() => setCustomerOpen(true)}
-          />
-
-          <CommonCodeSelectBox
-            codeGroup="ITEM"
-            label="자재구분"
-            showAllOption={true}
-            searchEnabled={false}
-            onValueChange={(value) =>
-              setForm({
-                ...form,
-                itemGb: String(value),
-              })
-            }
-          />
-        </div>
-        <div className="flex flex-wrap gap-2 justify-end xl:shrink-0">
-          <button
-            onClick={() => fetchMasterList(0)}
-            disabled={masterLoading || detailLoading || saving || uploading}
-            className="h-8 px-3 border rounded bg-primary text-primary-foreground disabled:opacity-50"
-          >
-            {masterLoading || detailLoading ? '조회중...' : '조회'}
-          </button>
-          <button
-            onClick={() => onSave()}
-            disabled={masterLoading || detailLoading || saving || uploading}
-            className="h-8 px-3 border rounded"
-          >
-            {saving ? '저장 중...' : '저장'}
-          </button>
-          <button
-            onClick={onUploadCsv}
-            disabled={saving || uploading}
-            className="h-8 px-3 border rounded"
-          >
-            {uploading ? '업로드 중...' : '엑셀 업로드'}
-          </button>
-          <button
-            onClick={onExportCsv}
-            className="h-10 rounded-lg border border-emerald-200 bg-emerald-50 px-4 text-sm font-medium text-emerald-700 transition hover:bg-emerald-100"
-          >
-            양식 다운로드
-          </button>
-        </div>
-      </div>
-
-      {(masterError || detailError || saveError || uploadError) && (
-        <div className="text-sm text-destructive border border-destructive/30 rounded p-2">
-          {masterError ?? detailError ?? saveError ?? uploadError}
-        </div>
-      )}
-
-      {uploadWarnings.length > 0 && (
-        <div className="text-sm border border-amber-300 bg-amber-50 rounded p-2 space-y-1">
-          {uploadWarnings.map((warning, index) => (
-            <div key={`${warning}-${index}`}>{warning}</div>
-          ))}
-        </div>
-      )}
-
-      <div className="grid grid-cols-12 gap-3">
-        <div className="col-span-12 md:col-span-2">
-          <DataGrid
-            dataSource={masterRows}
-            showBorders={true}
-            rowKey={(row, index) => row.itemCd || index}
-            emptyText="마스터 데이터가 없습니다. 조건 선택 후 조회하세요."
-          >
-            <CheckColumn
-              checked={(row) => !!row.CHECK}
-              onChange={(_row, rowIndex, checked) => toggleMaster(rowIndex, checked)}
+        <SectionCard span="full" padding="md">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-[450px_420px_1fr]">
+            <DateEdit
+              label="입고일자"
+              value={form.ivDate}
+              onChange={(value) => setForm((prev) => ({ ...prev, ivDate: value }))}
             />
-            <Column dataField="itemCd" caption="자재코드" width={112} alignment="center" />
-            <Column dataField="itemNm" caption="자재명" />
-          </DataGrid>
-        </div>
-
-        <div className="col-span-12 md:col-span-1 flex md:flex-col gap-2 items-center justify-center">
-          <button onClick={onDeleteDetail} className="h-8 px-3 border rounded">
-            삭제
-          </button>
-          <button onClick={onAddFromMaster} className="h-8 px-3 border rounded">
-            추가
-          </button>
-        </div>
-
-        <div className="col-span-12 md:col-span-9">
-          <DataGrid
-            dataSource={detailRows}
-            showBorders={true}
-            rowKey={(row, index) => `${row.itemCd || 'detail'}-${index}`}
-            emptyText="디테일 데이터가 없습니다. 마스터에서 선택 후 추가하세요."
-          >
-            <CheckColumn
-              checked={(row) => !!row.CHECK}
-              onChange={(_row, rowIndex, checked) => toggleDetail(rowIndex, checked)}
-            />
-            <Column dataField="itemCd" caption="자재코드" width={120} alignment="center" />
-            <Column dataField="itemNm" caption="자재명" width={200} />
-            <Column dataField="unitCd" caption="단위" width={80} alignment="center" />
-            <Column
-              dataField="qty"
-              caption="수량"
-              dataType="number"
-              width={96}
-              cellRender={(row, rowIndex) =>
-                renderGridInputCell({
-                  value: row.qty,
-                  align: 'right',
-                  onChange: (e) => onDetailChange(rowIndex, { qty: e.target.value }),
-                })
+            <CodeNameField
+              label="거래처코드"
+              id="cust"
+              code={form.cstCd}
+              name={form.cstNm}
+              codePlaceholder="코드"
+              namePlaceholder="거래처 선택"
+              onSearch={() => setCustomerOpen(true)}
+              onClear={() =>
+                setForm((prev) => ({ ...prev, cstCd: '', cstNm: '' }))
               }
             />
-            <Column
-              dataField="description"
-              caption="비고"
-              width={160}
-              cellRender={(row, rowIndex) =>
-                renderGridInputCell({
-                  value: row.description,
-                  onChange: (e) => onDetailChange(rowIndex, { description: e.target.value }),
-                })
+            <ActionButtonGroup
+              onSearch={() => fetchMasterList(0)}
+              onSave={() => onSave()}
+              onUpload={onUploadCsv}
+              onExport={onExportCsv}
+              searchDisabled={isSearch}
+              saveDisabled={isSave}
+              uploadDisabled={isUpload}
+            />
+          </div>
+        </SectionCard>
+
+        {(masterError || detailError || saveError || uploadError) && (
+          <AlertBox tone="error">
+            {masterError ?? detailError ?? saveError ?? uploadError}
+          </AlertBox>
+        )}
+
+        {uploadWarnings.length > 0 && (
+          <AlertBox tone="warning">
+            {uploadWarnings.map((warning, index) => (
+              <div key={`${warning}-${index}`}>{warning}</div>
+            ))}
+          </AlertBox>
+        )}
+
+        <div className="grid grid-cols-12 gap-4">
+          <SectionCard span="left" width="full">
+            <SectionHeader
+              title="입고 대상 품목"
+              right={
+                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
+                  {masterRows.length}건
+                </span>
               }
             />
-            <Column
-              dataField="poSubSeq"
-              caption="발주상세순번"
-              width={96}
-              alignment="center"
-              cellRender={(row) => renderGridReadOnlyCell(row.poSubSeq, { align: 'center' })}
+            <div className="max-h-[68vh] overflow-auto">
+              <DataGrid
+                dataSource={masterRows}
+                showBorders={true}
+                rowKey={(row, index) => row.itemCd || index}
+                emptyText="입고 대상 데이터가 없습니다. 조건 선택 후 조회하세요."
+              >
+                <CheckColumn
+                  checked={(row) => !!row.CHECK}
+                  onChange={(_row, rowIndex, checked) => toggleMaster(rowIndex, checked)}
+                />
+                <Column dataField="itemCd" caption="자재코드" width={112} alignment="center" />
+                <Column dataField="itemNm" caption="자재명" />
+              </DataGrid>
+            </div>
+          </SectionCard>
+
+          <div className="col-span-12 flex items-center justify-center md:col-span-1">
+            <div className="flex w-full flex-row gap-2 md:w-[60px] md:min-w-[60px] md:flex-col">
+              <button
+                onClick={onAddFromMaster}
+                className="flex-1 rounded-xl border border-emerald-200 bg-emerald-50 px-2 py-3 text-sm font-medium text-emerald-700 transition hover:bg-emerald-100"
+              >
+                추가
+              </button>
+              <button
+                onClick={onDeleteDetail}
+                className="flex-1 rounded-xl border border-rose-200 bg-rose-50 px-2 py-3 text-sm font-medium text-rose-700 transition hover:bg-rose-100"
+              >
+                삭제
+              </button>
+            </div>
+          </div>
+
+          <SectionCard span="right" width="full">
+            <SectionHeader
+              title="입고 등록 상세"
+              right={
+                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
+                  {detailRows.length}건
+                </span>
+              }
             />
-          </DataGrid>
+            <div className="max-h-[68vh] overflow-auto">
+              <DataGrid
+                dataSource={detailRows}
+                showBorders={true}
+                rowKey={(row, index) =>
+                  `${row.poYmd ?? form.ivDate ?? 'new'}-${row.poSeq ?? 'new'}-${row.poSubSeq ?? 'detail'}-${row.itemCd ?? 'item'}-${index}`
+                }
+                emptyText="입고 상세 데이터가 없습니다. 좌측 대상에서 선택 후 추가하세요."
+              >
+                <CheckColumn
+                  checked={(row) => !!row.CHECK}
+                  onChange={(_row, rowIndex, checked) => toggleDetail(rowIndex, checked)}
+                />
+                <Column
+                  dataField="poSeq"
+                  caption="발주순번"
+                  width={88}
+                  alignment="center"
+                  cellRender={(row) => renderGridReadOnlyCell(row.poSeq, { align: 'center' })}
+                />
+                <Column
+                  dataField="poSubSeq"
+                  caption="상세순번"
+                  width={88}
+                  alignment="center"
+                  cellRender={(row) => renderGridReadOnlyCell(row.poSubSeq, { align: 'center' })}
+                />
+                <Column dataField="itemCd" caption="자재코드" width={120} alignment="center" />
+                <Column dataField="itemNm" caption="자재명" width={220} />
+                <Column dataField="unitCd" caption="단위" width={90} alignment="center" />
+                <Column
+                  dataField="qty"
+                  caption="입고수량"
+                  dataType="number"
+                  width={120}
+                  cellRender={(row, rowIndex) =>
+                    renderGridInputCell({
+                      value: row.qty,
+                      align: 'right',
+                      onChange: (e) => onDetailChange(rowIndex, { qty: e.target.value }),
+                    })
+                  }
+                />
+                <Column
+                  dataField="description"
+                  caption="비고"
+                  width={280}
+                  cellRender={(row, rowIndex) =>
+                    renderGridInputCell({
+                      value: row.description,
+                      onChange: (e) => onDetailChange(rowIndex, { description: e.target.value }),
+                    })
+                  }
+                />
+              </DataGrid>
+            </div>
+          </SectionCard>
         </div>
+
+        {customerOpen ? (
+          <CustomerCodePicker
+            title="거래처 정보"
+            custGb="CUSTOMER"
+            cstCd={form.cstCd}
+            cstNm={form.cstNm}
+            onClose={() => setCustomerOpen(false)}
+            onSelect={(value) => {
+              setForm((prev) => ({ ...prev, cstCd: value.cstCd, cstNm: value.cstNm }));
+            }}
+          />
+        ) : null}
       </div>
-
-      {customerOpen ? (
-        <CustomerCodePicker
-          title="거래처 정보"
-          custGb="CUSTOMER"
-          cstCd={form.cstCd}
-          cstNm={form.cstNm}
-          onClose={() => setCustomerOpen(false)}
-          onSelect={(value) => {
-            setForm((prev) => ({ ...prev, cstCd: value.cstCd, cstNm: value.cstNm }));
-          }}
-        />
-      ) : null}
-
-      {itemPickerOpen ? (
-        <ItemCodePicker
-          title="원자재 정보"
-          itemGb="RAW,SUB"
-          itemNm={form.itemNm}
-          onClose={() => setMaterialPickerOpen(false)}
-          onSelect={(value) => {
-            setForm((prev) => ({
-              ...prev,
-              itemGb: value.itemgb,
-              itemCd: value.itemCd,
-              itemNm: value.itemNm,
-            }));
-          }}
-        />
-      ) : null}
     </div>
   );
 }
-
 

@@ -72,6 +72,9 @@ const MMSM01002S: React.FC = () => {
               codePlaceholder="코드"
               namePlaceholder="거래처 선택"
               onSearch={() => setCustomerOpen(true)}
+              onClear={() =>
+                setForm((prev) => ({ ...prev, cstCd: '', cstNm: '' }))
+              }
             />
 
             <CommonCodeSelectBox
@@ -117,6 +120,9 @@ const MMSM01002S: React.FC = () => {
               codePlaceholder="코드"
               namePlaceholder="제품 선택"
               onSearch={() => setitemPickerOpen(true)}
+              onClear={() =>
+                setForm((prev) => ({ ...prev, itemGb: '', itemCd: '', itemNm: '' }))
+              }
             />
           </div>
         </SectionCard>
@@ -194,3 +200,4 @@ const MMSM01002S: React.FC = () => {
 };
 
 export default MMSM01002S;
+
