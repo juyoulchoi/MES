@@ -1,112 +1,42 @@
-import { useEffect, useRef, useState } from 'react';
+import CodeNameField from '@/components/CodeNameField';
 import ActionButtonGroup from '@/components/ActionButtonGroup';
 import AlertBox from '@/components/AlertBox';
-import DateEdit from '@/components/DateEdit';
 import CustomerCodePicker from '@/components/CustomerCodePicker';
-import CodeNameField from '@/components/CodeNameField';
+import DateEdit from '@/components/DateEdit';
 import SectionCard from '@/components/SectionCard';
 import SectionHeader from '@/components/SectionHeader';
 import { CheckColumn, Column, DataGrid } from '@/components/table/DataGrid';
-import { toYmd } from '@/lib/excel';
 import {
   exportExcelTemplate,
   parseExcelUploadFile,
   validateExcelUploadRows,
 } from '@/lib/excelUpload';
-import { patchCheckedRow, removeCheckedRows, toggleCheckedRow } from '@/lib/gridRows';
-import {
-  renderGridInputCell,
-  renderGridReadOnlyCell,
-} from '@/components/table/GridCells';
+import { removeCheckedRows, toggleCheckedRow } from '@/lib/gridRows';
 import { http } from '@/lib/http';
-import { PAGE_SIZE } from '@/lib/pagination';
+import { EmptyPageResult, PAGE_SIZE } from '@/lib/pagination';
 import { usePageApiFetch } from '@/services/common/getApiFetch';
-
-type SearchForm = {
-  ivDate: string;
-  cstCd: string;
-  cstNm: string;
-  itemCd: string;
-  itemNm: string;
-  itemGb: string;
-};
+import {
+  buildMmsm01003SavePayload,
+  createUploadedDetailRows,
+  dedupeDetailRows,
+  fetchMmsm01003Detail,
+  getDetailRowKey,
+  getNextDetailSubSeq,
+  normalizeDetailRow,
+  type AuthMeResponse,
+  type DetailRow,
+  type ExcelUploadRow,
+  type ExcelValidateResponse,
+  type SearchForm,
+} from '@/services/m01/mmsm01003';
+import { useEffect, useRef, useState } from 'react';
 
 type MasterRow = {
   CHECK?: boolean;
-  itemCd: string;
-  itemNm: string;
-  unitCd: string;
-  ivQty: number;
-  status: string;
-  description: string;
-};
-
-type DetailRow = {
-  CHECK?: boolean;
-  poYmd?: string;
-  poSeq?: number | string;
-  itemCd: string;
-  itemNm: string;
-  unitCd: string;
-  qty: number | string;
-  description: string;
-  poSubSeq: number;
-  method?: 'I' | 'U' | 'D';
-};
-
-type SaveDetailRow = {
-  method: 'I' | 'U' | 'D';
-  poYmd: string;
-  poSeq: string;
-  poSubSeq: number | string;
-  desc: string;
-  itemCd: string;
-  unitCd: string;
-  qty: number | string;
-};
-
-type SaveMasterRow = {
-  method: 'I' | 'D';
-  userId: string;
-  cstCd: string;
-  poYmd: string;
-  poSeq: string;
-  desc: string;
-};
-
-type SavePayload = {
-  masterData: SaveMasterRow[];
-  detailData: SaveDetailRow[];
-};
-
-type AuthMeResponse = {
-  user?: {
-    userid?: string;
-    userId?: string;
-  };
-  data?: {
-    user?: {
-      userid?: string;
-      userId?: string;
-    };
-  };
-};
-
-type ExcelUploadRow = {
-  itemCd: string;
+  itemCd?: string;
   itemNm?: string;
   unitCd?: string;
-  qty: number | string;
-  desc?: string;
-};
-
-type ExcelValidateResponse = {
-  validRows?: ExcelUploadRow[];
-  errors?: Array<{
-    rowNo: number;
-    field?: string;
-    message: string;
-  }>;
+  qty?: number | string;
 };
 
 const EXCEL_TEMPLATE_HEADERS = ['품목코드', '품목명', '수량', '비고'];
@@ -120,26 +50,29 @@ function getTodayYmd() {
   return `${year}-${month}-${day}`;
 }
 
+
 export default function MMSM01003E() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-
+  const detailGridRef = useRef<HTMLDivElement | null>(null);
   const [customerOpen, setCustomerOpen] = useState(false);
+  const [cstNm, setCstNm] = useState('');
   const [masterRows, setMasterRows] = useState<MasterRow[]>([]);
   const [detailRows, setDetailRows] = useState<DetailRow[]>([]);
   const [deletedDetailRows, setDeletedDetailRows] = useState<DetailRow[]>([]);
+  const [detailResult, setDetailResult] = useState(() => EmptyPageResult<DetailRow>(0, PAGE_SIZE));
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploadWarnings, setUploadWarnings] = useState<string[]>([]);
+  const [itemNameWidth, setItemNameWidth] = useState(220);
+  const [descriptionWidth, setDescriptionWidth] = useState(280);
 
   const [form, setForm] = useState<SearchForm>(() => ({
     ivDate: getTodayYmd(),
     cstCd: '',
-    cstNm: '',
-    itemCd: '',
-    itemNm: '',
-    itemGb: '',
   }));
 
   const {
@@ -152,29 +85,43 @@ export default function MMSM01003E() {
     form,
     pageSize: PAGE_SIZE,
     mapParams: ({ form: currentForm }) => ({
-      itemGb: currentForm.itemGb || '',
-      itemCd: currentForm.itemCd || '',
-      itemNm: currentForm.itemNm || '',
+      itemGb: '',
       cstCd: currentForm.cstCd || '',
     }),
   });
 
-  const {
-    result: detailResult,
-    loading: detailLoading,
-    error: detailError,
-    fetchList: fetchDetailList,
-  } = usePageApiFetch<SearchForm, DetailRow>({
-    apiPath: '/api/v1/mdm/item/searchItemCustList',
-    form,
-    pageSize: PAGE_SIZE,
-    mapParams: ({ form: currentForm }) => ({
-      itemGb: currentForm.itemGb || '',
-      itemCd: currentForm.itemCd || '',
-      itemNm: currentForm.itemNm || '',
-      cstCd: currentForm.cstCd || '',
-    }),
-  });
+  async function fetchDetailList(nextPage = 0) {
+    setDetailLoading(true);
+    setDetailError(null);
+
+    try {
+      setDetailResult(
+        await fetchMmsm01003Detail({
+          form,
+          page: nextPage,
+          pageSize: PAGE_SIZE,
+        })
+      );
+    } catch (e) {
+      setDetailResult(EmptyPageResult<DetailRow>(nextPage, PAGE_SIZE));
+      setDetailError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setDetailLoading(false);
+    }
+  }
+
+  async function onSearch() {
+    if (!form.cstCd) {
+      window.alert('거래처 코드는 조회 필수값입니다.');
+      return;
+    }
+
+    await Promise.all([fetchMasterList(0), fetchDetailList(0)]);
+  }
+
+  const isSearch = masterLoading || detailLoading || saving || uploading;
+  const isSave = masterLoading || detailLoading || saving || uploading;
+  const isUpload = saving || uploading;
 
   useEffect(() => {
     setMasterRows(masterResult.content.map((row) => ({ ...row, CHECK: false })));
@@ -184,11 +131,39 @@ export default function MMSM01003E() {
     setDeletedDetailRows([]);
     setDetailRows(
       detailResult.content.map((row) => ({
-        ...row,
+        ...normalizeDetailRow(row),
         CHECK: false,
       }))
     );
   }, [detailResult.content]);
+
+  useEffect(() => {
+    const element = detailGridRef.current;
+    if (!element) return;
+
+    const updateWidths = () => {
+      const nextWidth = element.clientWidth;
+      if (!nextWidth) return;
+
+      const fixedWidth = 48 + 88 + 88 + 120 + 90 + 120 + 40;
+      const remaining = Math.max(nextWidth - fixedWidth, 360);
+      const nextItemNameWidth = Math.min(Math.max(Math.floor(remaining * 0.4), 180), 320);
+      const nextDescriptionWidth = Math.max(remaining - nextItemNameWidth, 180);
+
+      setItemNameWidth(nextItemNameWidth);
+      setDescriptionWidth(nextDescriptionWidth);
+    };
+
+    updateWidths();
+    const observer = new ResizeObserver(updateWidths);
+    observer.observe(element);
+    window.addEventListener('resize', updateWidths);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', updateWidths);
+    };
+  }, []);
 
   function toggleMaster(rowIndex: number, checked: boolean) {
     setMasterRows((prev) => toggleCheckedRow(prev, rowIndex, checked));
@@ -199,12 +174,21 @@ export default function MMSM01003E() {
   }
 
   function onDetailChange(rowIndex: number, patch: Partial<DetailRow>) {
-    setDetailRows((prev) =>
-      patchCheckedRow(prev, rowIndex, {
+    setDetailRows((prev) => {
+      const next = [...prev];
+      const current = next[rowIndex];
+      if (!current) {
+        return prev;
+      }
+
+      next[rowIndex] = {
+        ...current,
         ...patch,
-        method: prev[rowIndex]?.method === 'I' ? 'I' : 'U',
-      })
-    );
+        method: current.method === 'I' ? 'I' : 'U',
+      };
+
+      return next;
+    });
   }
 
   function onAddFromMaster() {
@@ -212,19 +196,31 @@ export default function MMSM01003E() {
     if (selected.length === 0) return;
 
     setDetailRows((prev) => {
-      const additions = selected.map((row, index) => ({
+      const existingItemCodes = new Set(
+        prev.map((row) => (row.itemCd ?? '').trim()).filter((itemCd) => itemCd.length > 0)
+      );
+      const rowsToAdd = selected.filter((row) => !existingItemCodes.has((row.itemCd ?? '').trim()));
+
+      if (rowsToAdd.length === 0) {
+        return prev;
+      }
+
+      const nextDetailSubSeq = getNextDetailSubSeq(prev);
+      const additions = rowsToAdd.map((row, index) => ({
         CHECK: true,
         method: 'I' as const,
+        ivSubSeq: nextDetailSubSeq + index + 1,
         itemCd: row.itemCd ?? '',
         itemNm: row.itemNm ?? '',
         unitCd: row.unitCd ?? '',
-        qty: row.ivQty ?? '',
-        description: row.description ?? '',
-        poSubSeq: prev.length + index + 1,
+        qty: row.qty ?? '',
+        description: '',
       }));
 
-      return [...additions, ...prev];
+      return [...prev, ...additions];
     });
+
+    setMasterRows((prev) => prev.map((row) => ({ ...row, CHECK: false })));
   }
 
   function onDeleteDetail() {
@@ -234,16 +230,19 @@ export default function MMSM01003E() {
         return prev;
       }
 
-      setDeletedDetailRows((current) => [
-        ...current,
-        ...rowsToDelete
-          .filter((row) => row.method !== 'I' && row.poYmd && row.poSeq !== undefined)
-          .map((row) => ({
-            ...row,
-            CHECK: false,
-            method: 'D' as const,
-          })),
-      ]);
+      setDeletedDetailRows((current) =>
+        dedupeDetailRows([
+          ...current,
+          ...rowsToDelete
+            .map((row) => normalizeDetailRow(row))
+            .filter((row) => row.method !== 'I' && row.ivYmd && row.ivSeq !== undefined)
+            .map((row) => ({
+              ...row,
+              CHECK: false,
+              method: 'D' as const,
+            })),
+        ])
+      );
 
       return removeCheckedRows(prev);
     });
@@ -308,18 +307,7 @@ export default function MMSM01003E() {
 
   function applyUploadedRows(rows: ExcelUploadRow[]) {
     setDeletedDetailRows([]);
-    setDetailRows(
-      rows.map((row, index) => ({
-        CHECK: true,
-        method: 'I' as const,
-        itemCd: row.itemCd ?? '',
-        itemNm: row.itemNm ?? '',
-        unitCd: row.unitCd ?? '',
-        qty: row.qty ?? '',
-        description: row.desc ?? '',
-        poSubSeq: index + 1,
-      }))
-    );
+    setDetailRows(createUploadedDetailRows(rows));
   }
 
   async function onSave() {
@@ -353,69 +341,14 @@ export default function MMSM01003E() {
         return;
       }
 
-      const insertedDetailData: SaveDetailRow[] = detailRows
-        .filter((row) => (row.method ?? (row.poYmd && row.poSeq !== undefined ? 'U' : 'I')) === 'I')
-        .map((row) => ({
-          method: 'I',
-          poYmd: row.poYmd ?? '',
-          poSeq: row.poSeq === undefined || row.poSeq === null ? '' : String(row.poSeq),
-          poSubSeq: '',
-          desc: row.description ?? '',
-          itemCd: row.itemCd ?? '',
-          unitCd: row.unitCd ?? '',
-          qty: row.qty ?? '',
-        }));
+      const payload = buildMmsm01003SavePayload({
+        form,
+        detailRows,
+        deletedDetailRows,
+        userId,
+      });
 
-      const updatedDetailData: SaveDetailRow[] = detailRows
-        .filter((row) => (row.method ?? (row.poYmd && row.poSeq !== undefined ? 'U' : 'I')) === 'U')
-        .map((row, index) => ({
-          method: 'U',
-          poYmd: row.poYmd ?? '',
-          poSeq: row.poSeq === undefined || row.poSeq === null ? '' : String(row.poSeq),
-          poSubSeq: row.poSubSeq ?? index + 1,
-          desc: row.description ?? '',
-          itemCd: row.itemCd ?? '',
-          unitCd: row.unitCd ?? '',
-          qty: row.qty ?? '',
-        }));
-
-      const deletedData: SaveDetailRow[] = deletedDetailRows.map((row, index) => ({
-        method: 'D',
-        poYmd: row.poYmd ?? '',
-        poSeq: row.poSeq === undefined || row.poSeq === null ? '' : String(row.poSeq),
-        poSubSeq: row.poSubSeq ?? index + 1,
-        desc: row.description ?? '',
-        itemCd: row.itemCd ?? '',
-        unitCd: row.unitCd ?? '',
-        qty: row.qty ?? '',
-      }));
-
-      const detailData = [...insertedDetailData, ...updatedDetailData, ...deletedData];
-      const deleteTarget = deletedDetailRows.find(
-        (row) => row.poYmd && row.poSeq !== undefined && row.poSeq !== null
-      );
-      const shouldDeleteMaster = detailRows.length === 0 && !!deleteTarget;
-
-      const masterData: SaveMasterRow[] = [
-        {
-          method: shouldDeleteMaster ? 'D' : 'I',
-          userId,
-          cstCd: form.cstCd || '',
-          poYmd: shouldDeleteMaster ? String(deleteTarget?.poYmd ?? '') : toYmd(form.ivDate),
-          poSeq:
-            shouldDeleteMaster && deleteTarget?.poSeq !== undefined && deleteTarget.poSeq !== null
-              ? String(deleteTarget.poSeq)
-              : '',
-          desc: '',
-        },
-      ];
-
-      const payload: SavePayload = {
-        masterData,
-        detailData,
-      };
-
-      await http('/api/v1/material/pomst/savePayload', { method: 'POST', body: payload });
+      await http('/api/v1/material/ivmst/savePayload', { method: 'POST', body: payload });
       setDeletedDetailRows([]);
       await Promise.all([fetchMasterList(0), fetchDetailList(0)]);
     } catch (e) {
@@ -441,10 +374,6 @@ export default function MMSM01003E() {
     );
   }
 
-  const isSearch = masterLoading || detailLoading || saving || uploading;
-  const isSave = masterLoading || detailLoading || saving || uploading;
-  const isUpload = saving || uploading;
-
   return (
     <div className="min-h-full bg-slate-50/60 p-4">
       <div className="mx-auto flex max-w-[1680px] flex-col gap-4">
@@ -467,16 +396,17 @@ export default function MMSM01003E() {
               label="거래처코드"
               id="cust"
               code={form.cstCd}
-              name={form.cstNm}
+              name={cstNm}
               codePlaceholder="코드"
               namePlaceholder="거래처 선택"
               onSearch={() => setCustomerOpen(true)}
-              onClear={() =>
-                setForm((prev) => ({ ...prev, cstCd: '', cstNm: '' }))
-              }
+              onClear={() => {
+                setCstNm('');
+                setForm((prev) => ({ ...prev, cstCd: '' }));
+              }}
             />
             <ActionButtonGroup
-              onSearch={() => fetchMasterList(0)}
+              onSearch={onSearch}
               onSave={() => onSave()}
               onUpload={onUploadCsv}
               onExport={onExportCsv}
@@ -488,9 +418,7 @@ export default function MMSM01003E() {
         </SectionCard>
 
         {(masterError || detailError || saveError || uploadError) && (
-          <AlertBox tone="error">
-            {masterError ?? detailError ?? saveError ?? uploadError}
-          </AlertBox>
+          <AlertBox tone="error">{masterError ?? detailError ?? saveError ?? uploadError}</AlertBox>
         )}
 
         {uploadWarnings.length > 0 && (
@@ -504,7 +432,7 @@ export default function MMSM01003E() {
         <div className="grid grid-cols-12 gap-4">
           <SectionCard span="left" width="full">
             <SectionHeader
-              title="입고 대상 품목"
+              title="발주 예비 품목"
               right={
                 <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
                   {masterRows.length}건
@@ -516,14 +444,15 @@ export default function MMSM01003E() {
                 dataSource={masterRows}
                 showBorders={true}
                 rowKey={(row, index) => row.itemCd || index}
-                emptyText="입고 대상 데이터가 없습니다. 조건 선택 후 조회하세요."
+                emptyText="발주 후보 데이터가 없습니다."
               >
                 <CheckColumn
                   checked={(row) => !!row.CHECK}
                   onChange={(_row, rowIndex, checked) => toggleMaster(rowIndex, checked)}
                 />
-                <Column dataField="itemCd" caption="자재코드" width={112} alignment="center" />
-                <Column dataField="itemNm" caption="자재명" />
+                <Column dataField="itemCd" caption="품목코드" width={80} alignment="center" />
+                <Column dataField="itemNm" caption="품목명" width={120} alignment="left" />
+                <Column dataField="unitCd" caption="단위  " width={60} alignment="center" />
               </DataGrid>
             </div>
           </SectionCard>
@@ -546,67 +475,50 @@ export default function MMSM01003E() {
           </div>
 
           <SectionCard span="right" width="full">
-            <SectionHeader
-              title="입고 등록 상세"
-              right={
-                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
-                  {detailRows.length}건
-                </span>
-              }
-            />
-            <div className="max-h-[68vh] overflow-auto">
+            <SectionHeader title="입고 등록 상세" />
+            <div ref={detailGridRef} className="max-h-[68vh] overflow-auto">
               <DataGrid
                 dataSource={detailRows}
                 showBorders={true}
-                rowKey={(row, index) =>
-                  `${row.poYmd ?? form.ivDate ?? 'new'}-${row.poSeq ?? 'new'}-${row.poSubSeq ?? 'detail'}-${row.itemCd ?? 'item'}-${index}`
-                }
-                emptyText="입고 상세 데이터가 없습니다. 좌측 대상에서 선택 후 추가하세요."
+                rowKey={(row, index) => {
+                  const key = getDetailRowKey(row);
+                  return key === '||' ? `${row.itemCd ?? 'item'}-${index}` : `${key}-${index}`;
+                }}
+                emptyText="입고 상세 데이터가 없습니다. 좌측 후보에서 선택 후 추가하세요."
               >
                 <CheckColumn
                   checked={(row) => !!row.CHECK}
                   onChange={(_row, rowIndex, checked) => toggleDetail(rowIndex, checked)}
                 />
-                <Column
-                  dataField="poSeq"
-                  caption="발주순번"
-                  width={88}
-                  alignment="center"
-                  cellRender={(row) => renderGridReadOnlyCell(row.poSeq, { align: 'center' })}
-                />
-                <Column
-                  dataField="poSubSeq"
-                  caption="상세순번"
-                  width={88}
-                  alignment="center"
-                  cellRender={(row) => renderGridReadOnlyCell(row.poSubSeq, { align: 'center' })}
-                />
-                <Column dataField="itemCd" caption="자재코드" width={120} alignment="center" />
-                <Column dataField="itemNm" caption="자재명" width={220} />
+                <Column dataField="ivSeq" caption="입고순번" width={88} alignment="center" />
+                <Column dataField="ivSubSeq" caption="상세순번" width={88} alignment="center" />
+                <Column dataField="itemCd" caption="원자재코드" width={120} alignment="center" />
+                <Column dataField="itemNm" caption="원자재명" width={itemNameWidth} />
                 <Column dataField="unitCd" caption="단위" width={90} alignment="center" />
                 <Column
                   dataField="qty"
                   caption="입고수량"
-                  dataType="number"
                   width={120}
-                  cellRender={(row, rowIndex) =>
-                    renderGridInputCell({
-                      value: row.qty,
-                      align: 'right',
-                      onChange: (e) => onDetailChange(rowIndex, { qty: e.target.value }),
-                    })
-                  }
+                  alignment="right"
+                  cellRender={(row, rowIndex) => (
+                    <input
+                      className="h-8 w-full rounded border border-slate-200 px-2 text-right"
+                      value={row.qty ?? ''}
+                      onChange={(e) => onDetailChange(rowIndex, { qty: e.target.value })}
+                    />
+                  )}
                 />
                 <Column
                   dataField="description"
                   caption="비고"
-                  width={280}
-                  cellRender={(row, rowIndex) =>
-                    renderGridInputCell({
-                      value: row.description,
-                      onChange: (e) => onDetailChange(rowIndex, { description: e.target.value }),
-                    })
-                  }
+                  width={descriptionWidth}
+                  cellRender={(row, rowIndex) => (
+                    <input
+                      className="h-8 w-full rounded border border-slate-200 px-2"
+                      value={row.description || ''}
+                      onChange={(e) => onDetailChange(rowIndex, { description: e.target.value })}
+                    />
+                  )}
                 />
               </DataGrid>
             </div>
@@ -618,10 +530,11 @@ export default function MMSM01003E() {
             title="거래처 정보"
             custGb="CUSTOMER"
             cstCd={form.cstCd}
-            cstNm={form.cstNm}
+            cstNm={cstNm}
             onClose={() => setCustomerOpen(false)}
             onSelect={(value) => {
-              setForm((prev) => ({ ...prev, cstCd: value.cstCd, cstNm: value.cstNm }));
+              setCstNm(value.cstNm);
+              setForm((prev) => ({ ...prev, cstCd: value.cstCd }));
             }}
           />
         ) : null}
@@ -629,4 +542,3 @@ export default function MMSM01003E() {
     </div>
   );
 }
-
