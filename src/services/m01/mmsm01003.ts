@@ -5,8 +5,6 @@ import { toYmd } from '@/lib/excel';
 type QueryValue = string | number | boolean | null | undefined;
 type QueryParams = Record<string, QueryValue>;
 
-type DetailApiRow = DetailRow & Record<string, unknown>;
-
 function pickString(source: Record<string, unknown>, keys: string[]): string | undefined {
   for (const key of keys) {
     const value = source[key];
@@ -115,20 +113,23 @@ interface BuildSavePayloadRequest {
   userId: string;
 }
 
-export function normalizeDetailRow(row: DetailApiRow): DetailRow {
+export function normalizeDetailRow(row: DetailRow | Record<string, unknown>): DetailRow {
+  const source = row as Record<string, unknown>;
+  const detailRow = row as DetailRow;
+
   return {
-    ...row,
-    ivYmd: pickString(row, ['ivYmd', 'IV_YMD']) ?? row.ivYmd ?? row.poYmd,
-    ivSeq: pickString(row, ['ivSeq', 'IV_SEQ']) ?? row.ivSeq ?? row.poSeq,
-    ivSubSeq: pickString(row, ['ivSubSeq', 'IV_SUB_SEQ']) ?? row.ivSubSeq ?? row.poSubSeq,
-    poYmd: pickString(row, ['poYmd', 'PO_YMD']) ?? row.poYmd ?? row.ivYmd,
-    poSeq: pickString(row, ['poSeq', 'PO_SEQ']) ?? row.poSeq ?? row.ivSeq,
-    poSubSeq: pickString(row, ['poSubSeq', 'PO_SUB_SEQ']) ?? row.poSubSeq ?? row.ivSubSeq,
-    itemCd: pickString(row, ['itemCd', 'ITEM_CD']) ?? row.itemCd,
-    itemNm: pickString(row, ['itemNm', 'ITEM_NM']) ?? row.itemNm,
-    unitCd: pickString(row, ['unitCd', 'UNIT_CD']) ?? row.unitCd,
-    qty: pickString(row, ['qty', 'QTY']) ?? row.qty,
-    description: pickString(row, ['description', 'desc', 'DESC']) ?? row.description,
+    ...detailRow,
+    ivYmd: pickString(source, ['ivYmd', 'IV_YMD']) ?? detailRow.ivYmd ?? detailRow.poYmd,
+    ivSeq: pickString(source, ['ivSeq', 'IV_SEQ']) ?? detailRow.ivSeq ?? detailRow.poSeq,
+    ivSubSeq: pickString(source, ['ivSubSeq', 'IV_SUB_SEQ', 'inSubSeq', 'IN_SUB_SEQ']) ?? detailRow.ivSubSeq ?? detailRow.poSubSeq,
+    poYmd: pickString(source, ['poYmd', 'PO_YMD']) ?? detailRow.poYmd ?? detailRow.ivYmd,
+    poSeq: pickString(source, ['poSeq', 'PO_SEQ']) ?? detailRow.poSeq ?? detailRow.ivSeq,
+    poSubSeq: pickString(source, ['poSubSeq', 'PO_SUB_SEQ']) ?? detailRow.poSubSeq ?? detailRow.ivSubSeq,
+    itemCd: pickString(source, ['itemCd', 'ITEM_CD']) ?? detailRow.itemCd,
+    itemNm: pickString(source, ['itemNm', 'ITEM_NM']) ?? detailRow.itemNm,
+    unitCd: pickString(source, ['unitCd', 'UNIT_CD']) ?? detailRow.unitCd,
+    qty: pickString(source, ['qty', 'QTY']) ?? detailRow.qty,
+    description: pickString(source, ['description', 'desc', 'DESC']) ?? detailRow.description,
   };
 }
 
@@ -172,16 +173,17 @@ export async function fetchMmsm01003Detail({
   page = 0,
   pageSize = PAGE_SIZE,
 }: FetchDetailRequest): Promise<PageResult<DetailRow>> {
-  const data = await getApi<PageableResponse<DetailApiRow> | DetailApiRow[]>(
+  const data = await getApi<PageableResponse<Record<string, unknown>> | Record<string, unknown>[]>(
     '/api/v1/material/ivdet/search',
     toApiParams({
       ivYmd: form.ivDate.split('-').join(''),
+      cstCd: form.cstCd || '',
       page,
-      size: pageSize,
+      pageSize,
     })
   );
 
-  const pageResult = toPageResult<DetailApiRow>(data, page, pageSize);
+  const pageResult = toPageResult<Record<string, unknown>>(data, page, pageSize);
 
   return {
     ...pageResult,

@@ -196,17 +196,8 @@ export default function MMSM01003E() {
     if (selected.length === 0) return;
 
     setDetailRows((prev) => {
-      const existingItemCodes = new Set(
-        prev.map((row) => (row.itemCd ?? '').trim()).filter((itemCd) => itemCd.length > 0)
-      );
-      const rowsToAdd = selected.filter((row) => !existingItemCodes.has((row.itemCd ?? '').trim()));
-
-      if (rowsToAdd.length === 0) {
-        return prev;
-      }
-
       const nextDetailSubSeq = getNextDetailSubSeq(prev);
-      const additions = rowsToAdd.map((row, index) => ({
+      const additions = selected.map((row, index) => ({
         CHECK: true,
         method: 'I' as const,
         ivSubSeq: nextDetailSubSeq + index + 1,
