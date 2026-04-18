@@ -19,8 +19,8 @@ export default function FromToDateField({
   const inputErrorClass = isRangeInvalid ? 'border-red-500 bg-red-50' : '';
 
   return (
-    <div className="w-[450px]">
-      <div className="grid grid-cols-[100px_150px_30px_150px] items-center gap-2">
+    <div className="w-[446px]">
+      <div className="grid grid-cols-[96px_150px_30px_150px] items-center gap-3">
         <label className="text-sm text-gray-600">{label}</label>
         <input
           type="date"

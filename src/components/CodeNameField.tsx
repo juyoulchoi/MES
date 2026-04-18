@@ -29,8 +29,8 @@ export default function CodeNameField({
   const hasValue = Boolean(code || name);
 
   return (
-    <div className="w-[550px]">
-      <div className="grid grid-cols-[100px_120px_300px] items-center gap-2">
+    <div className="w-[546px]">
+      <div className="grid grid-cols-[96px_120px_310px] items-center gap-3">
         <Label className="text-sm text-gray-600">{label}</Label>
         <Input
           id={`${id}-code`}
