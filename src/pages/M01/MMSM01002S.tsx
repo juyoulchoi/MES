@@ -54,7 +54,7 @@ const MMSM01002S: React.FC = () => {
     <div className="min-h-full bg-slate-50/60 p-4" ref={containerRef}>
       <div className="mx-auto flex max-w-[1680px] flex-col gap-4">
         <SectionCard span="full" padding="md">
-          <div className="grid grid-cols-1 gap-3 xl:grid-cols-[440px_440px_1fr]">
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-[446px_546px_1fr] xl:gap-12">
             <FromToDateField
               label="요청일자"
               fromValue={form.startDate}
@@ -97,7 +97,7 @@ const MMSM01002S: React.FC = () => {
             </div>
           </div>
 
-          <div className="mt-3 grid grid-cols-1 gap-3 xl:grid-cols-[440px_1fr]">
+          <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-[546px_1fr]">
             <CodeNameField
               label="제품명"
               id="item"
