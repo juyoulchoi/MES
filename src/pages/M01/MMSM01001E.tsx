@@ -434,7 +434,7 @@ export default function MMSM01001E() {
         detailData,
       };
 
-      await http('/api/v1/material/ivmst/savePayload', { method: 'POST', body: payload });
+      await http('/api/v1/material/pomst/savePayload', { method: 'POST', body: payload });
       setDeletedDetailRows([]);
       await Promise.all([fetchMasterList(0), fetchDetailList(0)]);
     } catch (e) {
