@@ -23,6 +23,8 @@ interface UsePageApiFetchOption<TForm> extends ApiFetchOption<PageFetchRequest<T
   form: TForm;
   pageSize?: number;
   initialPage?: number;
+  includePageSizeParam?: boolean;
+  includeSizeParam?: boolean;
 }
 
 function toApiParams(params?: QueryParams): Record<string, string> | undefined {
@@ -44,16 +46,28 @@ export function getApiDataFetch<TForm, TResponse>({
   };
 }
 
-function getApiFetch<TForm, TRow>({ apiPath, mapParams }: ApiFetchOption<PageFetchRequest<TForm>>) {
+function getApiFetch<TForm, TRow>({
+  apiPath,
+  mapParams,
+  includePageSizeParam = false,
+  includeSizeParam = true,
+}: ApiFetchOption<PageFetchRequest<TForm>> & {
+  includePageSizeParam?: boolean;
+  includeSizeParam?: boolean;
+}) {
   return async (request: PageFetchRequest<TForm>): Promise<PageResult<TRow>> => {
     const page = request.page ?? 0;
     const size = request.pageSize ?? PAGE_SIZE;
+    const pagingParams: QueryParams = {
+      page,
+      ...(includePageSizeParam ? { pageSize: size } : {}),
+      ...(includeSizeParam ? { size } : {}),
+    };
     const data = await getApi<PageableResponse<TRow> | TRow[]>(
       apiPath,
       toApiParams({
         ...mapParams(request),
-        page,
-        size,
+        ...pagingParams,
       })
     );
 
@@ -67,6 +81,8 @@ export function usePageApiFetch<TForm, TRow>({
   form,
   pageSize = PAGE_SIZE,
   initialPage = 0,
+  includePageSizeParam = false,
+  includeSizeParam = true,
 }: UsePageApiFetchOption<TForm>) {
   const [result, setResult] = useState<PageResult<TRow>>(() =>
     EmptyPageResult<TRow>(initialPage, pageSize)
@@ -79,7 +95,12 @@ export function usePageApiFetch<TForm, TRow>({
     setError(null);
 
     try {
-      const search = getApiFetch<TForm, TRow>({ apiPath, mapParams });
+      const search = getApiFetch<TForm, TRow>({
+        apiPath,
+        mapParams,
+        includePageSizeParam,
+        includeSizeParam,
+      });
       setResult(
         await search({
           form,
