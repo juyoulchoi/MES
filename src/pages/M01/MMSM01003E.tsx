@@ -11,9 +11,15 @@ import {
   parseExcelUploadFile,
   validateExcelUploadRows,
 } from '@/lib/excelUpload';
-import { removeCheckedRows, toggleCheckedRow } from '@/lib/gridRows';
+import { patchCheckedRow, removeCheckedRows } from '@/lib/gridRows';
 import { http } from '@/lib/http';
+import { formatNumber } from '@/lib/utils';
 import { EmptyPageResult, PAGE_SIZE } from '@/lib/pagination';
+import {
+  calculateAmount,
+  getTodayYmd,
+  updateCheckedRows,
+} from '@/pages/M01/registerDetailShared';
 import { usePageApiFetch } from '@/services/common/getApiFetch';
 import {
   buildMmsm01003SavePayload,
@@ -37,19 +43,11 @@ type MasterRow = {
   itemNm?: string;
   unitCd?: string;
   qty?: number | string;
+  price?: number | string;
+  amt?: number | string;
 };
 
 const EXCEL_TEMPLATE_HEADERS = ['품목코드', '품목명', '수량', '비고'];
-
-function getTodayYmd() {
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = String(today.getMonth() + 1).padStart(2, '0');
-  const day = String(today.getDate()).padStart(2, '0');
-
-  return `${year}-${month}-${day}`;
-}
-
 
 export default function MMSM01003E() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -145,7 +143,7 @@ export default function MMSM01003E() {
       const nextWidth = element.clientWidth;
       if (!nextWidth) return;
 
-      const fixedWidth = 48 + 88 + 88 + 120 + 90 + 120 + 40;
+      const fixedWidth = 48 + 88 + 88 + 120 + 90 + 120 + 120 + 130 + 40;
       const remaining = Math.max(nextWidth - fixedWidth, 360);
       const nextItemNameWidth = Math.min(Math.max(Math.floor(remaining * 0.4), 180), 320);
       const nextDescriptionWidth = Math.max(remaining - nextItemNameWidth, 180);
@@ -166,29 +164,20 @@ export default function MMSM01003E() {
   }, []);
 
   function toggleMaster(rowIndex: number, checked: boolean) {
-    setMasterRows((prev) => toggleCheckedRow(prev, rowIndex, checked));
+    updateCheckedRows(setMasterRows, rowIndex, checked);
   }
 
   function toggleDetail(rowIndex: number, checked: boolean) {
-    setDetailRows((prev) => toggleCheckedRow(prev, rowIndex, checked));
+    updateCheckedRows(setDetailRows, rowIndex, checked);
   }
 
   function onDetailChange(rowIndex: number, patch: Partial<DetailRow>) {
-    setDetailRows((prev) => {
-      const next = [...prev];
-      const current = next[rowIndex];
-      if (!current) {
-        return prev;
-      }
-
-      next[rowIndex] = {
-        ...current,
+    setDetailRows((prev) =>
+      patchCheckedRow(prev, rowIndex, {
         ...patch,
-        method: current.method === 'I' ? 'I' : 'U',
-      };
-
-      return next;
-    });
+        method: prev[rowIndex]?.method === 'I' ? 'I' : 'U',
+      })
+    );
   }
 
   function onAddFromMaster() {
@@ -205,6 +194,8 @@ export default function MMSM01003E() {
         itemNm: row.itemNm ?? '',
         unitCd: row.unitCd ?? '',
         qty: row.qty ?? '',
+        price: row.price ?? '',
+        amt: row.amt ?? '',
         description: '',
       }));
 
@@ -491,7 +482,7 @@ export default function MMSM01003E() {
                   caption="입고수량"
                   width={120}
                   alignment="right"
-                  cellRender={(row, rowIndex) => (
+                  cellRender={(row: DetailRow, rowIndex) => (
                     <input
                       className="h-8 w-full rounded border border-slate-200 px-2 text-right"
                       value={row.qty ?? ''}
@@ -500,10 +491,34 @@ export default function MMSM01003E() {
                   )}
                 />
                 <Column
+                  dataField="price"
+                  caption="단가"
+                  width={120}
+                  alignment="right"
+                  cellRender={(row: DetailRow, rowIndex) => (
+                    <input
+                      className="h-8 w-full rounded border border-slate-200 px-2 text-right"
+                      value={row.price ?? ''}
+                      onChange={(e) => onDetailChange(rowIndex, { price: e.target.value })}
+                    />
+                  )}
+                />
+                <Column
+                  dataField="amt"
+                  caption="금액"
+                  width={130}
+                  alignment="right"
+                  cellRender={(row: DetailRow) => (
+                    <div className="px-2 text-right">
+                      {formatNumber(calculateAmount(row.qty, row.price))}
+                    </div>
+                  )}
+                />
+                <Column
                   dataField="description"
                   caption="비고"
                   width={descriptionWidth}
-                  cellRender={(row, rowIndex) => (
+                  cellRender={(row: DetailRow, rowIndex) => (
                     <input
                       className="h-8 w-full rounded border border-slate-200 px-2"
                       value={row.description || ''}

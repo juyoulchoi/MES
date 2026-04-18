@@ -29,6 +29,17 @@ function normalizeDateInputValue(value?: string): string | undefined {
   return trimmed;
 }
 
+function pickNumberLike(source: Record<string, unknown>, keys: string[]): number | string | undefined {
+  const value = pickString(source, keys);
+  if (value === undefined) {
+    return undefined;
+  }
+
+  const normalized = value.replace(/,/g, '');
+  const numeric = Number(normalized);
+  return Number.isNaN(numeric) ? value : numeric;
+}
+
 function normalizeDetailRow(row: DetailApiRow): DetailRow {
   return {
     ...row,
@@ -39,6 +50,19 @@ function normalizeDetailRow(row: DetailApiRow): DetailRow {
     itemNm: pickString(row, ['itemNm', 'ITEM_NM']) ?? row.itemNm,
     unitCd: pickString(row, ['unitCd', 'UNIT_CD']) ?? row.unitCd,
     qty: pickString(row, ['qty', 'QTY']) ?? row.qty,
+    price:
+      pickNumberLike(row, [
+        'price',
+        'poPrice',
+        'unitPrice',
+        'purPrice',
+        'PRICE',
+        'PO_PRICE',
+        'UNIT_PRICE',
+        'PUR_PRICE',
+      ]) ?? row.price,
+    amt:
+      pickNumberLike(row, ['amt', 'poAmt', 'totAmt', 'AMT', 'PO_AMT', 'TOT_AMT']) ?? row.amt,
     reqYmd: normalizeDateInputValue(
       pickString(row, ['reqYmd', 'regYmd', 'REQ_YMD', 'REG_YMD']) ?? row.reqYmd
     ),
@@ -62,6 +86,8 @@ export interface MasterRow {
   itemNm?: string;
   unitCd?: string;
   qty?: number | string;
+  price?: number | string;
+  amt?: number | string;
 }
 
 export interface DetailRow {
@@ -73,6 +99,8 @@ export interface DetailRow {
   itemNm?: string;
   unitCd?: string;
   qty?: number | string;
+  price?: number | string;
+  amt?: number | string;
   reqYmd?: string;
   emGb?: string;
   itemTp?: string;
@@ -91,6 +119,8 @@ export interface SaveDetailRow {
   itemCd: string;
   unitCd: string;
   qty: number | string;
+  price?: number | string;
+  amt?: number | string;
 }
 
 export interface SaveMasterRow {
@@ -125,6 +155,8 @@ export interface ExcelUploadRow {
   itemNm?: string;
   unitCd?: string;
   qty: number | string;
+  price?: number | string;
+  amt?: number | string;
   desc?: string;
 }
 

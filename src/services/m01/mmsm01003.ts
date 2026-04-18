@@ -24,6 +24,28 @@ function toApiParams(params: QueryParams): Record<string, string> {
   );
 }
 
+function pickNumberLike(source: Record<string, unknown>, keys: string[]): number | string | undefined {
+  const value = pickString(source, keys);
+  if (value === undefined) {
+    return undefined;
+  }
+
+  const normalized = value.replace(/,/g, '');
+  const numeric = Number(normalized);
+  return Number.isNaN(numeric) ? value : numeric;
+}
+
+function toNumericValue(value: number | string | null | undefined): number {
+  if (value === null || value === undefined || value === '') return 0;
+  const normalized = String(value).replace(/,/g, '');
+  const numeric = Number(normalized);
+  return Number.isNaN(numeric) ? 0 : numeric;
+}
+
+function calculateAmount(qty: number | string | undefined, price: number | string | undefined) {
+  return toNumericValue(qty) * toNumericValue(price);
+}
+
 export interface SearchForm {
   ivDate: string;
   cstCd: string;
@@ -41,6 +63,8 @@ export interface DetailRow {
   itemNm?: string;
   unitCd?: string;
   qty?: number | string;
+  price?: number | string;
+  amt?: number | string;
   description?: string;
   method?: 'I' | 'U' | 'D';
 }
@@ -54,6 +78,8 @@ export interface SaveDetailRow {
   itemCd: string;
   unitCd: string;
   qty: number | string;
+  price?: number | string;
+  amt?: number | string;
 }
 
 export interface SaveMasterRow {
@@ -88,6 +114,8 @@ export interface ExcelUploadRow {
   itemNm?: string;
   unitCd?: string;
   qty: number | string;
+  price?: number | string;
+  amt?: number | string;
   desc?: string;
 }
 
@@ -129,6 +157,22 @@ export function normalizeDetailRow(row: DetailRow | Record<string, unknown>): De
     itemNm: pickString(source, ['itemNm', 'ITEM_NM']) ?? detailRow.itemNm,
     unitCd: pickString(source, ['unitCd', 'UNIT_CD']) ?? detailRow.unitCd,
     qty: pickString(source, ['qty', 'QTY']) ?? detailRow.qty,
+    price:
+      pickNumberLike(source, [
+        'price',
+        'ivPrice',
+        'poPrice',
+        'unitPrice',
+        'purPrice',
+        'PRICE',
+        'IV_PRICE',
+        'PO_PRICE',
+        'UNIT_PRICE',
+        'PUR_PRICE',
+      ]) ?? detailRow.price,
+    amt:
+      pickNumberLike(source, ['amt', 'ivAmt', 'poAmt', 'totAmt', 'AMT', 'IV_AMT', 'PO_AMT', 'TOT_AMT']) ??
+      detailRow.amt,
     description: pickString(source, ['description', 'desc', 'DESC']) ?? detailRow.description,
   };
 }
@@ -164,6 +208,8 @@ export function createUploadedDetailRows(rows: ExcelUploadRow[]): DetailRow[] {
     itemNm: row.itemNm ?? '',
     unitCd: row.unitCd ?? '',
     qty: row.qty ?? '',
+    price: row.price ?? '',
+    amt: row.amt ?? '',
     description: row.desc ?? '',
   }));
 }
@@ -214,6 +260,8 @@ export function buildMmsm01003SavePayload({
       itemCd: row.itemCd ?? '',
       unitCd: row.unitCd ?? '',
       qty: row.qty ?? '',
+      price: row.price ?? '',
+      amt: calculateAmount(row.qty, row.price),
     }));
 
   const updatedDetailData: SaveDetailRow[] = detailRows
@@ -229,6 +277,8 @@ export function buildMmsm01003SavePayload({
       itemCd: row.itemCd ?? '',
       unitCd: row.unitCd ?? '',
       qty: row.qty ?? '',
+      price: row.price ?? '',
+      amt: calculateAmount(row.qty, row.price),
     }));
 
   const deletedData: SaveDetailRow[] = deletedRows.map((currentRow, index) => {
@@ -243,6 +293,8 @@ export function buildMmsm01003SavePayload({
       itemCd: row.itemCd ?? '',
       unitCd: row.unitCd ?? '',
       qty: row.qty ?? '',
+      price: row.price ?? '',
+      amt: calculateAmount(row.qty, row.price),
     };
   });
 

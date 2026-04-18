@@ -25,6 +25,8 @@ export interface RowItem {
   ivQty: number;
   itemCd: string;
   unitCd: string;
+  price: number;
+  amt: number;
   giYmd: string;
   emGb: string;
   reqYmd: string;
@@ -49,6 +51,20 @@ export const columns: GridColumn<RowItem>[] = [
   { dataField: 'cstNm', caption: '거래처명', width: 180 },
   { dataField: 'reqYmd', caption: '입고요청일', width: 120, alignment: 'center' },
   { dataField: 'emGb', caption: '발주구분', width: 110, alignment: 'center' },
+  {
+    dataField: 'price',
+    caption: '단가',
+    width: 120,
+    alignment: 'right',
+    cellRender: (row) => formatNumber(row.price),
+  },
+  {
+    dataField: 'amt',
+    caption: '금액',
+    width: 130,
+    alignment: 'right',
+    cellRender: (row) => formatNumber(row.amt),
+  },
   { dataField: 'endYn', caption: '완료여부', width: 100, alignment: 'center' },
   {
     dataField: 'totAmt',
@@ -73,6 +89,8 @@ export const exportHeaders = [
   '원자재명',
   '거래처코드',
   '거래처명',
+  '단가',
+  '금액',
   '총금액',
   '기입고량',
   '입고량',
@@ -96,6 +114,8 @@ export const mapExportRow = (r: RowItem) => [
   r.itemNm,
   r.cstCd,
   r.cstNm,
+  r.price,
+  r.amt,
   r.totAmt,
   r.preIvQty,
   r.ivQty,
