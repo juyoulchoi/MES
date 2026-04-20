@@ -134,6 +134,9 @@ const MMSM01002S: React.FC = () => {
               remoteOperations={true}
               emptyText="발주 현황 데이터가 없습니다."
               onPageChange={(page) => void fetchList(page)}
+              classNames={{
+                table: 'min-w-[1840px] w-full text-sm',
+              }}
             >
               <Paging enabled={true} defaultPageSize={PAGE_SIZE} />
               <Pager visible={true} showPageSizeSelector={false} />
@@ -144,6 +147,8 @@ const MMSM01002S: React.FC = () => {
                   caption={column.caption}
                   width={column.width}
                   alignment={column.alignment}
+                  headerAlignment={column.headerAlignment}
+                  headerClassName={column.headerClassName}
                   cellRender={column.cellRender}
                 />
               ))}

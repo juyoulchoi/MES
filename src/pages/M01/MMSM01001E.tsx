@@ -147,7 +147,7 @@ export default function MMSM01001E() {
       const nextWidth = element.clientWidth;
       if (!nextWidth) return;
 
-      const fixedWidth = 48 + 88 + 88 + 120 + 140 + 130 + 90 + 120 + 120 + 130 + 40;
+      const fixedWidth = 48 + 100 + 100 + 120 + 140 + 130 + 90 + 120 + 120 + 130 + 40;
       const remaining = Math.max(nextWidth - fixedWidth, 360);
       const nextItemNameWidth = Math.min(Math.max(Math.floor(remaining * 0.4), 180), 320);
       const nextDescriptionWidth = Math.max(remaining - nextItemNameWidth, 180);
@@ -590,13 +590,28 @@ export default function MMSM01001E() {
                   `${row.poYmd ?? form.poYmd ?? 'new'}-${row.poSeq ?? 'new'}-${row.poSubSeq ?? 'detail'}-${row.itemCd ?? 'item'}-${index}`
                 }
                 emptyText="발주 상세 데이터가 없습니다. 좌측 후보에서 선택 후 추가하세요."
+                classNames={{
+                  table: 'min-w-[1320px] w-full text-sm',
+                }}
               >
                 <CheckColumn
                   checked={(row) => !!row.CHECK}
                   onChange={(_row, rowIndex, checked) => toggleDetail(rowIndex, checked)}
                 />
-                <Column dataField="poSeq" caption="발주순번" width={88} alignment="center" />
-                <Column dataField="poSubSeq" caption="상세순번" width={88} alignment="center" />
+                <Column
+                  dataField="poSeq"
+                  caption="발주순번"
+                  width={100}
+                  alignment="center"
+                  headerClassName="whitespace-nowrap"
+                />
+                <Column
+                  dataField="poSubSeq"
+                  caption="상세순번"
+                  width={100}
+                  alignment="center"
+                  headerClassName="whitespace-nowrap"
+                />
                 <Column dataField="itemCd" caption="원자재코드" width={120} alignment="center" />
                 <Column dataField="itemNm" caption="원자재명" width={itemNameWidth} />
                 <Column
@@ -650,6 +665,7 @@ export default function MMSM01001E() {
                   caption="단가"
                   width={120}
                   alignment="right"
+                  headerAlignment="center"
                   cellRender={(row: DetailRow, rowIndex) => (
                     <input
                       className="h-8 w-full rounded border border-slate-200 px-2 text-right"
@@ -663,6 +679,7 @@ export default function MMSM01001E() {
                   caption="금액"
                   width={130}
                   alignment="right"
+                  headerAlignment="center"
                   cellRender={(row: DetailRow) => (
                     <div className="px-2 text-right">{formatNumber(calculateAmount(row.qty, row.price))}</div>
                   )}

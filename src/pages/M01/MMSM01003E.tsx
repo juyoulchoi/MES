@@ -473,6 +473,9 @@ export default function MMSM01003E() {
                   return key === '||' ? `${row.itemCd ?? 'item'}-${index}` : `${key}-${index}`;
                 }}
                 emptyText="입고 상세 데이터가 없습니다. 좌측 후보에서 선택 후 추가하세요."
+                classNames={{
+                  table: 'min-w-[1200px] w-full text-sm',
+                }}
               >
                 <CheckColumn
                   checked={(row) => !!row.CHECK}
