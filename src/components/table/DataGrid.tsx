@@ -3,6 +3,7 @@ import {
   Children,
   isValidElement,
   type HTMLAttributes,
+  type CSSProperties,
   type ReactElement,
   type ReactNode,
   useMemo,
@@ -29,6 +30,9 @@ type DataGridColumnProps<T> = {
   format?: DataFormat;
   width?: string | number;
   alignment?: 'left' | 'center' | 'right';
+  headerAlignment?: 'left' | 'center' | 'right';
+  headerClassName?: string;
+  headerStyle?: CSSProperties;
   cellRender?: (row: T, rowIndex: number) => ReactNode;
 };
 
@@ -73,7 +77,7 @@ type DataGridProps<T> = {
   getRowProps?: (row: T, rowIndex: number) => HTMLAttributes<HTMLTableRowElement>;
 };
 
-export const dataGridClassNames: BaseTableClassNames = {
+const dataGridClassNames: BaseTableClassNames = {
   ...tableClassNames,
   wrapper: 'overflow-auto',
   table: 'w-full text-sm',
@@ -147,13 +151,29 @@ function formatCellValue<T>(
 }
 
 function toTableColumn<T>(element: ReactElement<DataGridColumnProps<T>>, index: number): TableColumn<T> {
-  const { dataField, caption, dataType, format, width, alignment, cellRender } = element.props;
+  const {
+    dataField,
+    caption,
+    dataType,
+    format,
+    width,
+    alignment,
+    headerAlignment,
+    headerClassName,
+    headerStyle,
+    cellRender,
+  } = element.props;
+  const resolvedHeaderStyle = headerAlignment
+    ? { textAlign: headerAlignment, ...(headerStyle ?? {}) }
+    : headerStyle;
 
   return {
     key: element.key ? String(element.key) : `${String(dataField)}-${index}`,
     header: caption ?? String(dataField),
     width,
     align: alignment ?? (dataType === 'number' ? 'right' : 'left'),
+    headerClassName,
+    headerStyle: resolvedHeaderStyle,
     accessor: cellRender
       ? undefined
       : (row, rowIndex) =>
