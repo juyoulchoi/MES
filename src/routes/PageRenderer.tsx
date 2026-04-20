@@ -8,6 +8,10 @@
 import { Suspense, lazy, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 
+type PageModule = {
+  default?: React.ComponentType;
+};
+
 // Vite의 import.meta.glob로 pages 디렉토리 전체를 동적 import 매핑
 // Login 페이지는 App.tsx에서 정적 라우팅하므로 동적 매핑에서 제외한다.
 const modules = import.meta.glob(
@@ -21,14 +25,14 @@ function normalizeKey(k: string) {
     .replace(/^@\/pages\//i, '') // "@/pages/" 제거
     .replace(/^@?\/*src\/pages\//i, '') // "/src/pages/" 제거
     .replace(/\.tsx$/i, '')
-    .replace(/^[\/]+|[\/]+$/g, '') // 앞/뒤 슬래시 제거
+    .replace(/^[/]+|[/]+$/g, '') // 앞/뒤 슬래시 제거
     .toLowerCase();
 }
 
 // 3) URL 경로 정규화
 function normalizeUrlPath(p: string) {
   return p
-    .replace(/^[\/]+|[\/]+$/g, '') // 앞/뒤 슬래시 제거
+    .replace(/^[/]+|[/]+$/g, '') // 앞/뒤 슬래시 제거
     .replace(/\.tsx?$/i, '') // 표시용 .ts/.tsx 확장자 제거
     .replace(/\.js$/i, '')
     .toLowerCase(); // 소문자화
@@ -46,10 +50,11 @@ export default function PageRenderer({
   maskVersion?: number;
 }) {
   const location = useLocation();
-  const { pathname, state } = location as { pathname: string; state?: any };
+  const { pathname, state } = location as { pathname: string; state?: { maskedPage?: string } };
 
   // URL → pages 하위 파일 경로 계산
   const sub = useMemo(() => {
+    void maskVersion;
     // 기본 계산
     const raw = pathname.startsWith(base) ? pathname.slice(base.length) : pathname;
     const trimmed = normalizeUrlPath(raw);
@@ -67,9 +72,9 @@ export default function PageRenderer({
 
   // 케이스 불일치 대비: 전체 매핑을 소문자 키로 정규화
   const map = useMemo(() => {
-    const m: Record<string, () => Promise<any>> = {};
+    const m: Record<string, () => Promise<PageModule>> = {};
     Object.entries(modules).forEach(([k, loader]) => {
-      m[normalizeKey(k)] = loader as () => Promise<any>;
+      m[normalizeKey(k)] = loader as () => Promise<PageModule>;
     });
     return m;
   }, []);
@@ -87,12 +92,15 @@ export default function PageRenderer({
   }, [map]);
   // 요청된 경로에 대응하는 파일을 찾아 Lazy 컴포넌트 생성
   const key = sub; // 이미 소문자/슬래시정리 완료
-  const candidates = [key, `${key}/index`];
+  const defaultFolderKey = key.replace(/^default\//i, '');
+  const candidates = [key, `${key}/index`, defaultFolderKey, `${defaultFolderKey}/index`];
   let filePath = candidates.find((c) => c in map);
 
   // 폴더명 숨김: /app/mmsm08002s → m08/mmsm08002s 매핑 (basename 검색)
-  if (!filePath && !key.includes('/')) {
-    const byBase = baseNameMap[key];
+  if (!filePath) {
+    const parts = key.split('/');
+    const basename = parts[parts.length - 1];
+    const byBase = baseNameMap[basename];
     if (byBase) filePath = byBase;
   }
 
