@@ -23,6 +23,7 @@ export interface RowItem {
   totAmt: number;
   preIvQty: number;
   ivQty: number;
+  remQty: number;
   itemCd: string;
   unitCd: string;
   price: number;
@@ -32,8 +33,24 @@ export interface RowItem {
   reqYmd: string;
   ivYmd: string;
   endYn: string;
+  receiptStatus: string;
+  receiptStatusNm?: string;
   status: string;
   description: string;
+}
+
+const receiptStatusLabelMap: Record<string, string> = {
+  NOT_RECEIVED: '미입고',
+  PARTIAL_RECEIVED: '부분입고',
+  RECEIVED_COMPLETE: '입고완료',
+};
+
+function formatReceiptStatus(value: string) {
+  return receiptStatusLabelMap[value] ?? value;
+}
+
+function getReceiptStatusLabel(row: Pick<RowItem, 'receiptStatus' | 'receiptStatusNm'>) {
+  return row.receiptStatusNm || formatReceiptStatus(row.receiptStatus);
 }
 
 export const columns: GridColumn<RowItem>[] = [
@@ -65,6 +82,20 @@ export const columns: GridColumn<RowItem>[] = [
     alignment: 'right',
     cellRender: (row) => formatNumber(row.amt),
   },
+  {
+    dataField: 'remQty',
+    caption: '잔량',
+    width: 120,
+    alignment: 'right',
+    cellRender: (row) => formatNumber(row.remQty),
+  },
+  {
+    dataField: 'receiptStatus',
+    caption: '입고상태',
+    width: 110,
+    alignment: 'center',
+    cellRender: (row) => getReceiptStatusLabel(row),
+  },
   { dataField: 'endYn', caption: '완료여부', width: 100, alignment: 'center' },
   {
     dataField: 'totAmt',
@@ -91,6 +122,8 @@ export const exportHeaders = [
   '거래처명',
   '단가',
   '금액',
+  '잔량',
+  '입고상태',
   '총금액',
   '기입고량',
   '입고량',
@@ -116,6 +149,8 @@ export const mapExportRow = (r: RowItem) => [
   r.cstNm,
   r.price,
   r.amt,
+  r.remQty,
+  getReceiptStatusLabel(r),
   r.totAmt,
   r.preIvQty,
   r.ivQty,

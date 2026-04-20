@@ -74,6 +74,9 @@ export interface SaveDetailRow {
   ivYmd: string;
   ivSeq: string;
   ivSubSeq: number | string;
+  poYmd?: string;
+  poSeq?: number | string;
+  poSubSeq?: number | string;
   desc: string;
   itemCd: string;
   unitCd: string;
@@ -147,12 +150,13 @@ export function normalizeDetailRow(row: DetailRow | Record<string, unknown>): De
 
   return {
     ...detailRow,
-    ivYmd: pickString(source, ['ivYmd', 'IV_YMD']) ?? detailRow.ivYmd ?? detailRow.poYmd,
-    ivSeq: pickString(source, ['ivSeq', 'IV_SEQ']) ?? detailRow.ivSeq ?? detailRow.poSeq,
-    ivSubSeq: pickString(source, ['ivSubSeq', 'IV_SUB_SEQ', 'inSubSeq', 'IN_SUB_SEQ']) ?? detailRow.ivSubSeq ?? detailRow.poSubSeq,
-    poYmd: pickString(source, ['poYmd', 'PO_YMD']) ?? detailRow.poYmd ?? detailRow.ivYmd,
-    poSeq: pickString(source, ['poSeq', 'PO_SEQ']) ?? detailRow.poSeq ?? detailRow.ivSeq,
-    poSubSeq: pickString(source, ['poSubSeq', 'PO_SUB_SEQ']) ?? detailRow.poSubSeq ?? detailRow.ivSubSeq,
+    ivYmd: pickString(source, ['ivYmd', 'IV_YMD']) ?? detailRow.ivYmd,
+    ivSeq: pickString(source, ['ivSeq', 'IV_SEQ']) ?? detailRow.ivSeq,
+    ivSubSeq:
+      pickString(source, ['ivSubSeq', 'IV_SUB_SEQ', 'inSubSeq', 'IN_SUB_SEQ']) ?? detailRow.ivSubSeq,
+    poYmd: pickString(source, ['poYmd', 'PO_YMD']) ?? detailRow.poYmd,
+    poSeq: pickString(source, ['poSeq', 'PO_SEQ']) ?? detailRow.poSeq,
+    poSubSeq: pickString(source, ['poSubSeq', 'PO_SUB_SEQ']) ?? detailRow.poSubSeq,
     itemCd: pickString(source, ['itemCd', 'ITEM_CD']) ?? detailRow.itemCd,
     itemNm: pickString(source, ['itemNm', 'ITEM_NM']) ?? detailRow.itemNm,
     unitCd: pickString(source, ['unitCd', 'UNIT_CD']) ?? detailRow.unitCd,
@@ -256,6 +260,9 @@ export function buildMmsm01003SavePayload({
       ivYmd: row.ivYmd ?? '',
       ivSeq: row.ivSeq === undefined || row.ivSeq === null ? '' : String(row.ivSeq),
       ivSubSeq: '',
+      poYmd: row.poYmd ?? '',
+      poSeq: row.poSeq === undefined || row.poSeq === null ? '' : String(row.poSeq),
+      poSubSeq: row.poSubSeq ?? '',
       desc: row.description ?? '',
       itemCd: row.itemCd ?? '',
       unitCd: row.unitCd ?? '',
@@ -273,6 +280,9 @@ export function buildMmsm01003SavePayload({
       ivYmd: row.ivYmd ?? '',
       ivSeq: row.ivSeq === undefined || row.ivSeq === null ? '' : String(row.ivSeq),
       ivSubSeq: row.ivSubSeq ?? index + 1,
+      poYmd: row.poYmd ?? '',
+      poSeq: row.poSeq === undefined || row.poSeq === null ? '' : String(row.poSeq),
+      poSubSeq: row.poSubSeq ?? '',
       desc: row.description ?? '',
       itemCd: row.itemCd ?? '',
       unitCd: row.unitCd ?? '',
@@ -289,6 +299,9 @@ export function buildMmsm01003SavePayload({
       ivYmd: row.ivYmd ?? '',
       ivSeq: row.ivSeq === undefined || row.ivSeq === null ? '' : String(row.ivSeq),
       ivSubSeq: row.ivSubSeq ?? index + 1,
+      poYmd: row.poYmd ?? '',
+      poSeq: row.poSeq === undefined || row.poSeq === null ? '' : String(row.poSeq),
+      poSubSeq: row.poSubSeq ?? '',
       desc: row.description ?? '',
       itemCd: row.itemCd ?? '',
       unitCd: row.unitCd ?? '',

@@ -39,6 +39,9 @@ import { useEffect, useRef, useState } from 'react';
 
 type MasterRow = {
   CHECK?: boolean;
+  poYmd?: string;
+  poSeq?: number | string;
+  poSubSeq?: number | string;
   itemCd?: string;
   itemNm?: string;
   unitCd?: string;
@@ -190,6 +193,9 @@ export default function MMSM01003E() {
         CHECK: true,
         method: 'I' as const,
         ivSubSeq: nextDetailSubSeq + index + 1,
+        poYmd: row.poYmd ?? '',
+        poSeq: row.poSeq ?? '',
+        poSubSeq: row.poSubSeq ?? '',
         itemCd: row.itemCd ?? '',
         itemNm: row.itemNm ?? '',
         unitCd: row.unitCd ?? '',
