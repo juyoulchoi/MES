@@ -28,7 +28,6 @@ const MMSM01004S: React.FC = () => {
 
   const [form, setForm] = useState<SearchForm>({
     ivDate: today.toISOString().slice(0, 10),
-    ivSeq: '',
     cstCd: '',
     cstNm: '',
     itemCd: '',
@@ -43,7 +42,6 @@ const MMSM01004S: React.FC = () => {
     includeSizeParam: false,
     mapParams: ({ form: currentForm }) => ({
       ivYmd: currentForm.ivDate.split('-').join(''),
-      ivSeq: currentForm.ivSeq || '',
       cstCd: currentForm.cstCd || '',
       itemCd: currentForm.itemCd || '',
     }),
@@ -54,21 +52,14 @@ const MMSM01004S: React.FC = () => {
       <div className="mx-auto flex max-w-[1680px] flex-col gap-4">
         <SectionCard span="full" padding="md">
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-[446px_546px_1fr] xl:gap-12">
-            <div className="w-[446px]">
-              <div className="grid grid-cols-[96px_150px_80px_96px] items-center gap-3">
+            <div className="w-[260px]">
+              <div className="grid grid-cols-[96px_150px] items-center gap-3">
                 <label className="text-sm text-gray-600">입고일자</label>
                 <input
                   type="date"
                   value={form.ivDate}
                   onChange={(e) => setForm((prev) => ({ ...prev, ivDate: e.target.value }))}
                   className="h-9 w-[150px] rounded-lg border px-2"
-                />
-                <label className="text-sm text-gray-600">입고순번</label>
-                <input
-                  value={form.ivSeq}
-                  onChange={(e) => setForm((prev) => ({ ...prev, ivSeq: e.target.value }))}
-                  className="h-9 w-[96px] rounded-lg border px-2"
-                  placeholder="전체"
                 />
               </div>
             </div>
