@@ -6,42 +6,32 @@ import DateEdit from '@/components/DateEdit';
 import SectionCard from '@/components/SectionCard';
 import SectionHeader from '@/components/SectionHeader';
 import { CheckColumn, Column, DataGrid } from '@/components/table/DataGrid';
-import {
-  exportExcelTemplate,
-  parseExcelUploadFile,
-  validateExcelUploadRows,
-} from '@/lib/excelUpload';
-import { patchCheckedRow, removeCheckedRows } from '@/lib/gridRows';
+import { patchCheckedRow } from '@/lib/gridRows';
 import { http } from '@/lib/http';
 import { formatNumber } from '@/lib/utils';
-import { EmptyPageResult, PAGE_SIZE } from '@/lib/pagination';
 import {
-  calculateAmount,
   getTodayYmd,
   updateCheckedRows,
 } from '@/pages/M01/registerDetailShared';
 import { usePageApiFetch } from '@/services/common/getApiFetch';
 import {
   buildMmsm01003SavePayload,
-  createUploadedDetailRows,
-  dedupeDetailRows,
-  fetchMmsm01003Detail,
-  getDetailRowKey,
-  getNextDetailSubSeq,
-  normalizeDetailRow,
   type AuthMeResponse,
   type DetailRow,
-  type ExcelUploadRow,
-  type ExcelValidateResponse,
   type SearchForm,
 } from '@/services/m01/mmsm01003';
 import { useEffect, useRef, useState } from 'react';
 
-type MasterRow = {
+type PurchaseRow = Record<string, unknown> & {
   CHECK?: boolean;
   poYmd?: string;
   poSeq?: number | string;
   poSubSeq?: number | string;
+  receiptStatus?: string;
+  receiptStatusNm?: string;
+  preIvQty?: number | string;
+  ivQty?: number | string;
+  remQty?: number | string;
   itemCd?: string;
   itemNm?: string;
   unitCd?: string;
@@ -50,26 +40,122 @@ type MasterRow = {
   amt?: number | string;
 };
 
-const EXCEL_TEMPLATE_HEADERS = ['품목코드', '품목명', '수량', '비고'];
+type ReceivableDetailRow = DetailRow & {
+  receiptStatus?: string;
+  receiptStatusNm?: string;
+  orderQty?: number | string;
+  preIvQty?: number | string;
+  ivQty?: number | string;
+  remQty?: number | string;
+};
+
+const PURCHASE_SEARCH_START_DATE = '19000101';
+
+function pickValue(source: Record<string, unknown>, keys: string[]) {
+  for (const key of keys) {
+    const value = source[key];
+    if (value !== undefined && value !== null && value !== '') {
+      return value;
+    }
+  }
+
+  return undefined;
+}
+
+function pickString(source: Record<string, unknown>, keys: string[]) {
+  const value = pickValue(source, keys);
+  return value === undefined ? undefined : String(value);
+}
+
+function pickNumberLike(source: Record<string, unknown>, keys: string[]) {
+  const value = pickValue(source, keys);
+  return value === undefined ? undefined : String(value);
+}
+
+function toNumber(value: number | string | undefined) {
+  if (value === undefined || value === '') return 0;
+
+  const numeric = Number(String(value).replace(/,/g, ''));
+  return Number.isNaN(numeric) ? 0 : numeric;
+}
+
+function getOrderQty(row: PurchaseRow | ReceivableDetailRow) {
+  const qty = toNumber(row.qty);
+  if (qty > 0) return qty;
+
+  return toNumber(row.preIvQty) + toNumber(row.ivQty) + toNumber(row.remQty);
+}
+
+function getReceivedQty(row: PurchaseRow | ReceivableDetailRow) {
+  return toNumber(row.preIvQty) + toNumber(row.ivQty);
+}
+
+function formatQty(value: number | string | undefined) {
+  return formatNumber(toNumber(value));
+}
+
+function isReceivablePurchase(row: PurchaseRow) {
+  const receiptStatus = row.receiptStatus ?? '';
+  return (
+    toNumber(row.remQty) > 0 ||
+    receiptStatus === 'NOT_RECEIVED' ||
+    receiptStatus === 'PARTIAL_RECEIVED'
+  );
+}
+
+function normalizePurchaseRow(row: PurchaseRow): PurchaseRow {
+  return {
+    ...row,
+    poYmd: pickString(row, ['poYmd', 'PO_YMD']) ?? row.poYmd,
+    poSeq: pickString(row, ['poSeq', 'PO_SEQ']) ?? row.poSeq,
+    poSubSeq: pickString(row, ['poSubSeq', 'PO_SUB_SEQ']) ?? row.poSubSeq,
+    receiptStatus:
+      pickString(row, ['receiptStatus', 'RECEIPT_STATUS', 'status', 'STATUS']) ??
+      row.receiptStatus,
+    receiptStatusNm:
+      pickString(row, ['receiptStatusNm', 'RECEIPT_STATUS_NM', 'statusNm', 'STATUS_NM']) ??
+      row.receiptStatusNm,
+    preIvQty:
+      pickNumberLike(row, [
+        'preIvQty',
+        'PRE_IV_QTY',
+        'prevIvQty',
+        'PREV_IV_QTY',
+        'preInQty',
+        'PRE_IN_QTY',
+      ]) ?? row.preIvQty,
+    ivQty: pickNumberLike(row, ['ivQty', 'IV_QTY']) ?? row.ivQty,
+    remQty:
+      pickNumberLike(row, ['remQty', 'REM_QTY', 'remainQty', 'REMAIN_QTY', 'balQty', 'BAL_QTY']) ??
+      row.remQty,
+    itemCd: pickString(row, ['itemCd', 'ITEM_CD']) ?? row.itemCd,
+    itemNm: pickString(row, ['itemNm', 'ITEM_NM']) ?? row.itemNm,
+    unitCd: pickString(row, ['unitCd', 'UNIT_CD']) ?? row.unitCd,
+    qty: pickNumberLike(row, ['qty', 'QTY', 'poQty', 'PO_QTY']) ?? row.qty,
+    price:
+      pickNumberLike(row, ['price', 'poPrice', 'unitPrice', 'PRICE', 'PO_PRICE', 'UNIT_PRICE']) ??
+      row.price,
+    amt: pickNumberLike(row, ['amt', 'poAmt', 'totAmt', 'AMT', 'PO_AMT', 'TOT_AMT']) ?? row.amt,
+  };
+}
+
+function formatPurchaseDate(row: PurchaseRow | ReceivableDetailRow) {
+  const ymd = String(row.poYmd ?? '');
+  const date =
+    /^\d{8}$/.test(ymd) ? `${ymd.slice(0, 4)}-${ymd.slice(4, 6)}-${ymd.slice(6, 8)}` : ymd;
+  const seq = [row.poSeq, row.poSubSeq].filter(Boolean).join('-');
+
+  return { date, seq };
+}
 
 export default function MMSM01003E() {
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const detailGridRef = useRef<HTMLDivElement | null>(null);
   const [customerOpen, setCustomerOpen] = useState(false);
   const [cstNm, setCstNm] = useState('');
-  const [masterRows, setMasterRows] = useState<MasterRow[]>([]);
-  const [detailRows, setDetailRows] = useState<DetailRow[]>([]);
-  const [deletedDetailRows, setDeletedDetailRows] = useState<DetailRow[]>([]);
-  const [detailResult, setDetailResult] = useState(() => EmptyPageResult<DetailRow>(0, PAGE_SIZE));
-  const [detailLoading, setDetailLoading] = useState(false);
-  const [detailError, setDetailError] = useState<string | null>(null);
+  const [detailRows, setDetailRows] = useState<ReceivableDetailRow[]>([]);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
-  const [uploadWarnings, setUploadWarnings] = useState<string[]>([]);
   const [itemNameWidth, setItemNameWidth] = useState(220);
-  const [descriptionWidth, setDescriptionWidth] = useState(280);
 
   const [form, setForm] = useState<SearchForm>(() => ({
     ivDate: getTodayYmd(),
@@ -81,35 +167,18 @@ export default function MMSM01003E() {
     loading: masterLoading,
     error: masterError,
     fetchList: fetchMasterList,
-  } = usePageApiFetch<SearchForm, MasterRow>({
-    apiPath: '/api/v1/mdm/item/searchItemCustList',
+  } = usePageApiFetch<SearchForm, PurchaseRow>({
+    apiPath: '/api/v1/material/pomst/search',
     form,
-    pageSize: PAGE_SIZE,
+    pageSize: 100,
     mapParams: ({ form: currentForm }) => ({
-      itemGb: '',
+      poYmdS: PURCHASE_SEARCH_START_DATE,
+      poYmdE: currentForm.ivDate.split('-').join(''),
       cstCd: currentForm.cstCd || '',
+      itemCd: '',
+      itemGb: '',
     }),
   });
-
-  async function fetchDetailList(nextPage = 0) {
-    setDetailLoading(true);
-    setDetailError(null);
-
-    try {
-      setDetailResult(
-        await fetchMmsm01003Detail({
-          form,
-          page: nextPage,
-          pageSize: PAGE_SIZE,
-        })
-      );
-    } catch (e) {
-      setDetailResult(EmptyPageResult<DetailRow>(nextPage, PAGE_SIZE));
-      setDetailError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setDetailLoading(false);
-    }
-  }
 
   async function onSearch() {
     if (!form.cstCd) {
@@ -117,26 +186,41 @@ export default function MMSM01003E() {
       return;
     }
 
-    await Promise.all([fetchMasterList(0), fetchDetailList(0)]);
+    setSaveError(null);
+    await fetchMasterList(0);
   }
 
-  const isSearch = masterLoading || detailLoading || saving || uploading;
-  const isSave = masterLoading || detailLoading || saving || uploading;
-  const isUpload = saving || uploading;
+  const isSearch = masterLoading || saving;
+  const isSave = masterLoading || saving;
 
   useEffect(() => {
-    setMasterRows(masterResult.content.map((row) => ({ ...row, CHECK: false })));
-  }, [masterResult.content]);
-
-  useEffect(() => {
-    setDeletedDetailRows([]);
     setDetailRows(
-      detailResult.content.map((row) => ({
-        ...normalizeDetailRow(row),
-        CHECK: false,
-      }))
+      masterResult.content
+        .map((row) => normalizePurchaseRow(row))
+        .filter((row) => isReceivablePurchase(row))
+        .map((row, index) => ({
+          CHECK: false,
+          method: 'I' as const,
+          ivSubSeq: index + 1,
+          poYmd: row.poYmd ?? '',
+          poSeq: row.poSeq ?? '',
+          poSubSeq: row.poSubSeq ?? '',
+          receiptStatus: row.receiptStatus,
+          receiptStatusNm: row.receiptStatusNm,
+          orderQty: getOrderQty(row),
+          preIvQty: row.preIvQty,
+          ivQty: row.ivQty,
+          remQty: row.remQty,
+          itemCd: row.itemCd ?? '',
+          itemNm: row.itemNm ?? '',
+          unitCd: row.unitCd ?? '',
+          qty: row.remQty ?? row.qty ?? '',
+          price: row.price ?? '',
+          amt: row.amt ?? '',
+          description: '',
+        }))
     );
-  }, [detailResult.content]);
+  }, [masterResult.content]);
 
   useEffect(() => {
     const element = detailGridRef.current;
@@ -146,13 +230,11 @@ export default function MMSM01003E() {
       const nextWidth = element.clientWidth;
       if (!nextWidth) return;
 
-      const fixedWidth = 48 + 88 + 88 + 120 + 90 + 120 + 120 + 130 + 40;
-      const remaining = Math.max(nextWidth - fixedWidth, 360);
-      const nextItemNameWidth = Math.min(Math.max(Math.floor(remaining * 0.4), 180), 320);
-      const nextDescriptionWidth = Math.max(remaining - nextItemNameWidth, 180);
+      const fixedWidth = 48 + 120 + 120 + 90 + 80 + 80 + 120 + 40;
+      const remaining = Math.max(nextWidth - fixedWidth, 180);
+      const nextItemNameWidth = Math.min(Math.max(remaining, 180), 360);
 
       setItemNameWidth(nextItemNameWidth);
-      setDescriptionWidth(nextDescriptionWidth);
     };
 
     updateWidths();
@@ -165,10 +247,6 @@ export default function MMSM01003E() {
       window.removeEventListener('resize', updateWidths);
     };
   }, []);
-
-  function toggleMaster(rowIndex: number, checked: boolean) {
-    updateCheckedRows(setMasterRows, rowIndex, checked);
-  }
 
   function toggleDetail(rowIndex: number, checked: boolean) {
     updateCheckedRows(setDetailRows, rowIndex, checked);
@@ -183,123 +261,10 @@ export default function MMSM01003E() {
     );
   }
 
-  function onAddFromMaster() {
-    const selected = masterRows.filter((row) => row.CHECK);
-    if (selected.length === 0) return;
-
-    setDetailRows((prev) => {
-      const nextDetailSubSeq = getNextDetailSubSeq(prev);
-      const additions = selected.map((row, index) => ({
-        CHECK: true,
-        method: 'I' as const,
-        ivSubSeq: nextDetailSubSeq + index + 1,
-        poYmd: row.poYmd ?? '',
-        poSeq: row.poSeq ?? '',
-        poSubSeq: row.poSubSeq ?? '',
-        itemCd: row.itemCd ?? '',
-        itemNm: row.itemNm ?? '',
-        unitCd: row.unitCd ?? '',
-        qty: row.qty ?? '',
-        price: row.price ?? '',
-        amt: row.amt ?? '',
-        description: '',
-      }));
-
-      return [...prev, ...additions];
-    });
-
-    setMasterRows((prev) => prev.map((row) => ({ ...row, CHECK: false })));
-  }
-
-  function onDeleteDetail() {
-    setDetailRows((prev) => {
-      const rowsToDelete = prev.filter((row) => row.CHECK);
-      if (rowsToDelete.length === 0) {
-        return prev;
-      }
-
-      setDeletedDetailRows((current) =>
-        dedupeDetailRows([
-          ...current,
-          ...rowsToDelete
-            .map((row) => normalizeDetailRow(row))
-            .filter((row) => row.method !== 'I' && row.ivYmd && row.ivSeq !== undefined)
-            .map((row) => ({
-              ...row,
-              CHECK: false,
-              method: 'D' as const,
-            })),
-        ])
-      );
-
-      return removeCheckedRows(prev);
-    });
-  }
-
-  function onUploadCsv() {
-    if (!form.ivDate) {
-      setUploadError('입고일자를 먼저 선택하세요.');
-      return;
-    }
-
-    if (!form.cstCd) {
-      setUploadError('거래처를 먼저 선택하세요.');
-      return;
-    }
-
-    setUploadError(null);
-    fileInputRef.current?.click();
-  }
-
-  async function onFileChange(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    event.target.value = '';
-    if (!file) return;
-
-    setUploading(true);
-    setUploadError(null);
-    setUploadWarnings([]);
-
-    try {
-      const rows = await parseExcelFile(file);
-      const result = await validateExcelRows(rows);
-      const validRows = result.validRows ?? [];
-      const errors = result.errors ?? [];
-
-      if (errors.length > 0) {
-        setUploadWarnings(
-          errors.map((error) => `${error.rowNo}행 ${error.field ?? ''} ${error.message}`.trim())
-        );
-      }
-
-      if (validRows.length === 0) {
-        setUploadError('업로드 가능한 데이터가 없습니다.');
-        return;
-      }
-
-      applyUploadedRows(validRows);
-    } catch (e) {
-      setUploadError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setUploading(false);
-    }
-  }
-
-  async function parseExcelFile(file: File): Promise<ExcelUploadRow[]> {
-    return parseExcelUploadFile(file);
-  }
-
-  async function validateExcelRows(rows: ExcelUploadRow[]): Promise<ExcelValidateResponse> {
-    return validateExcelUploadRows(rows);
-  }
-
-  function applyUploadedRows(rows: ExcelUploadRow[]) {
-    setDeletedDetailRows([]);
-    setDetailRows(createUploadedDetailRows(rows));
-  }
-
   async function onSave() {
-    if (detailRows.length === 0 && deletedDetailRows.length === 0) {
+    const selectedRows = detailRows.filter((row) => row.CHECK);
+
+    if (selectedRows.length === 0) {
       setSaveError('저장할 데이터가 없습니다.');
       return;
     }
@@ -331,14 +296,13 @@ export default function MMSM01003E() {
 
       const payload = buildMmsm01003SavePayload({
         form,
-        detailRows,
-        deletedDetailRows,
+        detailRows: selectedRows,
+        deletedDetailRows: [],
         userId,
       });
 
       await http('/api/v1/material/ivmst/savePayload', { method: 'POST', body: payload });
-      setDeletedDetailRows([]);
-      await Promise.all([fetchMasterList(0), fetchDetailList(0)]);
+      await fetchMasterList(0);
     } catch (e) {
       setSaveError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -346,33 +310,9 @@ export default function MMSM01003E() {
     }
   }
 
-  function onExportCsv() {
-    exportExcelTemplate(
-      '원자재입고등록양식.xlsx',
-      [
-        {
-          품목코드: 'RM001',
-          품목명: '원자재명',
-          단위: 'EA',
-          수량: 100,
-          비고: '비고',
-        },
-      ],
-      EXCEL_TEMPLATE_HEADERS
-    );
-  }
-
   return (
     <div className="min-h-full bg-slate-50/60 p-4">
       <div className="mx-auto flex max-w-[1680px] flex-col gap-4">
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".xlsx,.xls"
-          className="hidden"
-          onChange={onFileChange}
-        />
-
         <SectionCard span="full" padding="md">
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-[450px_420px_1fr]">
             <DateEdit
@@ -396,96 +336,90 @@ export default function MMSM01003E() {
             <ActionButtonGroup
               onSearch={onSearch}
               onSave={() => onSave()}
-              onUpload={onUploadCsv}
-              onExport={onExportCsv}
+              onUpload={() => undefined}
+              onExport={() => undefined}
               searchDisabled={isSearch}
               saveDisabled={isSave}
-              uploadDisabled={isUpload}
+              showUpload={false}
+              showExport={false}
             />
           </div>
         </SectionCard>
 
-        {(masterError || detailError || saveError || uploadError) && (
-          <AlertBox tone="error">{masterError ?? detailError ?? saveError ?? uploadError}</AlertBox>
+        {(masterError || saveError) && (
+          <AlertBox tone="error">{masterError ?? saveError}</AlertBox>
         )}
 
-        {uploadWarnings.length > 0 && (
-          <AlertBox tone="warning">
-            {uploadWarnings.map((warning, index) => (
-              <div key={`${warning}-${index}`}>{warning}</div>
-            ))}
-          </AlertBox>
-        )}
-
-        <div className="grid grid-cols-12 gap-4">
-          <SectionCard span="left" width="full">
+        <div className="grid grid-cols-12 gap-4" ref={detailGridRef}>
+          <SectionCard span="full" width="full">
             <SectionHeader
-              title="발주 예비 품목"
+              title="입고 등록 대상"
               right={
                 <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
-                  {masterRows.length}건
+                  {detailRows.length}건
                 </span>
               }
             />
             <div className="max-h-[68vh] overflow-auto">
               <DataGrid
-                dataSource={masterRows}
-                showBorders={true}
-                rowKey={(row, index) => row.itemCd || index}
-                emptyText="발주 후보 데이터가 없습니다."
-              >
-                <CheckColumn
-                  checked={(row) => !!row.CHECK}
-                  onChange={(_row, rowIndex, checked) => toggleMaster(rowIndex, checked)}
-                />
-                <Column dataField="itemCd" caption="품목코드" width={80} alignment="center" />
-                <Column dataField="itemNm" caption="품목명" width={120} alignment="left" />
-                <Column dataField="unitCd" caption="단위  " width={60} alignment="center" />
-              </DataGrid>
-            </div>
-          </SectionCard>
-
-          <div className="col-span-12 flex items-center justify-center md:col-span-1">
-            <div className="flex w-full flex-row gap-2 md:w-[60px] md:min-w-[60px] md:flex-col">
-              <button
-                onClick={onAddFromMaster}
-                className="flex-1 rounded-xl border border-emerald-200 bg-emerald-50 px-2 py-3 text-sm font-medium text-emerald-700 transition hover:bg-emerald-100"
-              >
-                추가
-              </button>
-              <button
-                onClick={onDeleteDetail}
-                className="flex-1 rounded-xl border border-rose-200 bg-rose-50 px-2 py-3 text-sm font-medium text-rose-700 transition hover:bg-rose-100"
-              >
-                삭제
-              </button>
-            </div>
-          </div>
-
-          <SectionCard span="right" width="full">
-            <SectionHeader title="입고 등록 상세" />
-            <div ref={detailGridRef} className="max-h-[68vh] overflow-auto">
-              <DataGrid
                 dataSource={detailRows}
                 showBorders={true}
-                rowKey={(row, index) => {
-                  const key = getDetailRowKey(row);
-                  return key === '||' ? `${row.itemCd ?? 'item'}-${index}` : `${key}-${index}`;
-                }}
-                emptyText="입고 상세 데이터가 없습니다. 좌측 후보에서 선택 후 추가하세요."
+                rowKey={(row, index) =>
+                  `${row.poYmd ?? 'po'}-${row.poSeq ?? 'seq'}-${row.poSubSeq ?? 'sub'}-${row.itemCd ?? 'item'}-${index}`
+                }
+                emptyText="입고 등록 가능한 미입고 발주 품목이 없습니다."
                 classNames={{
-                  table: 'min-w-[1200px] w-full text-sm',
+                  table: 'min-w-[1040px] w-full text-sm',
                 }}
               >
                 <CheckColumn
                   checked={(row) => !!row.CHECK}
                   onChange={(_row, rowIndex, checked) => toggleDetail(rowIndex, checked)}
                 />
-                <Column dataField="ivSeq" caption="입고순번" width={88} alignment="center" />
-                <Column dataField="ivSubSeq" caption="상세순번" width={88} alignment="center" />
-                <Column dataField="itemCd" caption="원자재코드" width={120} alignment="center" />
-                <Column dataField="itemNm" caption="원자재명" width={itemNameWidth} />
-                <Column dataField="unitCd" caption="단위" width={90} alignment="center" />
+                <Column
+                  dataField="poYmd"
+                  caption="발주"
+                  width={120}
+                  alignment="center"
+                  cellRender={(row: ReceivableDetailRow) => {
+                    const purchase = formatPurchaseDate(row);
+
+                    return (
+                      <div className="leading-tight">
+                        <div className="font-medium text-slate-800">{purchase.date}</div>
+                        {purchase.seq ? (
+                          <div className="text-xs text-slate-500">#{purchase.seq}</div>
+                        ) : null}
+                      </div>
+                    );
+                  }}
+                />
+                <Column dataField="itemCd" caption="품목코드" width={90} alignment="center" />
+                <Column dataField="itemNm" caption="품목명" width={itemNameWidth} alignment="left" />
+                <Column dataField="unitCd" caption="단위" width={60} alignment="center" />
+                <Column
+                  dataField="qty"
+                  caption="발주수량"
+                  width={90}
+                  alignment="right"
+                  cellRender={(row: ReceivableDetailRow) => formatQty(row.orderQty)}
+                />
+                <Column
+                  dataField="preIvQty"
+                  caption="기입고"
+                  width={80}
+                  alignment="right"
+                  cellRender={(row: ReceivableDetailRow) => formatNumber(getReceivedQty(row))}
+                />
+                <Column
+                  dataField="remQty"
+                  caption="잔량"
+                  width={80}
+                  alignment="right"
+                  cellRender={(row: ReceivableDetailRow) => (
+                    <span className="font-semibold text-emerald-700">{formatQty(row.remQty)}</span>
+                  )}
+                />
                 <Column
                   dataField="qty"
                   caption="입고수량"
@@ -496,42 +430,6 @@ export default function MMSM01003E() {
                       className="h-8 w-full rounded border border-slate-200 px-2 text-right"
                       value={row.qty ?? ''}
                       onChange={(e) => onDetailChange(rowIndex, { qty: e.target.value })}
-                    />
-                  )}
-                />
-                <Column
-                  dataField="price"
-                  caption="단가"
-                  width={120}
-                  alignment="right"
-                  cellRender={(row: DetailRow, rowIndex) => (
-                    <input
-                      className="h-8 w-full rounded border border-slate-200 px-2 text-right"
-                      value={row.price ?? ''}
-                      onChange={(e) => onDetailChange(rowIndex, { price: e.target.value })}
-                    />
-                  )}
-                />
-                <Column
-                  dataField="amt"
-                  caption="금액"
-                  width={130}
-                  alignment="right"
-                  cellRender={(row: DetailRow) => (
-                    <div className="px-2 text-right">
-                      {formatNumber(calculateAmount(row.qty, row.price))}
-                    </div>
-                  )}
-                />
-                <Column
-                  dataField="description"
-                  caption="비고"
-                  width={descriptionWidth}
-                  cellRender={(row: DetailRow, rowIndex) => (
-                    <input
-                      className="h-8 w-full rounded border border-slate-200 px-2"
-                      value={row.description || ''}
-                      onChange={(e) => onDetailChange(rowIndex, { description: e.target.value })}
                     />
                   )}
                 />
