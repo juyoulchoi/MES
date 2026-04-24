@@ -9,6 +9,8 @@ type ActionButtonGroupProps = {
   saveDisabled?: boolean;
   uploadDisabled?: boolean;
   exportDisabled?: boolean;
+  showUpload?: boolean;
+  showExport?: boolean;
   className?: string;
 };
 
@@ -21,6 +23,8 @@ export default function ActionButtonGroup({
   saveDisabled = false,
   uploadDisabled = false,
   exportDisabled = false,
+  showUpload = true,
+  showExport = true,
   className = 'flex flex-wrap items-end justify-end gap-2',
 }: ActionButtonGroupProps) {
   return (
@@ -39,20 +43,24 @@ export default function ActionButtonGroup({
       >
         저장
       </button>
-      <button
-        onClick={onUpload}
-        disabled={uploadDisabled}
-        className="h-10 rounded-lg border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
-      >
-        엑셀 업로드
-      </button>
-      <button
-        onClick={onExport}
-        disabled={exportDisabled}
-        className="h-10 rounded-lg border border-emerald-200 bg-emerald-50 px-4 text-sm font-medium text-emerald-700 transition hover:bg-emerald-100"
-      >
-        양식 다운로드
-      </button>
+      {showUpload ? (
+        <button
+          onClick={onUpload}
+          disabled={uploadDisabled}
+          className="h-10 rounded-lg border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
+        >
+          엑셀 업로드
+        </button>
+      ) : null}
+      {showExport ? (
+        <button
+          onClick={onExport}
+          disabled={exportDisabled}
+          className="h-10 rounded-lg border border-emerald-200 bg-emerald-50 px-4 text-sm font-medium text-emerald-700 transition hover:bg-emerald-100"
+        >
+          양식 다운로드
+        </button>
+      ) : null}
     </div>
   );
 }
