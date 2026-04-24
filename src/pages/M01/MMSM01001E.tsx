@@ -8,7 +8,6 @@ import SectionCard from '@/components/SectionCard';
 import SectionHeader from '@/components/SectionHeader';
 import { CheckColumn, Column, DataGrid } from '@/components/table/DataGrid';
 import { toYmd } from '@/lib/excel';
-import { formatNumber } from '@/lib/utils';
 import {
   exportExcelTemplate,
   parseExcelUploadFile,
@@ -57,7 +56,6 @@ export default function MMSM01001E() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [itemNameWidth, setItemNameWidth] = useState(220);
-  const [descriptionWidth, setDescriptionWidth] = useState(280);
   const minPoYmd = getTodayYmd();
 
   const [form, setForm] = useState<SearchForm>(() => ({
@@ -147,13 +145,11 @@ export default function MMSM01001E() {
       const nextWidth = element.clientWidth;
       if (!nextWidth) return;
 
-      const fixedWidth = 48 + 100 + 100 + 120 + 140 + 130 + 90 + 120 + 120 + 130 + 40;
-      const remaining = Math.max(nextWidth - fixedWidth, 360);
-      const nextItemNameWidth = Math.min(Math.max(Math.floor(remaining * 0.4), 180), 320);
-      const nextDescriptionWidth = Math.max(remaining - nextItemNameWidth, 180);
+      const fixedWidth = 48 + 120 + 140 + 130 + 90 + 120 + 120 + 40;
+      const remaining = Math.max(nextWidth - fixedWidth, 180);
+      const nextItemNameWidth = Math.min(Math.max(remaining, 180), 360);
 
       setItemNameWidth(nextItemNameWidth);
-      setDescriptionWidth(nextDescriptionWidth);
     };
 
     updateWidths();
@@ -591,26 +587,12 @@ export default function MMSM01001E() {
                 }
                 emptyText="발주 상세 데이터가 없습니다. 좌측 후보에서 선택 후 추가하세요."
                 classNames={{
-                  table: 'min-w-[1320px] w-full text-sm',
+                  table: 'min-w-[980px] w-full text-sm',
                 }}
               >
                 <CheckColumn
                   checked={(row) => !!row.CHECK}
                   onChange={(_row, rowIndex, checked) => toggleDetail(rowIndex, checked)}
-                />
-                <Column
-                  dataField="poSeq"
-                  caption="발주순번"
-                  width={100}
-                  alignment="center"
-                  headerClassName="whitespace-nowrap"
-                />
-                <Column
-                  dataField="poSubSeq"
-                  caption="상세순번"
-                  width={100}
-                  alignment="center"
-                  headerClassName="whitespace-nowrap"
                 />
                 <Column dataField="itemCd" caption="원자재코드" width={120} alignment="center" />
                 <Column dataField="itemNm" caption="원자재명" width={itemNameWidth} />
@@ -671,28 +653,6 @@ export default function MMSM01001E() {
                       className="h-8 w-full rounded border border-slate-200 px-2 text-right"
                       value={row.price ?? ''}
                       onChange={(e) => onDetailChange(rowIndex, { price: e.target.value })}
-                    />
-                  )}
-                />
-                <Column
-                  dataField="amt"
-                  caption="금액"
-                  width={130}
-                  alignment="right"
-                  headerAlignment="center"
-                  cellRender={(row: DetailRow) => (
-                    <div className="px-2 text-right">{formatNumber(calculateAmount(row.qty, row.price))}</div>
-                  )}
-                />
-                <Column
-                  dataField="description"
-                  caption="비고"
-                  width={descriptionWidth}
-                  cellRender={(row: DetailRow, rowIndex) => (
-                    <input
-                      className="h-8 w-full rounded border border-slate-200 px-2"
-                      value={row.description || ''}
-                      onChange={(e) => onDetailChange(rowIndex, { description: e.target.value })}
                     />
                   )}
                 />
