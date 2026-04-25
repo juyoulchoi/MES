@@ -46,9 +46,6 @@ export interface DetailRow {
   giYmd?: string;
   giSeq?: number | string;
   giSubSeq?: number | string;
-  soYmd?: string;
-  soSeq?: number | string;
-  soSubSeq?: number | string;
   itemCd?: string;
   itemNm?: string;
   unitCd?: string;
@@ -64,9 +61,6 @@ export interface SaveDetailRow {
   giYmd: string;
   giSeq: string;
   giSubSeq: number | string;
-  soYmd?: string;
-  soSeq?: number | string;
-  soSubSeq?: number | string;
   desc: string;
   itemCd: string;
   unitCd: string;
@@ -145,9 +139,6 @@ export function normalizeDetailRow(row: DetailRow | Record<string, unknown>): De
     giSubSeq:
       pickString(source, ['giSubSeq', 'GI_SUB_SEQ', 'outSubSeq', 'OUT_SUB_SEQ']) ??
       detailRow.giSubSeq,
-    soYmd: pickString(source, ['soYmd', 'SO_YMD']) ?? detailRow.soYmd,
-    soSeq: pickString(source, ['soSeq', 'SO_SEQ']) ?? detailRow.soSeq,
-    soSubSeq: pickString(source, ['soSubSeq', 'SO_SUB_SEQ']) ?? detailRow.soSubSeq,
     itemCd: pickString(source, ['itemCd', 'ITEM_CD']) ?? detailRow.itemCd,
     itemNm: pickString(source, ['itemNm', 'ITEM_NM']) ?? detailRow.itemNm,
     unitCd: pickString(source, ['unitCd', 'UNIT_CD']) ?? detailRow.unitCd,
@@ -206,9 +197,9 @@ export async function fetchMmsm01005Detail({
     '/api/v1/material/gidet/search',
     toApiParams({
       giYmd: form.giDate.split('-').join(''),
-      cstCd: form.cstCd || '',
+      cstCd: form.cstCd || undefined,
       page,
-      pageSize,
+      size: pageSize,
     })
   );
 
@@ -239,9 +230,6 @@ export function buildMmsm01005SavePayload({
       giYmd: row.giYmd ?? '',
       giSeq: row.giSeq === undefined || row.giSeq === null ? '' : String(row.giSeq),
       giSubSeq: '',
-      soYmd: row.soYmd ?? '',
-      soSeq: row.soSeq === undefined || row.soSeq === null ? '' : String(row.soSeq),
-      soSubSeq: row.soSubSeq ?? '',
       desc: row.description ?? '',
       itemCd: row.itemCd ?? '',
       unitCd: row.unitCd ?? '',
@@ -259,9 +247,6 @@ export function buildMmsm01005SavePayload({
       giYmd: row.giYmd ?? '',
       giSeq: row.giSeq === undefined || row.giSeq === null ? '' : String(row.giSeq),
       giSubSeq: row.giSubSeq ?? index + 1,
-      soYmd: row.soYmd ?? '',
-      soSeq: row.soSeq === undefined || row.soSeq === null ? '' : String(row.soSeq),
-      soSubSeq: row.soSubSeq ?? '',
       desc: row.description ?? '',
       itemCd: row.itemCd ?? '',
       unitCd: row.unitCd ?? '',
@@ -278,9 +263,6 @@ export function buildMmsm01005SavePayload({
       giYmd: row.giYmd ?? '',
       giSeq: row.giSeq === undefined || row.giSeq === null ? '' : String(row.giSeq),
       giSubSeq: row.giSubSeq ?? index + 1,
-      soYmd: row.soYmd ?? '',
-      soSeq: row.soSeq === undefined || row.soSeq === null ? '' : String(row.soSeq),
-      soSubSeq: row.soSubSeq ?? '',
       desc: row.description ?? '',
       itemCd: row.itemCd ?? '',
       unitCd: row.unitCd ?? '',

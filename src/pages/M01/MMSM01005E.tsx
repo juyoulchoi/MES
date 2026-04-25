@@ -141,7 +141,7 @@ export default function MMSM01005E() {
       const nextWidth = element.clientWidth;
       if (!nextWidth) return;
 
-      const fixedWidth = 48 + 120 + 90 + 120 + 120 + 180 + 40;
+      const fixedWidth = 48 + 120 + 90 + 120 + 180 + 40;
       const remaining = Math.max(nextWidth - fixedWidth, 180);
       const nextItemNameWidth = Math.min(Math.max(remaining, 180), 360);
 
@@ -465,7 +465,7 @@ export default function MMSM01005E() {
                 }}
                 emptyText="출고 상세 데이터가 없습니다. 좌측 후보에서 선택 후 추가하세요."
                 classNames={{
-                  table: 'min-w-[1000px] w-full text-sm',
+                  table: 'min-w-[980px] w-full text-sm',
                 }}
               >
                 <CheckColumn
@@ -485,20 +485,6 @@ export default function MMSM01005E() {
                       className="h-8 w-full rounded border border-slate-200 px-2 text-right"
                       value={row.qty ?? ''}
                       onChange={(e) => onDetailChange(rowIndex, { qty: e.target.value })}
-                    />
-                  )}
-                />
-                <Column
-                  dataField="price"
-                  caption="단가"
-                  width={120}
-                  alignment="right"
-                  headerAlignment="center"
-                  cellRender={(row: DetailRow, rowIndex) => (
-                    <input
-                      className="h-8 w-full rounded border border-slate-200 px-2 text-right"
-                      value={row.price ?? ''}
-                      onChange={(e) => onDetailChange(rowIndex, { price: e.target.value })}
                     />
                   )}
                 />
