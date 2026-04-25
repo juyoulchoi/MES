@@ -97,10 +97,7 @@ export const columns: GridColumn<RowItem>[] = [
   { dataField: 'cstNm', caption: '거래처명', width: 160 },
   { dataField: 'reqYmd', caption: '입고요청일', width: 120, alignment: 'center' },
   { dataField: 'emGb', caption: '발주구분', width: 110, alignment: 'center' },
-  { dataField: 'endYn', caption: '완료여부', width: 100, alignment: 'center' },
   { dataField: 'preIvQty', caption: '기입고량', width: 120, alignment: 'right' },
-  { dataField: 'ivQty', caption: '입고량', width: 120, alignment: 'right' },
-  { dataField: 'ivYmd', caption: '입고일', width: 120, alignment: 'center' },
   { dataField: 'description', caption: '비고', width: 260 },
 ];
 

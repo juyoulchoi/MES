@@ -135,7 +135,7 @@ const MMSM01002S: React.FC = () => {
               emptyText="발주 현황 데이터가 없습니다."
               onPageChange={(page) => void fetchList(page)}
               classNames={{
-                table: 'min-w-[1840px] w-full text-sm',
+                table: 'min-w-[1480px] w-full text-sm',
               }}
             >
               <Paging enabled={true} defaultPageSize={PAGE_SIZE} />
