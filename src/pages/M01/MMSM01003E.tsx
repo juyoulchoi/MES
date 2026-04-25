@@ -303,6 +303,7 @@ export default function MMSM01003E() {
 
       await http('/api/v1/material/ivmst/savePayload', { method: 'POST', body: payload });
       await fetchMasterList(0);
+      window.alert('저장되었습니다.');
     } catch (e) {
       setSaveError(e instanceof Error ? e.message : String(e));
     } finally {
