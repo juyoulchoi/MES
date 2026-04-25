@@ -38,6 +38,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useCodes } from '@/lib/hooks/useCodes';
 
 const EXCEL_TEMPLATE_HEADERS = ['품목코드', '품목명', '수량', '비고'];
+const RAW_MATERIAL_ITEM_GB = 'RAW,SUB';
 
 export default function MMSM01001E() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -61,7 +62,7 @@ export default function MMSM01001E() {
   const [form, setForm] = useState<SearchForm>(() => ({
     poYmd: getTodayYmd(),
     cstCd: '',
-    itemGb: '',
+    itemGb: RAW_MATERIAL_ITEM_GB,
     poSeq: '',
   }));
 
@@ -78,7 +79,7 @@ export default function MMSM01001E() {
     pageSize: PAGE_SIZE,
     mapParams: ({ form: currentForm }) => ({
       poYmd: currentForm.poYmd,
-      itemGb: currentForm.itemGb || '',
+      itemGb: currentForm.itemGb || RAW_MATERIAL_ITEM_GB,
       cstCd: currentForm.cstCd || '',
     }),
   });

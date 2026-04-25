@@ -175,6 +175,8 @@ interface FetchDetailRequest {
   pageSize?: number;
 }
 
+const RAW_MATERIAL_ITEM_GB = 'RAW,SUB';
+
 function toApiParams(params: QueryParams): Record<string, string> {
   return Object.fromEntries(
     Object.entries(params)
@@ -193,7 +195,7 @@ export async function fetchMmsm01001Detail({
     toApiParams({
       poYmd: form.poYmd.split('-').join(''),
       cstCd: form.cstCd || '',
-      itemGb: form.itemGb || '',
+      itemGb: form.itemGb || RAW_MATERIAL_ITEM_GB,
       page,
       pageSize,
     })

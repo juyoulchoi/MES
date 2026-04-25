@@ -46,6 +46,7 @@ type MasterRow = {
 };
 
 const EXCEL_TEMPLATE_HEADERS = ['품목코드', '품목명', '수량', '비고'];
+const RAW_MATERIAL_ITEM_GB = 'RAW,SUB';
 
 export default function MMSM01005E() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -80,7 +81,7 @@ export default function MMSM01005E() {
     form,
     pageSize: PAGE_SIZE,
     mapParams: ({ form: currentForm }) => ({
-      itemGb: '',
+      itemGb: RAW_MATERIAL_ITEM_GB,
       cstCd: currentForm.cstCd || '',
     }),
   });
@@ -140,7 +141,7 @@ export default function MMSM01005E() {
       const nextWidth = element.clientWidth;
       if (!nextWidth) return;
 
-      const fixedWidth = 48 + 120 + 90 + 120 + 120 + 40;
+      const fixedWidth = 48 + 120 + 90 + 120 + 120 + 180 + 40;
       const remaining = Math.max(nextWidth - fixedWidth, 180);
       const nextItemNameWidth = Math.min(Math.max(remaining, 180), 360);
 
@@ -328,6 +329,7 @@ export default function MMSM01005E() {
       await http('/api/v1/material/gimst/savePayload', { method: 'POST', body: payload });
       setDeletedDetailRows([]);
       await Promise.all([fetchMasterList(0), fetchDetailList(0)]);
+      window.alert('저장되었습니다.');
     } catch (e) {
       setSaveError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -409,7 +411,7 @@ export default function MMSM01005E() {
         <div className="grid grid-cols-12 gap-4">
           <SectionCard span="left" width="full">
             <SectionHeader
-              title="출고 예비 품목"
+              title="출고 후보 원자재"
               right={
                 <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
                   {masterRows.length}건
@@ -421,14 +423,14 @@ export default function MMSM01005E() {
                 dataSource={masterRows}
                 showBorders={true}
                 rowKey={(row, index) => row.itemCd || index}
-                emptyText="출고 후보 데이터가 없습니다."
+                emptyText="출고 후보 원자재가 없습니다."
               >
                 <CheckColumn
                   checked={(row) => !!row.CHECK}
                   onChange={(_row, rowIndex, checked) => toggleMaster(rowIndex, checked)}
                 />
-                <Column dataField="itemCd" caption="품목코드" width={80} alignment="center" />
-                <Column dataField="itemNm" caption="품목명" width={120} alignment="left" />
+                <Column dataField="itemCd" caption="원자재코드" width={80} alignment="center" />
+                <Column dataField="itemNm" caption="원자재명" width={120} alignment="left" />
                 <Column dataField="unitCd" caption="단위" width={60} alignment="center" />
               </DataGrid>
             </div>
@@ -463,7 +465,7 @@ export default function MMSM01005E() {
                 }}
                 emptyText="출고 상세 데이터가 없습니다. 좌측 후보에서 선택 후 추가하세요."
                 classNames={{
-                  table: 'min-w-[820px] w-full text-sm',
+                  table: 'min-w-[1000px] w-full text-sm',
                 }}
               >
                 <CheckColumn
@@ -497,6 +499,18 @@ export default function MMSM01005E() {
                       className="h-8 w-full rounded border border-slate-200 px-2 text-right"
                       value={row.price ?? ''}
                       onChange={(e) => onDetailChange(rowIndex, { price: e.target.value })}
+                    />
+                  )}
+                />
+                <Column
+                  dataField="description"
+                  caption="비고"
+                  width={180}
+                  cellRender={(row: DetailRow, rowIndex) => (
+                    <input
+                      className="h-8 w-full rounded border border-slate-200 px-2"
+                      value={row.description ?? ''}
+                      onChange={(e) => onDetailChange(rowIndex, { description: e.target.value })}
                     />
                   )}
                 />
