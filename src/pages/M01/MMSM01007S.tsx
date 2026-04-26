@@ -1,11 +1,12 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { http } from '@/lib/http';
 import { useCodes } from '@/lib/hooks/useCodes';
 
-// 원자재 출고현황 (MMSM01005S)
+// 원자재 출고현황 (MMSM01007S)
 // ASPX 필터 및 컬럼을 반영한 맞춤 구현
 
-type Row = Record<string, any>;
+type CellValue = string | number | null | undefined;
+type Row = Record<string, CellValue>;
 
 function fmtDateYMD(d: string) {
   if (!d) return '';
@@ -17,7 +18,7 @@ function fmtDateYMD(d: string) {
   return `${y}${m}${day}`;
 }
 
-export default function MMSM01005S() {
+export default function MMSM01007S() {
   // Filters
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -125,7 +126,7 @@ export default function MMSM01005S() {
         planQty,
         outQty,
       ]
-        .map((v) => (v ?? '').toString().replaceAll('"', '""'))
+        .map((v) => (v ?? '').toString().replace(/"/g, '""'))
         .map((v) => `"${v}` + `"`)
         .join(',');
     });
@@ -134,7 +135,7 @@ export default function MMSM01005S() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'MMSM01005S.csv';
+    a.download = 'MMSM01007S.csv';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -193,9 +194,11 @@ export default function MMSM01005S() {
             className="h-8 border rounded px-2"
           >
             <option value=""></option>
-            {/* {matCodes.map((c) => (
-              <option key={c.code} value={c.code}>{c.name}</option>
-            ))} */}
+            {matCodes.map((c) => (
+              <option key={c.code} value={c.code}>
+                {c.name}
+              </option>
+            ))}
           </select>
         </label>
         <label className="flex flex-col text-sm md:col-span-2 lg:col-span-2">
