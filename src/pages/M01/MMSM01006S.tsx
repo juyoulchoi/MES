@@ -85,7 +85,7 @@ const MMSM01006S: React.FC = () => {
                 rows={result.content}
                 headers={exportHeaders}
                 mapRow={mapExportRow}
-                filename={() => `원자재재고현황_${new Date().toISOString().slice(0, 10).replaceAll('-', '')}.csv`}
+                filename={() => `원자재재고현황_${new Date().toISOString().slice(0, 10).replace(/-/g, '')}.csv`}
                 variant="outline"
                 className="h-10 rounded-lg border border-emerald-200 bg-emerald-50 px-4 text-sm font-medium text-emerald-700 shadow-none transition hover:bg-emerald-100"
               />
