@@ -32,15 +32,15 @@ export default function TopMenu({ items }: { items?: TopMenuNode[] }) {
   const anchorRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const [anchorPos, setAnchorPos] = useState<AnchorPos | null>(null);
 
-  const [masked, setMasked] = useState<string | undefined>(() => getMaskedPage());
+  const [masked, setMasked] = useState<string | undefined>(() => getMaskedPage() ?? undefined);
   useEffect(() => {
-    setMasked(getMaskedPage());
+    setMasked(getMaskedPage() ?? undefined);
   }, [location.state]);
 
   useEffect(() => {
     const handler = (e: Event) => {
       const id = (e as CustomEvent).detail?.pageId as string | undefined;
-      setMasked(id ?? getMaskedPage());
+      setMasked(id ?? getMaskedPage() ?? undefined);
     };
     window.addEventListener('maskedpagechange', handler as EventListener);
     return () => window.removeEventListener('maskedpagechange', handler as EventListener);
