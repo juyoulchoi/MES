@@ -306,7 +306,7 @@ export default function LayoutSPA() {
         <PanelResizeHandle className="relative flex w-3 items-center justify-center bg-border/70 transition hover:bg-border">
 <MenuToggleButton panelRef={leftPanelRef} />
         </PanelResizeHandle>
-        <Panel minSize={40} defaultSize={80}>
+        <Panel minSize={40} defaultSize={84}>
           <Routes>
             <Route index element={<Navigate to="default.ts" replace />} />
             <Route
