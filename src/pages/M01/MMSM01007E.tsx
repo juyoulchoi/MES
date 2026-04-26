@@ -1,27 +1,88 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { BaseTable, tableClassNames, type BaseTableClassNames, type TableColumn } from '@/components/table/BaseTable';
+import { gridCellClassNames, renderGridInputCell } from '@/components/table/GridCells';
 import { http } from '@/lib/http';
 
-// 원자재 재고조정 (MMSM01007E)
-// 필터: 원자재 코드, 원자재 명
-// 버튼: 조회, 저장, 엑셀(CSV)
-// 컬럼: 순번, 원자재코드, 원자재명, 원자재구분, 종류, 규격, 재고수량, 실사량(편집), 조정량(편집), 조정사유(편집)
-
-type Row = Record<string, any> & {
+type Row = Record<string, unknown> & {
   CHECK?: boolean;
-  REAL_QTY?: number | string; // 실사량
-  ADJ_QTY?: number | string; // 조정량
-  DESC?: string; // 조정사유
+  REAL_QTY?: number | string;
+  ADJ_QTY?: number | string;
+  DESC?: string;
 };
 
 export default function MMSM01007E() {
-  // Filters
   const [itemCd, setItemCd] = useState('');
   const [itemNm, setItemNm] = useState('');
 
-  // Data
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const gridClassNames = useMemo<BaseTableClassNames>(
+    () => ({
+      ...tableClassNames,
+      wrapper: '',
+      table: 'w-full text-sm',
+      thead: 'sticky top-0 bg-background',
+      headerRow: 'border-b',
+      headerCell: 'p-2',
+      bodyRow: 'border-b hover:bg-muted/30',
+      bodyCell: 'p-2',
+      emptyCell: 'p-3 text-center text-muted-foreground',
+    }),
+    []
+  );
+
+  const columns = useMemo<TableColumn<Row>[]>(
+    () => [
+      { key: 'RNUM', header: '순번', width: 64, align: 'center', accessor: 'RNUM' },
+      { key: 'ITEM_CD', header: '원자재코드', width: 112, align: 'center', accessor: 'ITEM_CD' },
+      { key: 'ITEM_NM', header: '원자재명', accessor: 'ITEM_NM' },
+      { key: 'ITEM_GB', header: '원자재구분', width: 96, align: 'center', accessor: 'ITEM_GB' },
+      { key: 'ITEM_TP', header: '종류', width: 128, align: 'left', accessor: 'ITEM_TP' },
+      { key: 'STANDARD', header: '규격', width: 112, align: 'center', accessor: 'STANDARD' },
+      { key: 'STOCK_QTY', header: '재고수량', width: 96, align: 'right', accessor: 'STOCK_QTY' },
+      {
+        key: 'REAL_QTY',
+        header: '실사량',
+        width: 96,
+        align: 'right',
+        cellClassName: gridCellClassNames.editableRight,
+        render: (row, rowIndex) =>
+          renderGridInputCell({
+            value: row.REAL_QTY,
+            align: 'right',
+            onChange: (e) => markChanged(rowIndex, { REAL_QTY: e.target.value }),
+          }),
+      },
+      {
+        key: 'ADJ_QTY',
+        header: '조정량',
+        width: 96,
+        align: 'right',
+        cellClassName: gridCellClassNames.editableRight,
+        render: (row, rowIndex) =>
+          renderGridInputCell({
+            value: row.ADJ_QTY,
+            align: 'right',
+            onChange: (e) => markChanged(rowIndex, { ADJ_QTY: e.target.value }),
+          }),
+      },
+      {
+        key: 'DESC',
+        header: '조정사유',
+        width: 240,
+        align: 'left',
+        cellClassName: gridCellClassNames.editable,
+        render: (row, rowIndex) =>
+          renderGridInputCell({
+            value: row.DESC,
+            onChange: (e) => markChanged(rowIndex, { DESC: e.target.value }),
+          }),
+      },
+    ],
+    []
+  );
 
   async function onSearch() {
     setLoading(true);
@@ -112,8 +173,8 @@ export default function MMSM01007E() {
         r.ADJ_QTY ?? '',
         r.DESC ?? '',
       ]
-        .map((v) => (v ?? '').toString().replaceAll('"', '""'))
-        .map((v) => `"${v}` + `"`)
+        .map((v) => (v ?? '').toString())
+        .map((v) => `"${v}"`)
         .join(',');
     });
     const csv = [headers.join(','), ...lines].join('\n');
@@ -132,7 +193,6 @@ export default function MMSM01007E() {
     <div className="p-3 space-y-3">
       <div className="text-base font-semibold">원자재 재고조정</div>
 
-      {/* Filters */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-2 items-end">
         <label className="flex flex-col text-sm">
           <span className="mb-1">원자재 코드</span>
@@ -173,70 +233,17 @@ export default function MMSM01007E() {
         </div>
       )}
 
-      {/* Grid with editable columns */}
       <div className="border rounded overflow-auto max-h-[70vh]">
-        <table className="w-full text-sm">
-          <thead className="sticky top-0 bg-background">
-            <tr className="border-b">
-              <th className="w-16 p-2 text-center">순번</th>
-              <th className="w-28 p-2 text-center">원자재코드</th>
-              <th className="p-2 text-center">원자재명</th>
-              <th className="w-24 p-2 text-center">원자재구분</th>
-              <th className="w-32 p-2 text-left">종류</th>
-              <th className="w-28 p-2 text-center">규격</th>
-              <th className="w-24 p-2 text-right">재고수량</th>
-              <th className="w-24 p-2 text-right">실사량</th>
-              <th className="w-24 p-2 text-right">조정량</th>
-              <th className="w-60 p-2 text-left">조정사유</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r, i) => {
-              const code = r.ITEM_CD ?? r.PO_YMD_SEQ ?? '';
-              const stock = r.STOCK_QTY ?? r.QTY ?? '';
-              return (
-                <tr key={i} className="border-b hover:bg-muted/30">
-                  <td className="p-2 text-center">{r.RNUM ?? i + 1}</td>
-                  <td className="p-2 text-center">{code}</td>
-                  <td className="p-2 text-center">{r.ITEM_NM ?? ''}</td>
-                  <td className="p-2 text-center">{r.ITEM_GB ?? ''}</td>
-                  <td className="p-2">{r.ITEM_TP ?? ''}</td>
-                  <td className="p-2 text-center">{r.STANDARD ?? ''}</td>
-                  <td className="p-2 text-right">{stock}</td>
-                  <td className="p-1 text-right">
-                    <input
-                      className="h-8 border rounded px-2 w-full text-right"
-                      value={r.REAL_QTY ?? ''}
-                      onChange={(e) => markChanged(i, { REAL_QTY: e.target.value })}
-                    />
-                  </td>
-                  <td className="p-1 text-right">
-                    <input
-                      className="h-8 border rounded px-2 w-full text-right"
-                      value={r.ADJ_QTY ?? ''}
-                      onChange={(e) => markChanged(i, { ADJ_QTY: e.target.value })}
-                    />
-                  </td>
-                  <td className="p-1">
-                    <input
-                      className="h-8 border rounded px-2 w-full"
-                      value={r.DESC ?? ''}
-                      onChange={(e) => markChanged(i, { DESC: e.target.value })}
-                    />
-                  </td>
-                </tr>
-              );
-            })}
-            {rows.length === 0 && (
-              <tr>
-                <td colSpan={10} className="p-3 text-center text-muted-foreground">
-                  데이터가 없습니다. 조건을 선택하고 조회하세요.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+        <BaseTable
+          rows={rows}
+          columns={columns}
+          rowKey={(row, index) => `${row.ITEM_CD ?? row.PO_YMD_SEQ ?? 'row'}-${index}`}
+          classNames={gridClassNames}
+          emptyText="데이터가 없습니다. 조건을 선택하고 조회하세요."
+        />
       </div>
     </div>
   );
 }
+
+

@@ -2,7 +2,8 @@ import type { GridColumn } from '@/components/table/DataGrid';
 import { formatNumber } from '@/lib/utils';
 
 export interface SearchForm {
-  ivDate: string;
+  startDate: string;
+  endDate: string;
   cstCd: string;
   cstNm: string;
   itemCd: string;

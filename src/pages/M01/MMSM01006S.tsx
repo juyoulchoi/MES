@@ -38,10 +38,9 @@ const MMSM01006S: React.FC = () => {
   });
 
   const { result, loading, error, fetchList } = usePageApiFetch<SearchForm, RowItem>({
-    apiPath: '/api/v1/mdm/stkmst/searchStkMstDetList',
+    apiPath: '/api/v1/material/gidet/search',
     form,
     pageSize: PAGE_SIZE,
-    includeSizeParam: false,
     mapParams: ({ form: currentForm }) => ({
       giYmdS: currentForm.startDate.split('-').join(''),
       giYmdE: currentForm.endDate.split('-').join(''),
@@ -111,7 +110,7 @@ const MMSM01006S: React.FC = () => {
 
         <SectionCard span="full" width="full">
           <SectionHeader
-            title="원자재 재고현황"
+            title="원자재 출고현황"
             right={
               <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
                 {result.totalElements}건
@@ -122,14 +121,16 @@ const MMSM01006S: React.FC = () => {
             <DataGrid
               dataSource={result.content}
               pageResult={result}
-              rowKey={(row, index) => `${row.itemCd ?? 'item'}-${row.ymd ?? 'ymd'}-${index}`}
+              rowKey={(row, index) =>
+                `${row.giYmd ?? 'gi'}-${row.giSeq ?? 'seq'}-${row.giSubSeq ?? 'sub'}-${row.itemCd ?? 'item'}-${index}`
+              }
               showBorders={true}
               loading={loading}
               remoteOperations={true}
-              emptyText="원자재 재고현황 데이터가 없습니다."
+              emptyText="원자재 출고현황 데이터가 없습니다."
               onPageChange={(page) => void fetchList(page)}
               classNames={{
-                table: 'min-w-[1150px] w-full text-sm',
+                table: 'min-w-[1260px] w-full text-sm',
               }}
             >
               <Paging enabled={true} defaultPageSize={PAGE_SIZE} />

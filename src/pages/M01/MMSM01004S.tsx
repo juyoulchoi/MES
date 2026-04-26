@@ -4,6 +4,7 @@ import AlertBox from '@/components/AlertBox';
 import CodeNameField from '@/components/CodeNameField';
 import CustomerCodePicker from '@/components/CustomerCodePicker';
 import ExportCsvButton from '@/components/ExportCsvButton';
+import FromToDateField from '@/components/FromToDateField';
 import ItemCodePicker from '@/components/ItemCodePicker';
 import SectionCard from '@/components/SectionCard';
 import SectionHeader from '@/components/SectionHeader';
@@ -21,13 +22,15 @@ import {
 
 const MMSM01004S: React.FC = () => {
   const today = useMemo(() => new Date(), []);
+  const first = useMemo(() => new Date(today.getFullYear(), today.getMonth(), 1), [today]);
   const [customerOpen, setCustomerOpen] = useState(false);
   const [itemPickerOpen, setItemPickerOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const tableHeight = useAutoTableHeight(containerRef);
 
   const [form, setForm] = useState<SearchForm>({
-    ivDate: today.toISOString().slice(0, 10),
+    startDate: first.toISOString().slice(0, 10),
+    endDate: today.toISOString().slice(0, 10),
     cstCd: '',
     cstNm: '',
     itemCd: '',
@@ -41,7 +44,8 @@ const MMSM01004S: React.FC = () => {
     includePageSizeParam: true,
     includeSizeParam: false,
     mapParams: ({ form: currentForm }) => ({
-      ivYmd: currentForm.ivDate.split('-').join(''),
+      ivYmdS: currentForm.startDate.split('-').join(''),
+      ivYmdE: currentForm.endDate.split('-').join(''),
       cstCd: currentForm.cstCd || '',
       itemCd: currentForm.itemCd || '',
     }),
@@ -52,17 +56,13 @@ const MMSM01004S: React.FC = () => {
       <div className="mx-auto flex max-w-[1680px] flex-col gap-4">
         <SectionCard span="full" padding="md">
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-[446px_546px_1fr] xl:gap-12">
-            <div className="w-[260px]">
-              <div className="grid grid-cols-[96px_150px] items-center gap-3">
-                <label className="text-sm text-gray-600">입고일자</label>
-                <input
-                  type="date"
-                  value={form.ivDate}
-                  onChange={(e) => setForm((prev) => ({ ...prev, ivDate: e.target.value }))}
-                  className="h-9 w-[150px] rounded-lg border px-2"
-                />
-              </div>
-            </div>
+            <FromToDateField
+              label="입고일자"
+              fromValue={form.startDate}
+              toValue={form.endDate}
+              onFromChange={(value) => setForm({ ...form, startDate: value })}
+              onToChange={(value) => setForm({ ...form, endDate: value })}
+            />
 
             <CodeNameField
               label="거래처명"
@@ -87,7 +87,7 @@ const MMSM01004S: React.FC = () => {
                 rows={result.content}
                 headers={exportHeaders}
                 mapRow={mapExportRow}
-                filename={() => `원자재입고현황_${form.ivDate.split('-').join('')}.csv`}
+                filename={() => `원자재입고현황_${form.endDate.split('-').join('')}.csv`}
                 variant="outline"
                 className="h-10 rounded-lg border border-emerald-200 bg-emerald-50 px-4 text-sm font-medium text-emerald-700 shadow-none transition hover:bg-emerald-100"
               />

@@ -193,7 +193,8 @@ export async function fetchMmsm01001Detail({
   const data = await getApi<PageableResponse<DetailApiRow> | DetailApiRow[]>(
     '/api/v1/material/podet/search',
     toApiParams({
-      poYmd: form.poYmd.split('-').join(''),
+      poYmdS: form.poYmd.split('-').join(''),
+      poYmdE: form.poYmd.split('-').join(''),
       cstCd: form.cstCd || '',
       itemGb: form.itemGb || RAW_MATERIAL_ITEM_GB,
       page,

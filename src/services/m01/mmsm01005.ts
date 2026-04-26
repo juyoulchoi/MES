@@ -196,7 +196,8 @@ export async function fetchMmsm01005Detail({
   const data = await getApi<PageableResponse<Record<string, unknown>> | Record<string, unknown>[]>(
     '/api/v1/material/gidet/search',
     toApiParams({
-      giYmd: form.giDate.split('-').join(''),
+      giYmdS: form.giDate.split('-').join(''),
+      giYmdE: form.giDate.split('-').join(''),
       cstCd: form.cstCd || undefined,
       page,
       size: pageSize,
