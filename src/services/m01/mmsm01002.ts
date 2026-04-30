@@ -12,6 +12,7 @@ export interface SearchForm {
 }
 
 export interface RowItem {
+  CHECK?: boolean;
   rnum: number;
   poYmd: string;
   poSeq: number;
@@ -37,6 +38,31 @@ export interface RowItem {
   receiptStatusNm?: string;
   status: string;
   description: string;
+}
+
+export interface PurchaseCancelPayload {
+  masterData: Array<{
+    method: 'U';
+    userId: string;
+    cstCd: string;
+    poYmd: string;
+    poSeq: string;
+    desc: string;
+  }>;
+  detailData: Array<{
+    method: 'D';
+    poYmd: string;
+    poSeq: string;
+    poSubSeq: number | string;
+    reqYmd: string;
+    emGb: string;
+    desc: string;
+    itemCd: string;
+    unitCd: string;
+    qty: number | string;
+    price?: number | string;
+    amt?: number | string;
+  }>;
 }
 
 const receiptStatusLabelMap: Record<string, string> = {
@@ -148,5 +174,51 @@ export const mapExportRow = (r: RowItem) => [
   r.status,
   r.description,
 ];
+
+export function getPurchaseMasterKey(row: RowItem) {
+  return [row.poYmd ?? '', row.poSeq ?? ''].join('|');
+}
+
+export function buildPurchaseCancelPayload(rows: RowItem[], userId: string): PurchaseCancelPayload[] {
+  const grouped = new Map<string, RowItem[]>();
+
+  rows.forEach((row) => {
+    const key = getPurchaseMasterKey(row);
+    const current = grouped.get(key) ?? [];
+    current.push(row);
+    grouped.set(key, current);
+  });
+
+  return Array.from(grouped.values()).map((groupRows) => {
+    const first = groupRows[0];
+
+    return {
+      masterData: [
+        {
+          method: 'U',
+          userId,
+          cstCd: first.cstCd ?? '',
+          poYmd: String(first.poYmd ?? ''),
+          poSeq: String(first.poSeq ?? ''),
+          desc: '',
+        },
+      ],
+      detailData: groupRows.map((row) => ({
+        method: 'D',
+        poYmd: String(row.poYmd ?? ''),
+        poSeq: String(row.poSeq ?? ''),
+        poSubSeq: row.poSubSeq,
+        reqYmd: row.reqYmd ?? '',
+        emGb: row.emGb ?? '',
+        desc: row.description ?? '',
+        itemCd: row.itemCd ?? '',
+        unitCd: row.unitCd ?? '',
+        qty: '',
+        price: row.price ?? '',
+        amt: row.amt ?? '',
+      })),
+    };
+  });
+}
 
 

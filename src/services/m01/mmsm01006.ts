@@ -11,14 +11,37 @@ export interface SearchForm {
 }
 
 export interface RowItem {
+  CHECK?: boolean;
   giYmd: string;
   giSeq: number;
   giSubSeq: number;
+  cstCd?: string;
   itemCd: string;
   itemNm?: string;
   qty: number;
   unitCd: string;
   description?: string;
+}
+
+export interface IssueCancelPayload {
+  masterData: Array<{
+    method: 'U';
+    userId: string;
+    cstCd: string;
+    giYmd: string;
+    giSeq: string;
+    desc: string;
+  }>;
+  detailData: Array<{
+    method: 'D';
+    giYmd: string;
+    giSeq: string;
+    giSubSeq: number | string;
+    desc: string;
+    itemCd: string;
+    unitCd: string;
+    qty: number | string;
+  }>;
 }
 
 export const columns: GridColumn<RowItem>[] = [
@@ -59,3 +82,45 @@ export const mapExportRow = (row: RowItem) => [
   row.unitCd,
   row.description ?? '',
 ];
+
+export function getIssueMasterKey(row: RowItem) {
+  return [row.giYmd ?? '', row.giSeq ?? ''].join('|');
+}
+
+export function buildIssueCancelPayload(rows: RowItem[], userId: string): IssueCancelPayload[] {
+  const grouped = new Map<string, RowItem[]>();
+
+  rows.forEach((row) => {
+    const key = getIssueMasterKey(row);
+    const current = grouped.get(key) ?? [];
+    current.push(row);
+    grouped.set(key, current);
+  });
+
+  return Array.from(grouped.values()).map((groupRows) => {
+    const first = groupRows[0];
+
+    return {
+      masterData: [
+        {
+          method: 'U',
+          userId,
+          cstCd: first.cstCd ?? '',
+          giYmd: String(first.giYmd ?? ''),
+          giSeq: String(first.giSeq ?? ''),
+          desc: '',
+        },
+      ],
+      detailData: groupRows.map((row) => ({
+        method: 'D',
+        giYmd: String(row.giYmd ?? ''),
+        giSeq: String(row.giSeq ?? ''),
+        giSubSeq: row.giSubSeq,
+        desc: row.description ?? '',
+        itemCd: row.itemCd ?? '',
+        unitCd: row.unitCd ?? '',
+        qty: row.qty ?? '',
+      })),
+    };
+  });
+}

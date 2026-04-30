@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import AlertBox from '@/components/AlertBox';
 import CodeNameField from '@/components/CodeNameField';
 import CustomerCodePicker from '@/components/CustomerCodePicker';
@@ -7,23 +7,29 @@ import FromToDateField from '@/components/FromToDateField';
 import ItemCodePicker from '@/components/ItemCodePicker';
 import SectionCard from '@/components/SectionCard';
 import SectionHeader from '@/components/SectionHeader';
-import { Column, DataGrid, Pager, Paging } from '@/components/table/DataGrid';
+import { CheckColumn, Column, DataGrid, Pager, Paging } from '@/components/table/DataGrid';
 import { useAutoTableHeight } from '@/lib/hooks/useAutoTableHeight';
+import { http } from '@/lib/http';
 import { usePageApiFetch } from '@/services/common/getApiFetch';
 import { PAGE_SIZE } from '@/lib/pagination';
 import {
+  buildPurchaseCancelPayload,
   columns,
   exportHeaders,
   mapExportRow,
   type RowItem,
   type SearchForm,
 } from '@/services/m01/mmsm01002';
+import { updateCheckedRows } from '@/pages/M01/registerDetailShared';
+import type { AuthMeResponse } from '@/services/m01/mmsm01003';
 
 const MMSM01002S: React.FC = () => {
   const today = useMemo(() => new Date(), []);
   const first = useMemo(() => new Date(today.getFullYear(), today.getMonth(), 1), [today]);
   const [customerOpen, setCustomerOpen] = useState(false);
   const [itemPickerOpen, setitemPickerOpen] = useState(false);
+  const [rows, setRows] = useState<RowItem[]>([]);
+  const [canceling, setCanceling] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const tableHeight = useAutoTableHeight(containerRef);
 
@@ -49,6 +55,70 @@ const MMSM01002S: React.FC = () => {
       itemGb: form.itemGb || '',
     }),
   });
+
+  useEffect(() => {
+    setRows(result.content.map((row) => ({ ...row, CHECK: false })));
+  }, [result.content]);
+
+  const displayResult = useMemo(
+    () => ({
+      ...result,
+      content: rows,
+    }),
+    [result, rows]
+  );
+
+  function toggleRow(rowIndex: number, checked: boolean) {
+    updateCheckedRows(setRows, rowIndex, checked);
+  }
+
+  async function onCancelPurchase() {
+    const selectedRows = rows.filter((row) => row.CHECK);
+
+    if (selectedRows.length === 0) {
+      window.alert('발주 취소할 데이터를 선택하세요.');
+      return;
+    }
+
+    if (selectedRows.some((row) => Number(row.ivQty ?? 0) > 0 || Number(row.preIvQty ?? 0) > 0)) {
+      window.alert('입고 이력이 있는 발주는 취소할 수 없습니다.');
+      return;
+    }
+
+    if (!window.confirm(`선택한 ${selectedRows.length}건의 발주를 취소하시겠습니까?`)) return;
+
+    setCanceling(true);
+
+    try {
+      const me = await http<AuthMeResponse>('/api/v1/auth/me');
+      const userId = (
+        me.user?.userid ??
+        me.user?.userId ??
+        me.data?.user?.userid ??
+        me.data?.user?.userId ??
+        ''
+      ).trim();
+
+      if (!userId) {
+        window.alert('사용자 정보를 확인할 수 없습니다. 다시 로그인 후 시도하세요.');
+        return;
+      }
+
+      const payloads = buildPurchaseCancelPayload(selectedRows, userId);
+      await Promise.all(
+        payloads.map((payload) =>
+          http('/api/v1/material/pomst/savePayload', { method: 'POST', body: payload })
+        )
+      );
+
+      await fetchList(result.page);
+      window.alert('발주 취소되었습니다.');
+    } catch (e) {
+      window.alert(e instanceof Error ? e.message : String(e));
+    } finally {
+      setCanceling(false);
+    }
+  }
 
   return (
     <div className="min-h-full bg-slate-50/60 p-4" ref={containerRef}>
@@ -82,12 +152,19 @@ const MMSM01002S: React.FC = () => {
                   fetchList(0);
                 }}
                 className="h-10 rounded-lg bg-slate-900 px-4 text-sm font-medium text-white transition hover:bg-slate-800 disabled:opacity-50"
-                disabled={loading}
+                disabled={loading || canceling}
               >
                 {loading ? '조회중...' : '조회'}
               </button>
+              <button
+                onClick={() => void onCancelPurchase()}
+                className="h-10 rounded-lg border border-rose-200 bg-rose-50 px-4 text-sm font-medium text-rose-700 transition hover:bg-rose-100 disabled:opacity-50"
+                disabled={loading || canceling}
+              >
+                {canceling ? '취소중...' : '발주취소'}
+              </button>
               <ExportCsvButton
-                rows={result.content}
+                rows={rows}
                 headers={exportHeaders}
                 mapRow={mapExportRow}
                 filename={() => `원자재발주현황_${form.endDate.split('-').join('')}.csv`}
@@ -126,8 +203,8 @@ const MMSM01002S: React.FC = () => {
           />
           <div className="max-h-[68vh] overflow-auto" style={{ height: tableHeight }}>
             <DataGrid
-              dataSource={result.content}
-              pageResult={result}
+              dataSource={rows}
+              pageResult={displayResult}
               rowKey={(row, index) => `${row.poYmd ?? 'po'}-${row.poSeq ?? 'seq'}-${row.poSubSeq ?? 'sub'}-${row.itemCd ?? 'item'}-${index}`}
               showBorders={true}
               loading={loading}
@@ -140,6 +217,10 @@ const MMSM01002S: React.FC = () => {
             >
               <Paging enabled={true} defaultPageSize={PAGE_SIZE} />
               <Pager visible={true} showPageSizeSelector={false} />
+              <CheckColumn
+                checked={(row) => !!row.CHECK}
+                onChange={(_row, rowIndex, checked) => toggleRow(rowIndex, checked)}
+              />
               {columns.map((column, index) => (
                 <Column
                   key={`${String(column.dataField)}-${index}`}

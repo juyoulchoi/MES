@@ -30,7 +30,6 @@ const MMSM01004S: React.FC = () => {
   const [customerOpen, setCustomerOpen] = useState(false);
   const [itemPickerOpen, setItemPickerOpen] = useState(false);
   const [rows, setRows] = useState<RowItem[]>([]);
-  const [cancelError, setCancelError] = useState<string | null>(null);
   const [canceling, setCanceling] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const tableHeight = useAutoTableHeight(containerRef);
@@ -76,14 +75,13 @@ const MMSM01004S: React.FC = () => {
     const selectedRows = rows.filter((row) => row.CHECK);
 
     if (selectedRows.length === 0) {
-      setCancelError('입고 취소할 데이터를 선택하세요.');
+      window.alert('입고 취소할 데이터를 선택하세요.');
       return;
     }
 
     if (!window.confirm(`선택한 ${selectedRows.length}건의 입고를 취소하시겠습니까?`)) return;
 
     setCanceling(true);
-    setCancelError(null);
 
     try {
       const me = await http<AuthMeResponse>('/api/v1/auth/me');
@@ -96,7 +94,7 @@ const MMSM01004S: React.FC = () => {
       ).trim();
 
       if (!userId) {
-        setCancelError('사용자 정보를 확인할 수 없습니다. 다시 로그인 후 시도하세요.');
+        window.alert('사용자 정보를 확인할 수 없습니다. 다시 로그인 후 시도하세요.');
         return;
       }
 
@@ -110,7 +108,7 @@ const MMSM01004S: React.FC = () => {
       await fetchList(result.page);
       window.alert('입고 취소되었습니다.');
     } catch (e) {
-      setCancelError(e instanceof Error ? e.message : String(e));
+      window.alert(e instanceof Error ? e.message : String(e));
     } finally {
       setCanceling(false);
     }
@@ -180,7 +178,7 @@ const MMSM01004S: React.FC = () => {
           </div>
         </SectionCard>
 
-        {(error || cancelError) && <AlertBox tone="error">{error ?? cancelError}</AlertBox>}
+        {error && <AlertBox tone="error">{error}</AlertBox>}
 
         <SectionCard span="full" width="full">
           <SectionHeader
