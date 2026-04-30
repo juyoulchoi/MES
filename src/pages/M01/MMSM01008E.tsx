@@ -1,249 +1,282 @@
-import { useMemo, useState } from 'react';
-import { BaseTable, tableClassNames, type BaseTableClassNames, type TableColumn } from '@/components/table/BaseTable';
-import { gridCellClassNames, renderGridInputCell } from '@/components/table/GridCells';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+
+import AlertBox from '@/components/AlertBox';
+import CodeNameField from '@/components/CodeNameField';
+import ExportCsvButton from '@/components/ExportCsvButton';
+import ItemCodePicker from '@/components/ItemCodePicker';
+import SectionCard from '@/components/SectionCard';
+import SectionHeader from '@/components/SectionHeader';
+import { CheckColumn, Column, DataGrid, Pager, Paging } from '@/components/table/DataGrid';
+import { useAutoTableHeight } from '@/lib/hooks/useAutoTableHeight';
 import { http } from '@/lib/http';
+import { PAGE_SIZE } from '@/lib/pagination';
+import { usePageApiFetch } from '@/services/common/getApiFetch';
+import { updateCheckedRows } from '@/pages/M01/registerDetailShared';
+import {
+  buildStockAdjustPayload,
+  calculateAdjustQty,
+  exportHeaders,
+  mapExportRow,
+  readOnlyColumns,
+  type RowItem,
+  type SearchForm,
+} from '@/services/m01/mmsm01008';
 
-type Row = Record<string, unknown> & {
-  CHECK?: boolean;
-  REAL_QTY?: number | string;
-  ADJ_QTY?: number | string;
-  DESC?: string;
-};
+function getTodayYmd() {
+  return new Date().toISOString().slice(0, 10);
+}
 
-export default function MMSM01007E() {
-  const [itemCd, setItemCd] = useState('');
-  const [itemNm, setItemNm] = useState('');
+export default function MMSM01008E() {
+  const [itemPickerOpen, setItemPickerOpen] = useState(false);
+  const [rows, setRows] = useState<RowItem[]>([]);
+  const [saving, setSaving] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const tableHeight = useAutoTableHeight(containerRef);
 
-  const [rows, setRows] = useState<Row[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [form, setForm] = useState<SearchForm>({
+    adjustDate: getTodayYmd(),
+    itemCd: '',
+    itemNm: '',
+  });
 
-  const gridClassNames = useMemo<BaseTableClassNames>(
-    () => ({
-      ...tableClassNames,
-      wrapper: '',
-      table: 'w-full text-sm',
-      thead: 'sticky top-0 bg-background',
-      headerRow: 'border-b',
-      headerCell: 'p-2',
-      bodyRow: 'border-b hover:bg-muted/30',
-      bodyCell: 'p-2',
-      emptyCell: 'p-3 text-center text-muted-foreground',
+  const { result, loading, error, fetchList } = usePageApiFetch<SearchForm, RowItem>({
+    apiPath: '/api/v1/mdm/stkmst/searchStkMstDetList',
+    form,
+    pageSize: PAGE_SIZE,
+    includeSizeParam: false,
+    mapParams: ({ form: currentForm }) => ({
+      giYmdS: currentForm.adjustDate.split('-').join(''),
+      giYmdE: currentForm.adjustDate.split('-').join(''),
+      itemCd: currentForm.itemCd || '',
+      cstCd: '',
     }),
-    []
-  );
+  });
 
-  const columns = useMemo<TableColumn<Row>[]>(
-    () => [
-      { key: 'RNUM', header: '순번', width: 64, align: 'center', accessor: 'RNUM' },
-      { key: 'ITEM_CD', header: '원자재코드', width: 112, align: 'center', accessor: 'ITEM_CD' },
-      { key: 'ITEM_NM', header: '원자재명', accessor: 'ITEM_NM' },
-      { key: 'ITEM_GB', header: '원자재구분', width: 96, align: 'center', accessor: 'ITEM_GB' },
-      { key: 'ITEM_TP', header: '종류', width: 128, align: 'left', accessor: 'ITEM_TP' },
-      { key: 'STANDARD', header: '규격', width: 112, align: 'center', accessor: 'STANDARD' },
-      { key: 'STOCK_QTY', header: '재고수량', width: 96, align: 'right', accessor: 'STOCK_QTY' },
-      {
-        key: 'REAL_QTY',
-        header: '실사량',
-        width: 96,
-        align: 'right',
-        cellClassName: gridCellClassNames.editableRight,
-        render: (row, rowIndex) =>
-          renderGridInputCell({
-            value: row.REAL_QTY,
-            align: 'right',
-            onChange: (e) => markChanged(rowIndex, { REAL_QTY: e.target.value }),
-          }),
-      },
-      {
-        key: 'ADJ_QTY',
-        header: '조정량',
-        width: 96,
-        align: 'right',
-        cellClassName: gridCellClassNames.editableRight,
-        render: (row, rowIndex) =>
-          renderGridInputCell({
-            value: row.ADJ_QTY,
-            align: 'right',
-            onChange: (e) => markChanged(rowIndex, { ADJ_QTY: e.target.value }),
-          }),
-      },
-      {
-        key: 'DESC',
-        header: '조정사유',
-        width: 240,
-        align: 'left',
-        cellClassName: gridCellClassNames.editable,
-        render: (row, rowIndex) =>
-          renderGridInputCell({
-            value: row.DESC,
-            onChange: (e) => markChanged(rowIndex, { DESC: e.target.value }),
-          }),
-      },
-    ],
-    []
-  );
-
-  async function onSearch() {
-    setLoading(true);
-    setError(null);
-    try {
-      const qs = new URLSearchParams({ item_cd: itemCd || '', item_nm: itemNm || '' }).toString();
-      const data = await http<Row[]>(`/api/m01/mmsm01007/list?${qs}`);
-      const list = (Array.isArray(data) ? data : []).map((r, i) => ({
-        ...r,
+  useEffect(() => {
+    setRows(
+      result.content.map((row) => ({
+        ...row,
         CHECK: false,
-        RNUM: r.RNUM ?? i + 1,
-        REAL_QTY: r.REAL_QTY ?? '',
-        ADJ_QTY: r.ADJ_QTY ?? '',
-        DESC: r.DESC ?? '',
-      }));
-      setRows(list);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setLoading(false);
-    }
+        realQty: row.realQty ?? '',
+        adjustQty: row.adjustQty ?? '',
+        description: row.description ?? '',
+      }))
+    );
+  }, [result.content]);
+
+  const displayResult = useMemo(
+    () => ({
+      ...result,
+      content: rows,
+    }),
+    [result, rows]
+  );
+
+  const busy = loading || saving;
+
+  function toggleRow(rowIndex: number, checked: boolean) {
+    updateCheckedRows(setRows, rowIndex, checked);
   }
 
-  function markChanged(i: number, patch: Partial<Row>) {
-    setRows((prev) => {
-      const next = [...prev];
-      next[i] = { ...next[i], ...patch, CHECK: true };
-      return next;
-    });
+  function updateRow(rowIndex: number, patch: Partial<RowItem>) {
+    setRows((prev) =>
+      prev.map((row, index) => {
+        if (index !== rowIndex) return row;
+
+        const next = { ...row, ...patch, CHECK: true };
+        if (Object.prototype.hasOwnProperty.call(patch, 'realQty')) {
+          next.adjustQty = calculateAdjustQty(row.qty, patch.realQty);
+        }
+        return next;
+      })
+    );
   }
 
   async function onSave() {
-    const targets = rows.filter((r) => r.CHECK);
+    const targets = rows.filter((row) => row.CHECK);
+
     if (targets.length === 0) {
-      setError('저장할 데이터가 없습니다.');
+      window.alert('저장할 재고 조정 데이터가 없습니다.');
       return;
     }
-    if (!window.confirm('저장 하시겠습니까?')) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const payload = targets.map((r) => ({
-        ITEM_CD: r.ITEM_CD ?? r.PO_YMD_SEQ ?? '',
-        ITEM_NM: r.ITEM_NM ?? '',
-        ITEM_GB: r.ITEM_GB ?? '',
-        ITEM_TP: r.ITEM_TP ?? '',
-        STANDARD: r.STANDARD ?? '',
-        STOCK_QTY: r.STOCK_QTY ?? r.QTY ?? '',
-        REAL_QTY: r.REAL_QTY ?? '',
-        ADJ_QTY: r.ADJ_QTY ?? '',
-        DESC: r.DESC ?? '',
-        METHOD: 'Y' as const,
-      }));
-      await http(`/api/m01/mmsm01007/save`, { method: 'POST', body: payload });
-      await onSearch();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setLoading(false);
-    }
-  }
 
-  function onExportCsv() {
-    const headers = [
-      '순번',
-      '원자재코드',
-      '원자재명',
-      '원자재구분',
-      '종류',
-      '규격',
-      '재고수량',
-      '실사량',
-      '조정량',
-      '조정사유',
-    ];
-    const lines = rows.map((r, i) => {
-      const code = r.ITEM_CD ?? r.PO_YMD_SEQ ?? '';
-      const stock = r.STOCK_QTY ?? r.QTY ?? '';
-      return [
-        r.RNUM ?? i + 1,
-        code,
-        r.ITEM_NM ?? '',
-        r.ITEM_GB ?? '',
-        r.ITEM_TP ?? '',
-        r.STANDARD ?? '',
-        stock,
-        r.REAL_QTY ?? '',
-        r.ADJ_QTY ?? '',
-        r.DESC ?? '',
-      ]
-        .map((v) => (v ?? '').toString())
-        .map((v) => `"${v}"`)
-        .join(',');
-    });
-    const csv = [headers.join(','), ...lines].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'MMSM01007E.csv';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    const invalidRowIndex = targets.findIndex((row) => row.realQty === undefined || row.realQty === '');
+    if (invalidRowIndex >= 0) {
+      window.alert('실사량을 입력하세요.');
+      return;
+    }
+
+    if (!window.confirm(`선택한 ${targets.length}건의 재고를 조정하시겠습니까?`)) return;
+
+    setSaving(true);
+    try {
+      await http('/api/v1/mdm/stkmst/adjust', {
+        method: 'POST',
+        body: buildStockAdjustPayload(targets, form.adjustDate),
+      });
+      await fetchList(result.page);
+      window.alert('저장되었습니다.');
+    } catch (e) {
+      window.alert(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
-    <div className="p-3 space-y-3">
-      <div className="text-base font-semibold">원자재 재고조정</div>
+    <div className="min-h-full bg-slate-50/60 p-4" ref={containerRef}>
+      <div className="mx-auto flex max-w-[1680px] flex-col gap-4">
+        <SectionCard span="full" padding="md">
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-[260px_546px_1fr] xl:gap-12">
+            <label className="flex flex-col text-sm font-medium text-slate-700">
+              <span className="mb-1">조정일자</span>
+              <input
+                type="date"
+                value={form.adjustDate}
+                onChange={(event) =>
+                  setForm((prev) => ({ ...prev, adjustDate: event.target.value }))
+                }
+                className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none transition focus:border-slate-400"
+              />
+            </label>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-2 items-end">
-        <label className="flex flex-col text-sm">
-          <span className="mb-1">원자재 코드</span>
-          <input
-            className="h-8 border rounded px-2"
-            value={itemCd}
-            onChange={(e) => setItemCd(e.target.value)}
+            <CodeNameField
+              label="원자재명"
+              id="item"
+              code={form.itemCd}
+              name={form.itemNm}
+              codePlaceholder="코드"
+              namePlaceholder="원자재 선택"
+              onSearch={() => setItemPickerOpen(true)}
+              onClear={() => setForm((prev) => ({ ...prev, itemCd: '', itemNm: '' }))}
+            />
+
+            <div className="flex flex-wrap items-end justify-end gap-2">
+              <button
+                onClick={() => void fetchList(0)}
+                className="h-10 rounded-lg bg-slate-900 px-4 text-sm font-medium text-white transition hover:bg-slate-800 disabled:opacity-50"
+                disabled={busy}
+              >
+                {loading ? '조회중...' : '조회'}
+              </button>
+              <button
+                onClick={() => void onSave()}
+                className="h-10 rounded-lg border border-sky-200 bg-sky-50 px-4 text-sm font-medium text-sky-700 transition hover:bg-sky-100 disabled:opacity-50"
+                disabled={busy}
+              >
+                {saving ? '저장중...' : '저장'}
+              </button>
+              <ExportCsvButton
+                rows={rows}
+                headers={exportHeaders}
+                mapRow={mapExportRow}
+                filename={() => `원자재재고조정_${form.adjustDate.split('-').join('')}.csv`}
+                variant="outline"
+                className="h-10 rounded-lg border border-emerald-200 bg-emerald-50 px-4 text-sm font-medium text-emerald-700 shadow-none transition hover:bg-emerald-100"
+              />
+            </div>
+          </div>
+        </SectionCard>
+
+        {error && <AlertBox tone="error">{error}</AlertBox>}
+
+        <SectionCard span="full" width="full">
+          <SectionHeader
+            title="원자재 재고조정"
+            right={
+              <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
+                {result.totalElements}건
+              </span>
+            }
           />
-        </label>
-        <label className="flex flex-col text-sm md:col-span-2">
-          <span className="mb-1">원자재 명</span>
-          <input
-            className="h-8 border rounded px-2"
-            value={itemNm}
-            onChange={(e) => setItemNm(e.target.value)}
+          <div className="max-h-[68vh] overflow-auto" style={{ height: tableHeight }}>
+            <DataGrid
+              dataSource={rows}
+              pageResult={displayResult}
+              rowKey={(row, index) => `${row.itemCd ?? 'item'}-${row.ymd ?? 'ymd'}-${index}`}
+              showBorders={true}
+              loading={busy}
+              remoteOperations={true}
+              emptyText="재고 조정 대상 데이터가 없습니다."
+              onPageChange={(page) => void fetchList(page)}
+              classNames={{
+                table: 'min-w-[1420px] w-full text-sm',
+              }}
+            >
+              <Paging enabled={true} defaultPageSize={PAGE_SIZE} />
+              <Pager visible={true} showPageSizeSelector={false} />
+              <CheckColumn
+                checked={(row) => !!row.CHECK}
+                onChange={(_row, rowIndex, checked) => toggleRow(rowIndex, checked)}
+              />
+              {readOnlyColumns.map((column, index) => (
+                <Column
+                  key={`${String(column.dataField)}-${index}`}
+                  dataField={column.dataField}
+                  caption={column.caption}
+                  width={column.width}
+                  alignment={column.alignment}
+                  cellRender={column.cellRender}
+                />
+              ))}
+              <Column
+                dataField="realQty"
+                caption="실사량"
+                width={120}
+                alignment="right"
+                cellRender={(row, rowIndex) => (
+                  <input
+                    value={row.realQty ?? ''}
+                    onChange={(event) => updateRow(rowIndex, { realQty: event.target.value })}
+                    className="h-8 w-full rounded-md border border-slate-200 px-2 text-right text-sm outline-none focus:border-slate-400"
+                  />
+                )}
+              />
+              <Column
+                dataField="adjustQty"
+                caption="조정량"
+                width={120}
+                alignment="right"
+                cellRender={(row, rowIndex) => (
+                  <input
+                    value={row.adjustQty ?? ''}
+                    onChange={(event) => updateRow(rowIndex, { adjustQty: event.target.value })}
+                    className="h-8 w-full rounded-md border border-slate-200 px-2 text-right text-sm outline-none focus:border-slate-400"
+                  />
+                )}
+              />
+              <Column
+                dataField="description"
+                caption="조정사유"
+                width={280}
+                cellRender={(row, rowIndex) => (
+                  <input
+                    value={row.description ?? ''}
+                    onChange={(event) => updateRow(rowIndex, { description: event.target.value })}
+                    className="h-8 w-full rounded-md border border-slate-200 px-2 text-sm outline-none focus:border-slate-400"
+                  />
+                )}
+              />
+            </DataGrid>
+          </div>
+        </SectionCard>
+
+        {itemPickerOpen ? (
+          <ItemCodePicker
+            title="원자재 정보"
+            itemGb="RAW,SUB"
+            itemNm={form.itemNm}
+            onClose={() => setItemPickerOpen(false)}
+            onSelect={(value) => {
+              setForm((prev) => ({
+                ...prev,
+                itemCd: value.itemCd,
+                itemNm: value.itemNm,
+              }));
+            }}
           />
-        </label>
-        <div className="flex gap-2 md:col-span-3 justify-end">
-          <button
-            onClick={onSearch}
-            disabled={loading}
-            className="h-8 px-3 border rounded bg-primary text-primary-foreground disabled:opacity-50"
-          >
-            조회
-          </button>
-          <button onClick={onSave} disabled={loading} className="h-8 px-3 border rounded">
-            저장
-          </button>
-          <button onClick={onExportCsv} className="h-8 px-3 border rounded">
-            엑셀
-          </button>
-        </div>
-      </div>
-
-      {error && (
-        <div className="text-sm text-destructive border border-destructive/30 rounded p-2">
-          {error}
-        </div>
-      )}
-
-      <div className="border rounded overflow-auto max-h-[70vh]">
-        <BaseTable
-          rows={rows}
-          columns={columns}
-          rowKey={(row, index) => `${row.ITEM_CD ?? row.PO_YMD_SEQ ?? 'row'}-${index}`}
-          classNames={gridClassNames}
-          emptyText="데이터가 없습니다. 조건을 선택하고 조회하세요."
-        />
+        ) : null}
       </div>
     </div>
   );
 }
-
-
