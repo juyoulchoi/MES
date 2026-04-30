@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 import AlertBox from '@/components/AlertBox';
 import CodeNameField from '@/components/CodeNameField';
@@ -8,23 +8,30 @@ import FromToDateField from '@/components/FromToDateField';
 import ItemCodePicker from '@/components/ItemCodePicker';
 import SectionCard from '@/components/SectionCard';
 import SectionHeader from '@/components/SectionHeader';
-import { Column, DataGrid, Pager, Paging } from '@/components/table/DataGrid';
+import { CheckColumn, Column, DataGrid, Pager, Paging } from '@/components/table/DataGrid';
 import { useAutoTableHeight } from '@/lib/hooks/useAutoTableHeight';
+import { http } from '@/lib/http';
 import { PAGE_SIZE } from '@/lib/pagination';
 import { usePageApiFetch } from '@/services/common/getApiFetch';
 import {
+  buildReceiptCancelPayload,
   columns,
   exportHeaders,
   mapExportRow,
   type RowItem,
   type SearchForm,
 } from '@/services/m01/mmsm01004';
+import { updateCheckedRows } from '@/pages/M01/registerDetailShared';
+import type { AuthMeResponse } from '@/services/m01/mmsm01003';
 
 const MMSM01004S: React.FC = () => {
   const today = useMemo(() => new Date(), []);
   const first = useMemo(() => new Date(today.getFullYear(), today.getMonth(), 1), [today]);
   const [customerOpen, setCustomerOpen] = useState(false);
   const [itemPickerOpen, setItemPickerOpen] = useState(false);
+  const [rows, setRows] = useState<RowItem[]>([]);
+  const [cancelError, setCancelError] = useState<string | null>(null);
+  const [canceling, setCanceling] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const tableHeight = useAutoTableHeight(containerRef);
 
@@ -41,8 +48,6 @@ const MMSM01004S: React.FC = () => {
     apiPath: '/api/v1/material/ivdet/search',
     form,
     pageSize: PAGE_SIZE,
-    includePageSizeParam: true,
-    includeSizeParam: false,
     mapParams: ({ form: currentForm }) => ({
       ivYmdS: currentForm.startDate.split('-').join(''),
       ivYmdE: currentForm.endDate.split('-').join(''),
@@ -50,6 +55,66 @@ const MMSM01004S: React.FC = () => {
       itemCd: currentForm.itemCd || '',
     }),
   });
+
+  useEffect(() => {
+    setRows(result.content.map((row) => ({ ...row, CHECK: false })));
+  }, [result.content]);
+
+  const displayResult = useMemo(
+    () => ({
+      ...result,
+      content: rows,
+    }),
+    [result, rows]
+  );
+
+  function toggleRow(rowIndex: number, checked: boolean) {
+    updateCheckedRows(setRows, rowIndex, checked);
+  }
+
+  async function onCancelReceipt() {
+    const selectedRows = rows.filter((row) => row.CHECK);
+
+    if (selectedRows.length === 0) {
+      setCancelError('입고 취소할 데이터를 선택하세요.');
+      return;
+    }
+
+    if (!window.confirm(`선택한 ${selectedRows.length}건의 입고를 취소하시겠습니까?`)) return;
+
+    setCanceling(true);
+    setCancelError(null);
+
+    try {
+      const me = await http<AuthMeResponse>('/api/v1/auth/me');
+      const userId = (
+        me.user?.userid ??
+        me.user?.userId ??
+        me.data?.user?.userid ??
+        me.data?.user?.userId ??
+        ''
+      ).trim();
+
+      if (!userId) {
+        setCancelError('사용자 정보를 확인할 수 없습니다. 다시 로그인 후 시도하세요.');
+        return;
+      }
+
+      const payloads = buildReceiptCancelPayload(selectedRows, userId);
+      await Promise.all(
+        payloads.map((payload) =>
+          http('/api/v1/material/ivmst/savePayload', { method: 'POST', body: payload })
+        )
+      );
+
+      await fetchList(result.page);
+      window.alert('입고 취소되었습니다.');
+    } catch (e) {
+      setCancelError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setCanceling(false);
+    }
+  }
 
   return (
     <div className="min-h-full bg-slate-50/60 p-4" ref={containerRef}>
@@ -79,12 +144,19 @@ const MMSM01004S: React.FC = () => {
               <button
                 onClick={() => void fetchList(0)}
                 className="h-10 rounded-lg bg-slate-900 px-4 text-sm font-medium text-white transition hover:bg-slate-800 disabled:opacity-50"
-                disabled={loading}
+                disabled={loading || canceling}
               >
                 {loading ? '조회중...' : '조회'}
               </button>
+              <button
+                onClick={() => void onCancelReceipt()}
+                className="h-10 rounded-lg border border-rose-200 bg-rose-50 px-4 text-sm font-medium text-rose-700 transition hover:bg-rose-100 disabled:opacity-50"
+                disabled={loading || canceling}
+              >
+                {canceling ? '취소중...' : '입고취소'}
+              </button>
               <ExportCsvButton
-                rows={result.content}
+                rows={rows}
                 headers={exportHeaders}
                 mapRow={mapExportRow}
                 filename={() => `원자재입고현황_${form.endDate.split('-').join('')}.csv`}
@@ -108,7 +180,7 @@ const MMSM01004S: React.FC = () => {
           </div>
         </SectionCard>
 
-        {error && <AlertBox tone="error">{error}</AlertBox>}
+        {(error || cancelError) && <AlertBox tone="error">{error ?? cancelError}</AlertBox>}
 
         <SectionCard span="full" width="full">
           <SectionHeader
@@ -122,7 +194,7 @@ const MMSM01004S: React.FC = () => {
           <div className="max-h-[68vh] overflow-auto" style={{ height: tableHeight }}>
             <DataGrid
               dataSource={result.content}
-              pageResult={result}
+              pageResult={displayResult}
               rowKey={(row, index) =>
                 `${row.ivYmd ?? 'iv'}-${row.ivSeq ?? 'seq'}-${row.inSubSeq ?? 'sub'}-${row.itemCd ?? 'item'}-${index}`
               }
@@ -134,6 +206,10 @@ const MMSM01004S: React.FC = () => {
             >
               <Paging enabled={true} defaultPageSize={PAGE_SIZE} />
               <Pager visible={true} showPageSizeSelector={false} />
+              <CheckColumn
+                checked={(row) => !!row.CHECK}
+                onChange={(_row, rowIndex, checked) => toggleRow(rowIndex, checked)}
+              />
               {columns.map((column, index) => (
                 <Column
                   key={`${String(column.dataField)}-${index}`}

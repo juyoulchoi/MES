@@ -198,7 +198,7 @@ export async function fetchMmsm01001Detail({
       cstCd: form.cstCd || '',
       itemGb: form.itemGb || RAW_MATERIAL_ITEM_GB,
       page,
-      pageSize,
+      size: pageSize,
     })
   );
 

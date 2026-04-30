@@ -11,6 +11,7 @@ export interface SearchForm {
 }
 
 export interface RowItem {
+  CHECK?: boolean;
   ivYmd: string;
   ivSeq: number;
   inSubSeq: number;
@@ -26,6 +27,32 @@ export interface RowItem {
   amt: number;
   unitCd: string;
   description: string;
+}
+
+export interface ReceiptCancelPayload {
+  masterData: Array<{
+    method: 'U';
+    userId: string;
+    cstCd: string;
+    ivYmd: string;
+    ivSeq: string;
+    desc: string;
+  }>;
+  detailData: Array<{
+    method: 'D';
+    ivYmd: string;
+    ivSeq: string;
+    ivSubSeq: number | string;
+    poYmd?: string;
+    poSeq?: number | string;
+    poSubSeq?: number | string;
+    desc: string;
+    itemCd: string;
+    unitCd: string;
+    qty: number | string;
+    price?: number | string;
+    amt?: number | string;
+  }>;
 }
 
 export const columns: GridColumn<RowItem>[] = [
@@ -80,3 +107,50 @@ export const mapExportRow = (row: RowItem) => [
   row.unitCd,
   row.description ?? '',
 ];
+
+export function getReceiptMasterKey(row: RowItem) {
+  return [row.ivYmd ?? '', row.ivSeq ?? ''].join('|');
+}
+
+export function buildReceiptCancelPayload(rows: RowItem[], userId: string): ReceiptCancelPayload[] {
+  const grouped = new Map<string, RowItem[]>();
+
+  rows.forEach((row) => {
+    const key = getReceiptMasterKey(row);
+    const current = grouped.get(key) ?? [];
+    current.push(row);
+    grouped.set(key, current);
+  });
+
+  return Array.from(grouped.values()).map((groupRows) => {
+    const first = groupRows[0];
+
+    return {
+      masterData: [
+        {
+          method: 'U',
+          userId,
+          cstCd: first.cstCd ?? '',
+          ivYmd: String(first.ivYmd ?? ''),
+          ivSeq: String(first.ivSeq ?? ''),
+          desc: '',
+        },
+      ],
+      detailData: groupRows.map((row) => ({
+        method: 'D',
+        ivYmd: String(row.ivYmd ?? ''),
+        ivSeq: String(row.ivSeq ?? ''),
+        ivSubSeq: row.inSubSeq,
+        poYmd: row.poYmd ?? '',
+        poSeq: row.poSeq ?? '',
+        poSubSeq: row.poSubSeq ?? '',
+        desc: row.description ?? '',
+        itemCd: row.itemCd ?? '',
+        unitCd: row.unitCd ?? '',
+        qty: row.qty ?? '',
+        price: row.price ?? '',
+        amt: row.amt ?? '',
+      })),
+    };
+  });
+}

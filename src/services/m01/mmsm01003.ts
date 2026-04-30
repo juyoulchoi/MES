@@ -226,10 +226,11 @@ export async function fetchMmsm01003Detail({
   const data = await getApi<PageableResponse<Record<string, unknown>> | Record<string, unknown>[]>(
     '/api/v1/material/ivdet/search',
     toApiParams({
-      ivYmd: form.ivDate.split('-').join(''),
+      ivYmdS: form.ivDate.split('-').join(''),
+      ivYmdE: form.ivDate.split('-').join(''),
       cstCd: form.cstCd || '',
       page,
-      pageSize,
+      size: pageSize,
     })
   );
 
