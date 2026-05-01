@@ -22,7 +22,6 @@ export type ItemCodePickerItem = RowItem;
 type SearchForm = {
   itemGb?: string;
   itemNm?: string;
-  status?: string;
 };
 
 interface ItemCodePickerProps {
@@ -47,7 +46,6 @@ export default function ItemInfoCodePicker({
     () => ({
       itemGb,
       itemNm: itemName,
-      status: 'ACTIVE',
     }),
     [itemGb, itemName]
   );
@@ -75,7 +73,6 @@ export default function ItemInfoCodePicker({
     mapParams: ({ form }: PageFetchRequest<SearchForm>) => ({
       itemGb: form.itemGb,
       itemNm: form.itemNm,
-      status: form.status,
     }),
   });
 
