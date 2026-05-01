@@ -1,6 +1,6 @@
 import axios, { AxiosError, type AxiosRequestConfig } from 'axios';
 import { CONFIG } from '@/lib/config';
-import { handleInvalidToken } from '@/lib/authSession';
+import { handleInvalidToken, shouldRedirectForUnauthorized } from '@/lib/authSession';
 
 type ApiEnvelope<T> = {
   success?: boolean;
@@ -56,7 +56,11 @@ export async function requestApi<T>(config: AxiosRequestConfig): Promise<T> {
     const response = await axiosClient.request<ApiEnvelope<T> | T>(config);
     return unwrapApiEnvelope(response.data);
   } catch (err) {
-    if (err instanceof AxiosError && err.response?.status === 401) {
+    if (
+      err instanceof AxiosError &&
+      err.response?.status === 401 &&
+      shouldRedirectForUnauthorized()
+    ) {
       handleInvalidToken();
       return new Promise<T>(() => {});
     }
