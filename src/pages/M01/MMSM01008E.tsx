@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 import AlertBox from '@/components/AlertBox';
 import CodeNameField from '@/components/CodeNameField';
+import DateEdit from '@/components/DateEdit';
 import ExportCsvButton from '@/components/ExportCsvButton';
 import ItemCodePicker from '@/components/ItemCodePicker';
 import SectionCard from '@/components/SectionCard';
@@ -43,12 +44,12 @@ export default function MMSM01008E() {
     apiPath: '/api/v1/mdm/stkmst/searchStkMstDetList',
     form,
     pageSize: PAGE_SIZE,
+    includePageParam: false,
     includeSizeParam: false,
     mapParams: ({ form: currentForm }) => ({
       giYmdS: currentForm.adjustDate.split('-').join(''),
       giYmdE: currentForm.adjustDate.split('-').join(''),
-      itemCd: currentForm.itemCd || '',
-      cstCd: '',
+      itemCd: currentForm.itemCd || undefined,
     }),
   });
 
@@ -127,18 +128,12 @@ export default function MMSM01008E() {
     <div className="min-h-full bg-slate-50/60 p-4" ref={containerRef}>
       <div className="mx-auto flex max-w-[1680px] flex-col gap-4">
         <SectionCard span="full" padding="md">
-          <div className="grid grid-cols-1 gap-4 xl:grid-cols-[260px_546px_1fr] xl:gap-12">
-            <label className="flex flex-col text-sm font-medium text-slate-700">
-              <span className="mb-1">조정일자</span>
-              <input
-                type="date"
-                value={form.adjustDate}
-                onChange={(event) =>
-                  setForm((prev) => ({ ...prev, adjustDate: event.target.value }))
-                }
-                className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none transition focus:border-slate-400"
-              />
-            </label>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-[450px_546px_1fr]">
+            <DateEdit
+              label="조정일자"
+              value={form.adjustDate}
+              onChange={(value) => setForm((prev) => ({ ...prev, adjustDate: value }))}
+            />
 
             <CodeNameField
               label="원자재명"

@@ -1,5 +1,6 @@
 import axios, { AxiosError, type AxiosRequestConfig } from 'axios';
 import { CONFIG } from '@/lib/config';
+import { handleInvalidToken } from '@/lib/authSession';
 
 type ApiEnvelope<T> = {
   success?: boolean;
@@ -55,6 +56,10 @@ export async function requestApi<T>(config: AxiosRequestConfig): Promise<T> {
     const response = await axiosClient.request<ApiEnvelope<T> | T>(config);
     return unwrapApiEnvelope(response.data);
   } catch (err) {
+    if (err instanceof AxiosError && err.response?.status === 401) {
+      handleInvalidToken();
+      return new Promise<T>(() => {});
+    }
     throw toHttpError(err);
   }
 }
@@ -62,4 +67,3 @@ export async function requestApi<T>(config: AxiosRequestConfig): Promise<T> {
 export function getApi<T>(url: string, params?: Record<string, string>): Promise<T> {
   return requestApi<T>({ method: 'GET', url, params });
 }
-

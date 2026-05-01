@@ -23,6 +23,7 @@ interface UsePageApiFetchOption<TForm> extends ApiFetchOption<PageFetchRequest<T
   form: TForm;
   pageSize?: number;
   initialPage?: number;
+  includePageParam?: boolean;
   includePageSizeParam?: boolean;
   includeSizeParam?: boolean;
 }
@@ -49,9 +50,11 @@ export function getApiDataFetch<TForm, TResponse>({
 function getApiFetch<TForm, TRow>({
   apiPath,
   mapParams,
+  includePageParam = true,
   includePageSizeParam = false,
   includeSizeParam = true,
 }: ApiFetchOption<PageFetchRequest<TForm>> & {
+  includePageParam?: boolean;
   includePageSizeParam?: boolean;
   includeSizeParam?: boolean;
 }) {
@@ -59,7 +62,7 @@ function getApiFetch<TForm, TRow>({
     const page = request.page ?? 0;
     const size = request.pageSize ?? PAGE_SIZE;
     const pagingParams: QueryParams = {
-      page,
+      ...(includePageParam ? { page } : {}),
       ...(includePageSizeParam ? { pageSize: size } : {}),
       ...(includeSizeParam ? { size } : {}),
     };
@@ -81,6 +84,7 @@ export function usePageApiFetch<TForm, TRow>({
   form,
   pageSize = PAGE_SIZE,
   initialPage = 0,
+  includePageParam = true,
   includePageSizeParam = false,
   includeSizeParam = true,
 }: UsePageApiFetchOption<TForm>) {
@@ -98,6 +102,7 @@ export function usePageApiFetch<TForm, TRow>({
       const search = getApiFetch<TForm, TRow>({
         apiPath,
         mapParams,
+        includePageParam,
         includePageSizeParam,
         includeSizeParam,
       });

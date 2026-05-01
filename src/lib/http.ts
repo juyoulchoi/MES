@@ -1,4 +1,5 @@
 import { CONFIG, resolveApiUrl } from '@/lib/config';
+import { handleInvalidToken } from '@/lib/authSession';
 
 // 간단한 fetch 래퍼: 쿠키 세션 or JWT 지원
 export type HttpOptions = {
@@ -51,6 +52,11 @@ export async function http<T>(url: string, opt: HttpOptions = {}): Promise<T> {
   const shouldUnwrapEnvelope = opt.unwrapEnvelope !== false;
 
   if (!res.ok) {
+    if (res.status === 401) {
+      handleInvalidToken();
+      return new Promise<T>(() => {});
+    }
+
     if (isJson) {
       const payload = (await res.json().catch(() => null)) as ApiEnvelope<unknown> | null;
       const message = (payload && typeof payload.message === 'string' && payload.message) || '';
