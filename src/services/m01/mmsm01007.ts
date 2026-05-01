@@ -36,7 +36,7 @@ export const columns: GridColumn<RowItem>[] = [
   { dataField: 'unitCd', caption: '단위', width: 90, alignment: 'center' },
   {
     dataField: 'stStk',
-    caption: '기초재고',
+    caption: '재고증감',
     width: 120,
     alignment: 'right',
     cellRender: (row) => formatNumber(row.stStk ?? 0),
@@ -55,13 +55,6 @@ export const columns: GridColumn<RowItem>[] = [
     alignment: 'right',
     cellRender: (row) => formatNumber(row.outStk ?? 0),
   },
-  {
-    dataField: 'endStk',
-    caption: '기말재고',
-    width: 120,
-    alignment: 'right',
-    cellRender: (row) => formatNumber(row.endStk ?? 0),
-  },
 ];
 
 export const exportHeaders = [
@@ -70,10 +63,9 @@ export const exportHeaders = [
   '원자재명',
   '현재고',
   '단위',
-  '기초재고',
+  '재고증감',
   '입고수량',
   '출고수량',
-  '기말재고',
 ];
 
 export const mapExportRow = (row: RowItem) => [
@@ -85,5 +77,4 @@ export const mapExportRow = (row: RowItem) => [
   row.stStk ?? 0,
   row.inStk ?? 0,
   row.outStk ?? 0,
-  row.endStk ?? 0,
 ];

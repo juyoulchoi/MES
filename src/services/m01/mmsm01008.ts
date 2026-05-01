@@ -47,7 +47,7 @@ export const readOnlyColumns: GridColumn<RowItem>[] = [
   { dataField: 'unitCd', caption: '단위', width: 90, alignment: 'center' },
   {
     dataField: 'stStk',
-    caption: '기초재고',
+    caption: '재고증감',
     width: 120,
     alignment: 'right',
     cellRender: (row) => formatNumber(row.stStk ?? 0),
@@ -110,9 +110,9 @@ export function buildStockAdjustPayload(rows: RowItem[], adjustDate: string): St
     itemCd: row.itemCd,
     ymd,
     unitCd: row.unitCd ?? '',
-    stockQty: row.qty ?? 0,
-    realQty: row.realQty ?? '',
-    adjustQty: row.adjustQty ?? '',
+    stockQty: toNumber(row.qty),
+    realQty: toNumber(row.realQty),
+    adjustQty: toNumber(row.adjustQty),
     description: row.description ?? '',
   }));
 }

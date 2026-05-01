@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
 
 import AlertBox from '@/components/AlertBox';
 import CodeNameField from '@/components/CodeNameField';
@@ -9,9 +9,9 @@ import SectionCard from '@/components/SectionCard';
 import SectionHeader from '@/components/SectionHeader';
 import { CheckColumn, Column, DataGrid, Pager, Paging } from '@/components/table/DataGrid';
 import { useAutoTableHeight } from '@/lib/hooks/useAutoTableHeight';
+import { getApi } from '@/lib/axiosClient';
 import { http } from '@/lib/http';
 import { PAGE_SIZE } from '@/lib/pagination';
-import { usePageApiFetch } from '@/services/common/getApiFetch';
 import { updateCheckedRows } from '@/pages/M01/registerDetailShared';
 import {
   buildStockAdjustPayload,
@@ -30,6 +30,8 @@ function getTodayYmd() {
 export default function MMSM01008E() {
   const [itemPickerOpen, setItemPickerOpen] = useState(false);
   const [rows, setRows] = useState<RowItem[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const tableHeight = useAutoTableHeight(containerRef);
@@ -40,40 +42,34 @@ export default function MMSM01008E() {
     itemNm: '',
   });
 
-  const { result, loading, error, fetchList } = usePageApiFetch<SearchForm, RowItem>({
-    apiPath: '/api/v1/mdm/stkmst/searchStkMstDetList',
-    form,
-    pageSize: PAGE_SIZE,
-    includePageParam: false,
-    includeSizeParam: false,
-    mapParams: ({ form: currentForm }) => ({
-      giYmdS: currentForm.adjustDate.split('-').join(''),
-      giYmdE: currentForm.adjustDate.split('-').join(''),
-      itemCd: currentForm.itemCd || undefined,
-    }),
-  });
-
-  useEffect(() => {
-    setRows(
-      result.content.map((row) => ({
-        ...row,
-        CHECK: false,
-        realQty: row.realQty ?? '',
-        adjustQty: row.adjustQty ?? '',
-        description: row.description ?? '',
-      }))
-    );
-  }, [result.content]);
-
-  const displayResult = useMemo(
-    () => ({
-      ...result,
-      content: rows,
-    }),
-    [result, rows]
-  );
-
   const busy = loading || saving;
+
+  function mapEditableRows(items: RowItem[]) {
+    return items.map((row) => ({
+      ...row,
+      CHECK: false,
+      realQty: row.realQty ?? '',
+      adjustQty: row.adjustQty ?? '',
+      description: row.description ?? '',
+    }));
+  }
+
+  async function fetchList() {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const data = await getApi<RowItem[]>('/api/v1/mdm/stkmst/searchStkMstDetList', {
+        ...(form.itemCd ? { itemCd: form.itemCd } : {}),
+      });
+      setRows(mapEditableRows(Array.isArray(data) ? data : []));
+    } catch (e) {
+      setRows([]);
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setLoading(false);
+    }
+  }
 
   function toggleRow(rowIndex: number, checked: boolean) {
     updateCheckedRows(setRows, rowIndex, checked);
@@ -101,7 +97,9 @@ export default function MMSM01008E() {
       return;
     }
 
-    const invalidRowIndex = targets.findIndex((row) => row.realQty === undefined || row.realQty === '');
+    const invalidRowIndex = targets.findIndex(
+      (row) => row.realQty === undefined || row.realQty === ''
+    );
     if (invalidRowIndex >= 0) {
       window.alert('실사량을 입력하세요.');
       return;
@@ -115,7 +113,7 @@ export default function MMSM01008E() {
         method: 'POST',
         body: buildStockAdjustPayload(targets, form.adjustDate),
       });
-      await fetchList(result.page);
+      await fetchList();
       window.alert('저장되었습니다.');
     } catch (e) {
       window.alert(e instanceof Error ? e.message : String(e));
@@ -148,7 +146,7 @@ export default function MMSM01008E() {
 
             <div className="flex flex-wrap items-end justify-end gap-2">
               <button
-                onClick={() => void fetchList(0)}
+                onClick={() => void fetchList()}
                 className="h-10 rounded-lg bg-slate-900 px-4 text-sm font-medium text-white transition hover:bg-slate-800 disabled:opacity-50"
                 disabled={busy}
               >
@@ -180,20 +178,17 @@ export default function MMSM01008E() {
             title="원자재 재고조정"
             right={
               <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
-                {result.totalElements}건
+                {rows.length}건
               </span>
             }
           />
           <div className="max-h-[68vh] overflow-auto" style={{ height: tableHeight }}>
             <DataGrid
               dataSource={rows}
-              pageResult={displayResult}
               rowKey={(row, index) => `${row.itemCd ?? 'item'}-${row.ymd ?? 'ymd'}-${index}`}
               showBorders={true}
               loading={busy}
-              remoteOperations={true}
               emptyText="재고 조정 대상 데이터가 없습니다."
-              onPageChange={(page) => void fetchList(page)}
               classNames={{
                 table: 'min-w-[1420px] w-full text-sm',
               }}
