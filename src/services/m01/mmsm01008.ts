@@ -95,6 +95,37 @@ function toNumber(value: number | string | undefined) {
   return Number.isFinite(numeric) ? numeric : 0;
 }
 
+export function groupStockAdjustRowsByItem(rows: RowItem[]) {
+  const grouped = new Map<string, RowItem>();
+
+  rows.forEach((row) => {
+    const current = grouped.get(row.itemCd);
+    if (!current) {
+      grouped.set(row.itemCd, {
+        ...row,
+        stStk: toNumber(row.stStk),
+        inStk: toNumber(row.inStk),
+        outStk: toNumber(row.outStk),
+      });
+      return;
+    }
+
+    grouped.set(row.itemCd, {
+      ...current,
+      itemNm: current.itemNm || row.itemNm,
+      qty: row.qty ?? current.qty,
+      unitCd: row.unitCd ?? current.unitCd,
+      ymd: !current.ymd || (row.ymd && row.ymd > current.ymd) ? row.ymd : current.ymd,
+      stStk: toNumber(current.stStk) + toNumber(row.stStk),
+      inStk: toNumber(current.inStk) + toNumber(row.inStk),
+      outStk: toNumber(current.outStk) + toNumber(row.outStk),
+      endStk: row.endStk ?? current.endStk,
+    });
+  });
+
+  return Array.from(grouped.values());
+}
+
 export function calculateAdjustQty(stockQty: number | string | undefined, realQty: number | string | undefined) {
   if (realQty === undefined || realQty === '') {
     return '';

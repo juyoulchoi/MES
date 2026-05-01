@@ -17,6 +17,7 @@ import {
   buildStockAdjustPayload,
   calculateAdjustQty,
   exportHeaders,
+  groupStockAdjustRowsByItem,
   mapExportRow,
   readOnlyColumns,
   type RowItem,
@@ -45,7 +46,7 @@ export default function MMSM01008E() {
   const busy = loading || saving;
 
   function mapEditableRows(items: RowItem[]) {
-    return items.map((row) => ({
+    return groupStockAdjustRowsByItem(items).map((row) => ({
       ...row,
       CHECK: false,
       realQty: row.realQty ?? '',
