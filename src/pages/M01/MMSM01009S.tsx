@@ -1,130 +1,170 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+
+import AlertBox from '@/components/AlertBox';
+import CodeNameField from '@/components/CodeNameField';
+import ExportCsvButton from '@/components/ExportCsvButton';
+import ItemCodePicker from '@/components/ItemCodePicker';
+import SectionCard from '@/components/SectionCard';
+import SectionHeader from '@/components/SectionHeader';
+import { Column, DataGrid, Pager, Paging } from '@/components/table/DataGrid';
+import { useAutoTableHeight } from '@/lib/hooks/useAutoTableHeight';
 import { http } from '@/lib/http';
+import { PAGE_SIZE } from '@/lib/pagination';
 
-// 원자재 투입 이력 현황 (MMSM01009S)
-// 필터: 원자재 코드, 원자재 명
-// 버튼: 조회, 엑셀(CSV)
-// 컬럼: 순번, 제품명, 원자재명, 업체명, 등록일자
+type Row = {
+  rnum?: number | string;
+  itemCd?: string;
+  itemNm?: string;
+  matCd?: string;
+  matNm?: string;
+  qty?: number | string;
+  unitCd?: string;
+  cstNm?: string;
+  reqYmd?: string;
+};
 
-type Row = Record<string, any>;
+type SearchForm = {
+  itemCd: string;
+  itemNm: string;
+};
+
+const exportHeaders = ['순번', '제품명', '원자재명', '업체명', '등록일자'];
+
+const mapExportRow = (row: Row, index: number) => [
+  row.rnum ?? index + 1,
+  row.itemNm ?? '',
+  row.matNm ?? '',
+  row.cstNm ?? '',
+  row.reqYmd ?? '',
+];
 
 export default function MMSM01009S() {
-  // Filters
-  const [itemCd, setItemCd] = useState('');
-  const [itemNm, setItemNm] = useState('');
-
-  // Data
+  const [itemPickerOpen, setItemPickerOpen] = useState(false);
+  const [form, setForm] = useState<SearchForm>({
+    itemCd: '',
+    itemNm: '',
+  });
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const tableHeight = useAutoTableHeight(containerRef);
 
   async function onSearch() {
     setLoading(true);
     setError(null);
+
     try {
-      const qs = new URLSearchParams({ item_cd: itemCd || '', item_nm: itemNm || '' }).toString();
-      const data = await http<Row[]>(`/api/m01/mmsm01009/list?${qs}`);
+      const qs = new URLSearchParams({
+        itemCd: form.itemCd,
+        itemNm: form.itemNm,
+      }).toString();
+      const data = await http<Row[]>(`/api/v1/planning/prditemuse/searchUseHistory?${qs}`);
       setRows(Array.isArray(data) ? data : []);
     } catch (e) {
+      setRows([]);
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
     }
   }
 
-  function onExportCsv() {
-    const headers = ['순번', '제품명', '원자재명', '업체명', '등록일자'];
-    const lines = rows.map((r, i) =>
-      [r.RNUM ?? i + 1, r.ITEM_NM ?? '', r.MAT_NM ?? '', r.CST_NM ?? '', r.REQ_YMD ?? '']
-        .map((v) => (v ?? '').toString().replace(/"/g, '""'))
-        .map((v) => `"${v}` + `"`)
-        .join(',')
-    );
-    const csv = [headers.join(','), ...lines].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'MMSM01009S.csv';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  }
-
   return (
-    <div className="p-3 space-y-3">
-      <div className="text-base font-semibold">원자재 투입 이력 현황</div>
+    <div className="min-h-full bg-slate-50/60 p-4" ref={containerRef}>
+      <div className="mx-auto flex max-w-[1680px] flex-col gap-4">
+        <SectionCard span="full" padding="md">
+          <div className="grid grid-cols-1 gap-3 xl:grid-cols-[546px_1fr]">
+            <CodeNameField
+              label="원자재명"
+              id="item"
+              code={form.itemCd}
+              name={form.itemNm}
+              codePlaceholder="코드"
+              namePlaceholder="원자재 선택"
+              onSearch={() => setItemPickerOpen(true)}
+              onClear={() => setForm({ itemCd: '', itemNm: '' })}
+            />
 
-      {/* Filters */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-2 items-end">
-        <label className="flex flex-col text-sm">
-          <span className="mb-1">원자재 코드</span>
-          <input
-            className="h-8 border rounded px-2"
-            value={itemCd}
-            onChange={(e) => setItemCd(e.target.value)}
+            <div className="flex flex-wrap items-end justify-end gap-2">
+              <button
+                onClick={() => void onSearch()}
+                className="h-10 rounded-lg bg-slate-900 px-4 text-sm font-medium text-white transition hover:bg-slate-800 disabled:opacity-50"
+                disabled={loading}
+              >
+                {loading ? '조회중...' : '조회'}
+              </button>
+              <ExportCsvButton
+                rows={rows}
+                headers={exportHeaders}
+                mapRow={mapExportRow}
+                filename="원자재투입이력현황.csv"
+                variant="outline"
+                className="h-10 rounded-lg border border-emerald-200 bg-emerald-50 px-4 text-sm font-medium text-emerald-700 shadow-none transition hover:bg-emerald-100"
+              />
+            </div>
+          </div>
+        </SectionCard>
+
+        {error && <AlertBox tone="error">{error}</AlertBox>}
+
+        <SectionCard span="full" width="full">
+          <SectionHeader
+            title="원자재 투입 이력 현황"
+            right={
+              <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
+                {rows.length}건
+              </span>
+            }
           />
-        </label>
-        <label className="flex flex-col text-sm md:col-span-2">
-          <span className="mb-1">원자재 명</span>
-          <input
-            className="h-8 border rounded px-2"
-            value={itemNm}
-            onChange={(e) => setItemNm(e.target.value)}
+          <div className="max-h-[68vh] overflow-auto" style={{ height: tableHeight }}>
+            <DataGrid
+              dataSource={rows}
+              rowKey={(row, index) =>
+                `${row.matCd ?? row.matNm ?? 'material'}-${row.reqYmd ?? 'date'}-${index}`
+              }
+              showBorders={true}
+              loading={loading}
+              emptyText="원자재 투입 이력 데이터가 없습니다."
+              classNames={{
+                table: 'min-w-[980px] w-full text-sm',
+              }}
+            >
+              <Paging enabled={true} defaultPageSize={PAGE_SIZE} />
+              <Pager visible={true} showPageSizeSelector={false} />
+              <Column<Row>
+                dataField="rnum"
+                caption="순번"
+                width={80}
+                alignment="center"
+                cellRender={(row, index) => row.rnum ?? index + 1}
+              />
+              <Column<Row> dataField="itemNm" caption="제품명" width={260} />
+              <Column<Row> dataField="matNm" caption="원자재명" width={260} />
+              <Column<Row> dataField="cstNm" caption="업체명" width={180} />
+              <Column<Row>
+                dataField="reqYmd"
+                caption="등록일자"
+                width={120}
+                alignment="center"
+              />
+            </DataGrid>
+          </div>
+        </SectionCard>
+
+        {itemPickerOpen ? (
+          <ItemCodePicker
+            title="원자재 정보"
+            itemGb="RAW,SUB"
+            itemNm={form.itemNm}
+            onClose={() => setItemPickerOpen(false)}
+            onSelect={(value) => {
+              setForm({
+                itemCd: value.itemCd,
+                itemNm: value.itemNm,
+              });
+            }}
           />
-        </label>
-        <div className="flex gap-2 md:col-span-3 justify-end">
-          <button
-            onClick={onSearch}
-            disabled={loading}
-            className="h-8 px-3 border rounded bg-primary text-primary-foreground disabled:opacity-50"
-          >
-            조회
-          </button>
-          <button onClick={onExportCsv} className="h-8 px-3 border rounded">
-            엑셀
-          </button>
-        </div>
-      </div>
-
-      {error && (
-        <div className="text-sm text-destructive border border-destructive/30 rounded p-2">
-          {error}
-        </div>
-      )}
-
-      {/* Grid */}
-      <div className="border rounded overflow-auto max-h-[70vh]">
-        <table className="w-full text-sm">
-          <thead className="sticky top-0 bg-background">
-            <tr className="border-b">
-              <th className="w-16 p-2 text-center">순번</th>
-              <th className="p-2 text-center">제품명</th>
-              <th className="p-2 text-center">원자재명</th>
-              <th className="w-40 p-2 text-center">업체명</th>
-              <th className="w-28 p-2 text-center">등록일자</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r, i) => (
-              <tr key={i} className="border-b hover:bg-muted/30">
-                <td className="p-2 text-center">{r.RNUM ?? i + 1}</td>
-                <td className="p-2 text-center">{r.ITEM_NM ?? ''}</td>
-                <td className="p-2 text-center">{r.MAT_NM ?? ''}</td>
-                <td className="p-2 text-center">{r.CST_NM ?? ''}</td>
-                <td className="p-2 text-center">{r.REQ_YMD ?? ''}</td>
-              </tr>
-            ))}
-            {rows.length === 0 && (
-              <tr>
-                <td colSpan={5} className="p-3 text-center text-muted-foreground">
-                  데이터가 없습니다. 조건을 선택하고 조회하세요.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+        ) : null}
       </div>
     </div>
   );
