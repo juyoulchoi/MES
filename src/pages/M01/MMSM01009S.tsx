@@ -10,33 +10,13 @@ import { Column, DataGrid, Pager, Paging } from '@/components/table/DataGrid';
 import { useAutoTableHeight } from '@/lib/hooks/useAutoTableHeight';
 import { http } from '@/lib/http';
 import { PAGE_SIZE } from '@/lib/pagination';
-
-type Row = {
-  rnum?: number | string;
-  itemCd?: string;
-  itemNm?: string;
-  matCd?: string;
-  matNm?: string;
-  qty?: number | string;
-  unitCd?: string;
-  cstNm?: string;
-  reqYmd?: string;
-};
-
-type SearchForm = {
-  itemCd: string;
-  itemNm: string;
-};
-
-const exportHeaders = ['순번', '제품명', '원자재명', '업체명', '등록일자'];
-
-const mapExportRow = (row: Row, index: number) => [
-  row.rnum ?? index + 1,
-  row.itemNm ?? '',
-  row.matNm ?? '',
-  row.cstNm ?? '',
-  row.reqYmd ?? '',
-];
+import {
+  columns,
+  exportHeaders,
+  mapExportRow,
+  type RowItem,
+  type SearchForm,
+} from '@/services/m01/mmsm01009';
 
 export default function MMSM01009S() {
   const [itemPickerOpen, setItemPickerOpen] = useState(false);
@@ -44,7 +24,7 @@ export default function MMSM01009S() {
     itemCd: '',
     itemNm: '',
   });
-  const [rows, setRows] = useState<Row[]>([]);
+  const [rows, setRows] = useState<RowItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -59,7 +39,7 @@ export default function MMSM01009S() {
         itemCd: form.itemCd,
         itemNm: form.itemNm,
       }).toString();
-      const data = await http<Row[]>(`/api/v1/planning/prditemuse/searchUseHistory?${qs}`);
+      const data = await http<RowItem[]>(`/api/v1/planning/prditemuse/searchUseHistory?${qs}`);
       setRows(Array.isArray(data) ? data : []);
     } catch (e) {
       setRows([]);
@@ -131,22 +111,18 @@ export default function MMSM01009S() {
             >
               <Paging enabled={true} defaultPageSize={PAGE_SIZE} />
               <Pager visible={true} showPageSizeSelector={false} />
-              <Column<Row>
-                dataField="rnum"
-                caption="순번"
-                width={80}
-                alignment="center"
-                cellRender={(row, index) => row.rnum ?? index + 1}
-              />
-              <Column<Row> dataField="itemNm" caption="제품명" width={260} />
-              <Column<Row> dataField="matNm" caption="원자재명" width={260} />
-              <Column<Row> dataField="cstNm" caption="업체명" width={180} />
-              <Column<Row>
-                dataField="reqYmd"
-                caption="등록일자"
-                width={120}
-                alignment="center"
-              />
+              {columns.map((column, index) => (
+                <Column
+                  key={`${String(column.dataField)}-${index}`}
+                  dataField={column.dataField}
+                  caption={column.caption}
+                  width={column.width}
+                  alignment={column.alignment}
+                  headerAlignment={column.headerAlignment}
+                  headerClassName={column.headerClassName}
+                  cellRender={column.cellRender}
+                />
+              ))}
             </DataGrid>
           </div>
         </SectionCard>
