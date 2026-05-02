@@ -1,19 +1,6 @@
 import type { PageableResponse } from '@/lib/pagination';
 
 export interface MasterRow {
-  CST_CD?: string;
-  CST_NM?: string;
-  CUST_GB?: string;
-  CEO_NM?: string;
-  MGR_NM?: string;
-  TEL_NO?: string;
-  MGR_TEL?: string;
-  EMAIL?: string;
-  FAX_NO?: string;
-  REG_NO?: string;
-  POST_NO?: string;
-  ADDR?: string;
-  STATUS?: string;
   cstCd?: string;
   cstNm?: string;
   custGb?: string;
@@ -27,25 +14,30 @@ export interface MasterRow {
   postNo?: string;
   addr?: string;
   status?: string;
-  ITEM_CD?: string;
-  ITEM_NM?: string;
+  itemCd?: string;
+  itemNm?: string;
+}
+
+export interface CustomerApiRow extends MasterRow {
+  [key: string]: unknown;
+  mainYn?: 'Y' | 'N' | '';
 }
 
 export interface DetailRow extends MasterRow {
-  ISNEW?: boolean;
-  IS_REGISTER?: boolean;
-  MAIN_YN?: 'Y' | 'N' | '';
+  isNew?: boolean;
+  isRegister?: boolean;
+  mainYn?: 'Y' | 'N' | '';
 }
 
 export const exportHeaders = ['거래처코드', '거래처명', '구분', '담당자', '연락처', '대표여부'];
 
 export const mapExportRow = (row: DetailRow) => [
-  row.CST_CD ?? row.ITEM_CD ?? '',
-  row.CST_NM ?? row.ITEM_NM ?? '',
-  row.CUST_GB ?? '',
-  row.MGR_NM ?? '',
-  row.TEL_NO ?? row.MGR_TEL ?? '',
-  row.MAIN_YN ?? '',
+  row.cstCd ?? row.itemCd ?? '',
+  row.cstNm ?? row.itemNm ?? '',
+  row.custGb ?? '',
+  row.mgrNm ?? '',
+  row.telNo ?? row.mgrTel ?? '',
+  row.mainYn ?? '',
 ];
 
 export function formatRegNo(value: string) {
@@ -60,42 +52,71 @@ export function onlyDigits(value: string, maxLength?: number) {
   return maxLength ? digits.slice(0, maxLength) : digits;
 }
 
-export function normalizeCustomerRow<T extends MasterRow | DetailRow>(row: T): T {
+function legacyString(row: object, key: string) {
+  const value = (row as Record<string, unknown>)[key];
+  return typeof value === 'string' ? value : undefined;
+}
+
+export function normalizeMasterRow(row: CustomerApiRow): MasterRow {
   return {
     ...row,
-    CST_CD: row.CST_CD ?? row.cstCd ?? row.ITEM_CD ?? '',
-    CST_NM: row.CST_NM ?? row.cstNm ?? row.ITEM_NM ?? '',
-    CUST_GB: row.CUST_GB ?? row.custGb ?? '',
-    CEO_NM: row.CEO_NM ?? row.ceoNm ?? '',
-    MGR_NM: row.MGR_NM ?? row.mgrNm ?? '',
-    TEL_NO: row.TEL_NO ?? row.telNo ?? '',
-    MGR_TEL: row.MGR_TEL ?? row.mgrTel ?? '',
-    EMAIL: row.EMAIL ?? row.email ?? '',
-    FAX_NO: row.FAX_NO ?? row.faxNo ?? '',
-    REG_NO: formatRegNo(row.REG_NO ?? row.regNo ?? ''),
-    POST_NO: row.POST_NO ?? row.postNo ?? '',
-    ADDR: row.ADDR ?? row.addr ?? '',
-    STATUS: row.STATUS ?? row.status ?? 'ACTIVE',
+    cstCd: row.cstCd ?? legacyString(row, 'CST_CD') ?? legacyString(row, 'ITEM_CD') ?? '',
+    cstNm: row.cstNm ?? legacyString(row, 'CST_NM') ?? legacyString(row, 'ITEM_NM') ?? '',
+    custGb: row.custGb ?? legacyString(row, 'CUST_GB') ?? '',
+    ceoNm: row.ceoNm ?? legacyString(row, 'CEO_NM') ?? '',
+    mgrNm: row.mgrNm ?? legacyString(row, 'MGR_NM') ?? '',
+    telNo: row.telNo ?? legacyString(row, 'TEL_NO') ?? '',
+    mgrTel: row.mgrTel ?? legacyString(row, 'MGR_TEL') ?? '',
+    email: row.email ?? legacyString(row, 'EMAIL') ?? '',
+    faxNo: row.faxNo ?? legacyString(row, 'FAX_NO') ?? '',
+    regNo: formatRegNo(row.regNo ?? legacyString(row, 'REG_NO') ?? ''),
+    postNo: row.postNo ?? legacyString(row, 'POST_NO') ?? '',
+    addr: row.addr ?? legacyString(row, 'ADDR') ?? '',
+    status: row.status ?? legacyString(row, 'STATUS') ?? 'ACTIVE',
+    itemCd: row.itemCd ?? legacyString(row, 'ITEM_CD') ?? '',
+    itemNm: row.itemNm ?? legacyString(row, 'ITEM_NM') ?? '',
+  };
+}
+
+export function normalizeCustomerRow(row: CustomerApiRow | DetailRow): DetailRow {
+  return {
+    ...row,
+    cstCd: row.cstCd ?? legacyString(row, 'CST_CD') ?? legacyString(row, 'ITEM_CD') ?? '',
+    cstNm: row.cstNm ?? legacyString(row, 'CST_NM') ?? legacyString(row, 'ITEM_NM') ?? '',
+    custGb: row.custGb ?? legacyString(row, 'CUST_GB') ?? '',
+    ceoNm: row.ceoNm ?? legacyString(row, 'CEO_NM') ?? '',
+    mgrNm: row.mgrNm ?? legacyString(row, 'MGR_NM') ?? '',
+    telNo: row.telNo ?? legacyString(row, 'TEL_NO') ?? '',
+    mgrTel: row.mgrTel ?? legacyString(row, 'MGR_TEL') ?? '',
+    email: row.email ?? legacyString(row, 'EMAIL') ?? '',
+    faxNo: row.faxNo ?? legacyString(row, 'FAX_NO') ?? '',
+    regNo: formatRegNo(row.regNo ?? legacyString(row, 'REG_NO') ?? ''),
+    postNo: row.postNo ?? legacyString(row, 'POST_NO') ?? '',
+    addr: row.addr ?? legacyString(row, 'ADDR') ?? '',
+    status: row.status ?? legacyString(row, 'STATUS') ?? 'ACTIVE',
+    itemCd: row.itemCd ?? legacyString(row, 'ITEM_CD') ?? '',
+    itemNm: row.itemNm ?? legacyString(row, 'ITEM_NM') ?? '',
+    mainYn: row.mainYn ?? (legacyString(row, 'MAIN_YN') as 'Y' | 'N' | undefined) ?? '',
   };
 }
 
 export function toCustInfoPayload(row: DetailRow) {
   return {
     method: 'Y',
-    isNew: row.IS_REGISTER ? 'I' : '',
-    cstCd: row.IS_REGISTER ? '' : row.CST_CD ?? '',
-    cstNm: row.CST_NM ?? '',
-    regNo: formatRegNo(row.REG_NO ?? ''),
-    ceoNm: row.CEO_NM ?? '',
-    mgrNm: row.MGR_NM ?? '',
-    telNo: row.TEL_NO ?? '',
-    email: row.EMAIL ?? '',
-    mgrTel: row.MGR_TEL ?? '',
-    faxNo: row.FAX_NO ?? '',
-    postNo: row.POST_NO ?? '',
-    addr: row.ADDR ?? '',
-    custGb: row.CUST_GB ?? '',
-    status: row.STATUS || 'ACTIVE',
+    isNew: row.isRegister ? 'I' : '',
+    cstCd: row.isRegister ? '' : row.cstCd ?? '',
+    cstNm: row.cstNm ?? '',
+    regNo: formatRegNo(row.regNo ?? ''),
+    ceoNm: row.ceoNm ?? '',
+    mgrNm: row.mgrNm ?? '',
+    telNo: row.telNo ?? '',
+    email: row.email ?? '',
+    mgrTel: row.mgrTel ?? '',
+    faxNo: row.faxNo ?? '',
+    postNo: row.postNo ?? '',
+    addr: row.addr ?? '',
+    custGb: row.custGb ?? '',
+    status: row.status || 'ACTIVE',
   };
 }
 
@@ -106,18 +127,18 @@ export function patchCustomerRow<T extends MasterRow | DetailRow>(
   return {
     ...row,
     ...patch,
-    cstNm: patch.CST_NM ?? row.cstNm,
-    custGb: patch.CUST_GB ?? row.custGb,
-    ceoNm: patch.CEO_NM ?? row.ceoNm,
-    mgrNm: patch.MGR_NM ?? row.mgrNm,
-    telNo: patch.TEL_NO ?? row.telNo,
-    mgrTel: patch.MGR_TEL ?? row.mgrTel,
-    email: patch.EMAIL ?? row.email,
-    faxNo: patch.FAX_NO ?? row.faxNo,
-    regNo: patch.REG_NO ?? row.regNo,
-    postNo: patch.POST_NO ?? row.postNo,
-    addr: patch.ADDR ?? row.addr,
-    status: patch.STATUS ?? row.status,
+    cstNm: patch.cstNm ?? row.cstNm,
+    custGb: patch.custGb ?? row.custGb,
+    ceoNm: patch.ceoNm ?? row.ceoNm,
+    mgrNm: patch.mgrNm ?? row.mgrNm,
+    telNo: patch.telNo ?? row.telNo,
+    mgrTel: patch.mgrTel ?? row.mgrTel,
+    email: patch.email ?? row.email,
+    faxNo: patch.faxNo ?? row.faxNo,
+    regNo: patch.regNo ?? row.regNo,
+    postNo: patch.postNo ?? row.postNo,
+    addr: patch.addr ?? row.addr,
+    status: patch.status ?? row.status,
   };
 }
 

@@ -17,9 +17,11 @@ import {
   getContent,
   mapExportRow,
   normalizeCustomerRow,
+  normalizeMasterRow,
   onlyDigits,
   patchCustomerRow,
   toCustInfoPayload,
+  type CustomerApiRow,
   type DetailRow,
   type MasterRow,
 } from '@/services/m01/mmsm01010';
@@ -146,20 +148,17 @@ export default function MMSM01010E() {
       page: '0',
       size: '200',
     }).toString();
-    const data = await http<PageableResponse<MasterRow>>(`/api/v1/mdm/cust/search?${qs}`);
-    return getContent(data).map((row) => normalizeCustomerRow(row));
+    const data = await http<PageableResponse<CustomerApiRow>>(`/api/v1/mdm/cust/search?${qs}`);
+    return getContent(data).map((row) => normalizeMasterRow(row));
   }
 
   async function loadDetail() {
     if (!cstCd) return [];
 
-    const data = await http<DetailRow>(`/api/v1/mdm/cust/${encodeURIComponent(cstCd)}`);
-    return getContent(data).map((row) => ({
+    const data = await http<CustomerApiRow>(`/api/v1/mdm/cust/${encodeURIComponent(cstCd)}`);
+    return getContent<CustomerApiRow>(data).map((row) => ({
       ...normalizeCustomerRow(row),
-      ISNEW: false,
-      ITEM_CD: row.ITEM_CD ?? '',
-      ITEM_NM: row.ITEM_NM ?? '',
-      MAIN_YN: row.MAIN_YN ?? '',
+      isNew: false,
     }));
   }
 
@@ -197,20 +196,20 @@ export default function MMSM01010E() {
   function openRegisterPopup() {
     setError(null);
     setDetailPopupRow({
-      IS_REGISTER: true,
-      CST_CD: '',
-      CST_NM: '',
-      CUST_GB: 'CUSTOMER',
-      CEO_NM: '',
-      MGR_NM: '',
-      TEL_NO: '',
-      MGR_TEL: '',
-      EMAIL: '',
-      FAX_NO: '',
-      REG_NO: '',
-      POST_NO: '',
-      ADDR: '',
-      STATUS: 'ACTIVE',
+      isRegister: true,
+      cstCd: '',
+      cstNm: '',
+      custGb: 'CUSTOMER',
+      ceoNm: '',
+      mgrNm: '',
+      telNo: '',
+      mgrTel: '',
+      email: '',
+      faxNo: '',
+      regNo: '',
+      postNo: '',
+      addr: '',
+      status: 'ACTIVE',
     });
   }
 
@@ -220,12 +219,12 @@ export default function MMSM01010E() {
       return;
     }
 
-    if (!detailPopupRow.IS_REGISTER && !detailPopupRow.CST_CD) {
+    if (!detailPopupRow.isRegister && !detailPopupRow.cstCd) {
       setError('거래처 코드가 없는 상세 정보는 저장할 수 없습니다.');
       return;
     }
 
-    if (!detailPopupRow.CST_NM) {
+    if (!detailPopupRow.cstNm) {
       setError('거래처명은 필수입니다.');
       return;
     }
@@ -239,7 +238,7 @@ export default function MMSM01010E() {
         body: toCustInfoPayload(detailPopupRow),
       });
 
-      if (detailPopupRow.IS_REGISTER) {
+      if (detailPopupRow.isRegister) {
         await onSearch();
         window.alert('거래처가 등록되었습니다.');
         setDetailPopupRow(null);
@@ -248,20 +247,20 @@ export default function MMSM01010E() {
 
       setMaster((prev) =>
         prev.map((row) =>
-          (row.CST_CD ?? row.cstCd) === detailPopupRow.CST_CD
+          row.cstCd === detailPopupRow.cstCd
             ? patchCustomerRow(row, detailPopupRow)
             : row
         )
       );
       setDetail((prev) =>
         prev.map((row) =>
-          (row.CST_CD ?? row.cstCd) === detailPopupRow.CST_CD
+          row.cstCd === detailPopupRow.cstCd
             ? patchCustomerRow(row, detailPopupRow)
             : row
         )
       );
-      if (cstCd === detailPopupRow.CST_CD) {
-        setCstNm(detailPopupRow.CST_NM ?? '');
+      if (cstCd === detailPopupRow.cstCd) {
+        setCstNm(detailPopupRow.cstNm ?? '');
       }
 
       window.alert('거래처 상세 정보가 저장되었습니다.');
@@ -335,7 +334,7 @@ export default function MMSM01010E() {
             <div className="max-h-[68vh] overflow-auto" style={{ height: gridHeight }}>
               <DataGrid
                 dataSource={master}
-                rowKey={(row, index) => `${row.CST_CD ?? row.ITEM_CD ?? 'master'}-${index}`}
+                rowKey={(row, index) => `${row.cstCd ?? row.itemCd ?? 'master'}-${index}`}
                 showBorders={true}
                 loading={busy}
                 emptyText="추가 가능한 거래처 데이터가 없습니다."
@@ -344,41 +343,41 @@ export default function MMSM01010E() {
                 <Paging enabled={true} defaultPageSize={PAGE_SIZE} />
                 <Pager visible={true} showPageSizeSelector={false} />
                 <Column<MasterRow>
-                  dataField="CST_CD"
+                  dataField="cstCd"
                   caption="거래처코드"
                   width={140}
                   alignment="center"
                   cellRender={(row) => (
                     <ClickableCell onDoubleClick={() => openCustomerDetail(row)} align="center">
-                      {row.CST_CD ?? ''}
+                      {row.cstCd ?? ''}
                     </ClickableCell>
                   )}
                 />
                 <Column<MasterRow>
-                  dataField="CST_NM"
+                  dataField="cstNm"
                   caption="거래처명"
                   width={220}
                   cellRender={(row) => (
                     <ClickableCell onDoubleClick={() => openCustomerDetail(row)}>
-                      {row.CST_NM ?? ''}
+                      {row.cstNm ?? ''}
                     </ClickableCell>
                   )}
                 />
                 <Column<MasterRow>
-                  dataField="CUST_GB"
+                  dataField="custGb"
                   caption="구분"
                   width={100}
                   alignment="center"
                 />
-                <Column<MasterRow> dataField="CEO_NM" caption="대표자명" width={120} />
-                <Column<MasterRow> dataField="MGR_NM" caption="담당자" width={120} />
-                <Column<MasterRow> dataField="TEL_NO" caption="전화번호" width={140} />
+                <Column<MasterRow> dataField="ceoNm" caption="대표자명" width={120} />
+                <Column<MasterRow> dataField="mgrNm" caption="담당자" width={120} />
+                <Column<MasterRow> dataField="telNo" caption="전화번호" width={140} />
                 <Column<MasterRow>
-                  dataField="STATUS"
+                  dataField="status"
                   caption="상태"
                   width={100}
                   alignment="center"
-                  cellRender={(row) => formatStatus(row.STATUS)}
+                  cellRender={(row) => formatStatus(row.status)}
                 />
               </DataGrid>
             </div>
@@ -396,7 +395,7 @@ export default function MMSM01010E() {
             <div className="max-h-[68vh] overflow-auto" style={{ height: gridHeight }}>
               <DataGrid
                 dataSource={detail}
-                rowKey={(row, index) => `${row.CST_CD ?? row.ITEM_CD ?? 'detail'}-${row.ISNEW ? 'new' : 'old'}-${index}`}
+                rowKey={(row, index) => `${row.cstCd ?? row.itemCd ?? 'detail'}-${row.isNew ? 'new' : 'old'}-${index}`}
                 showBorders={true}
                 loading={busy}
                 emptyText="거래처 관리 데이터가 없습니다. 거래처 목록에서 거래처를 선택하세요."
@@ -405,12 +404,12 @@ export default function MMSM01010E() {
                 <Paging enabled={true} defaultPageSize={PAGE_SIZE} />
                 <Pager visible={true} showPageSizeSelector={false} />
                 <Column<DetailRow>
-                  dataField="ISNEW"
+                  dataField="isNew"
                   caption="신규"
                   width={70}
                   alignment="center"
                   cellRender={(row) =>
-                    row.ISNEW ? (
+                    row.isNew ? (
                       <span className="rounded-full bg-sky-50 px-2 py-0.5 text-xs font-medium text-sky-700">
                         신규
                       </span>
@@ -420,52 +419,52 @@ export default function MMSM01010E() {
                   }
                 />
                 <Column<DetailRow>
-                  dataField="CST_CD"
+                  dataField="cstCd"
                   caption="거래처코드"
                   width={140}
                   alignment="center"
                   cellRender={(row) => (
                     <ClickableCell onDoubleClick={() => openCustomerDetail(row)} align="center">
-                      {row.CST_CD ?? ''}
+                      {row.cstCd ?? ''}
                     </ClickableCell>
                   )}
                 />
                 <Column<DetailRow>
-                  dataField="CST_NM"
+                  dataField="cstNm"
                   caption="거래처명"
                   width={220}
                   cellRender={(row) => (
                     <ClickableCell onDoubleClick={() => openCustomerDetail(row)}>
-                      {row.CST_NM ?? ''}
+                      {row.cstNm ?? ''}
                     </ClickableCell>
                   )}
                 />
                 <Column<DetailRow>
-                  dataField="CUST_GB"
+                  dataField="custGb"
                   caption="구분"
                   width={100}
                   alignment="center"
                 />
-                <Column<DetailRow> dataField="CEO_NM" caption="대표자명" width={120} />
-                <Column<DetailRow> dataField="MGR_NM" caption="담당자" width={120} />
-                <Column<DetailRow> dataField="TEL_NO" caption="전화번호" width={140} />
+                <Column<DetailRow> dataField="ceoNm" caption="대표자명" width={120} />
+                <Column<DetailRow> dataField="mgrNm" caption="담당자" width={120} />
+                <Column<DetailRow> dataField="telNo" caption="전화번호" width={140} />
                 <Column<DetailRow>
-                  dataField="STATUS"
+                  dataField="status"
                   caption="상태"
                   width={100}
                   alignment="center"
-                  cellRender={(row) => formatStatus(row.STATUS)}
+                  cellRender={(row) => formatStatus(row.status)}
                 />
                 <Column<DetailRow>
-                  dataField="MAIN_YN"
+                  dataField="mainYn"
                   caption="대표여부"
                   width={120}
                   alignment="center"
                   cellRender={(row, rowIndex) => (
                     <select
-                      value={row.MAIN_YN ?? ''}
+                      value={row.mainYn ?? ''}
                       onChange={(event) =>
-                        onDetailChange(rowIndex, { MAIN_YN: event.target.value as 'Y' | 'N' | '' })
+                        onDetailChange(rowIndex, { mainYn: event.target.value as 'Y' | 'N' | '' })
                       }
                       className="h-8 w-full rounded-md border border-slate-200 bg-white px-2 text-sm outline-none focus:border-slate-400"
                     >
@@ -500,12 +499,12 @@ export default function MMSM01010E() {
               <div className="flex items-center justify-between border-b px-6 py-4">
                 <div>
                   <h3 className="text-lg font-semibold text-slate-900">
-                    {detailPopupRow.IS_REGISTER ? '거래처 등록' : '거래처 상세'}
+                    {detailPopupRow.isRegister ? '거래처 등록' : '거래처 상세'}
                   </h3>
                   <p className="text-sm text-slate-500">
-                    {detailPopupRow.IS_REGISTER
+                    {detailPopupRow.isRegister
                       ? '거래처 코드는 저장 시 자동 생성됩니다.'
-                      : `${detailPopupRow.CST_CD} · ${detailPopupRow.CST_NM}`}
+                      : `${detailPopupRow.cstCd} · ${detailPopupRow.cstNm}`}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -515,7 +514,7 @@ export default function MMSM01010E() {
                     disabled={saving}
                     className="h-9 rounded-lg border border-sky-200 bg-sky-50 px-4 text-sm font-medium text-sky-700 transition hover:bg-sky-100 disabled:opacity-50"
                   >
-                    {saving ? '저장중...' : detailPopupRow.IS_REGISTER ? '등록' : '저장'}
+                    {saving ? '저장중...' : detailPopupRow.isRegister ? '등록' : '저장'}
                   </button>
                   <button
                     type="button"
@@ -530,70 +529,70 @@ export default function MMSM01010E() {
               <div className="grid gap-x-8 gap-y-4 overflow-auto p-6 md:grid-cols-2">
                 <DetailInput
                   label="거래처코드"
-                  value={detailPopupRow.IS_REGISTER ? '자동 생성' : detailPopupRow.CST_CD}
+                  value={detailPopupRow.isRegister ? '자동 생성' : detailPopupRow.cstCd}
                   readOnly
                 />
                 <DetailInput
                   label="거래처명"
-                  value={detailPopupRow.CST_NM}
-                  onChange={(value) => updateDetailPopup({ CST_NM: value })}
+                  value={detailPopupRow.cstNm}
+                  onChange={(value) => updateDetailPopup({ cstNm: value })}
                 />
                 <DetailInput
                   label="거래처구분"
-                  value={detailPopupRow.CUST_GB}
+                  value={detailPopupRow.custGb}
                   readOnly
                 />
                 <DetailInput
                   label="사업자번호"
-                  value={detailPopupRow.REG_NO}
+                  value={detailPopupRow.regNo}
                   maxLength={12}
-                  onChange={(value) => updateDetailPopup({ REG_NO: formatRegNo(value) })}
+                  onChange={(value) => updateDetailPopup({ regNo: formatRegNo(value) })}
                 />
                 <DetailInput
                   label="대표자명"
-                  value={detailPopupRow.CEO_NM}
-                  onChange={(value) => updateDetailPopup({ CEO_NM: value })}
+                  value={detailPopupRow.ceoNm}
+                  onChange={(value) => updateDetailPopup({ ceoNm: value })}
                 />
                 <DetailInput
                   label="담당자"
-                  value={detailPopupRow.MGR_NM}
-                  onChange={(value) => updateDetailPopup({ MGR_NM: value })}
+                  value={detailPopupRow.mgrNm}
+                  onChange={(value) => updateDetailPopup({ mgrNm: value })}
                 />
                 <DetailInput
                   label="전화번호"
-                  value={detailPopupRow.TEL_NO}
-                  onChange={(value) => updateDetailPopup({ TEL_NO: onlyDigits(value, 12) })}
+                  value={detailPopupRow.telNo}
+                  onChange={(value) => updateDetailPopup({ telNo: onlyDigits(value, 12) })}
                 />
                 <DetailInput
                   label="담당자연락처"
-                  value={detailPopupRow.MGR_TEL}
-                  onChange={(value) => updateDetailPopup({ MGR_TEL: onlyDigits(value, 12) })}
+                  value={detailPopupRow.mgrTel}
+                  onChange={(value) => updateDetailPopup({ mgrTel: onlyDigits(value, 12) })}
                 />
                 <DetailInput
                   label="이메일"
-                  value={detailPopupRow.EMAIL}
-                  onChange={(value) => updateDetailPopup({ EMAIL: value })}
+                  value={detailPopupRow.email}
+                  onChange={(value) => updateDetailPopup({ email: value })}
                 />
                 <DetailInput
                   label="팩스번호"
-                  value={detailPopupRow.FAX_NO}
-                  onChange={(value) => updateDetailPopup({ FAX_NO: onlyDigits(value, 12) })}
+                  value={detailPopupRow.faxNo}
+                  onChange={(value) => updateDetailPopup({ faxNo: onlyDigits(value, 12) })}
                 />
                 <DetailInput
                   label="우편번호"
-                  value={detailPopupRow.POST_NO}
-                  onChange={(value) => updateDetailPopup({ POST_NO: onlyDigits(value, 5) })}
+                  value={detailPopupRow.postNo}
+                  onChange={(value) => updateDetailPopup({ postNo: onlyDigits(value, 5) })}
                 />
                 <DetailSelect
                   label="상태"
-                  value={detailPopupRow.STATUS}
-                  onChange={(value) => updateDetailPopup({ STATUS: value })}
+                  value={detailPopupRow.status}
+                  onChange={(value) => updateDetailPopup({ status: value })}
                 />
                 <div className="md:col-span-2">
                   <DetailTextarea
                     label="주소"
-                    value={detailPopupRow.ADDR}
-                    onChange={(value) => updateDetailPopup({ ADDR: value })}
+                    value={detailPopupRow.addr}
+                    onChange={(value) => updateDetailPopup({ addr: value })}
                   />
                 </div>
               </div>
