@@ -78,3 +78,45 @@ export const mapExportRow = (row: RowItem) => [
   row.inStk ?? 0,
   row.outStk ?? 0,
 ];
+
+function compareYmdDesc(a?: string, b?: string) {
+  return String(b ?? '').localeCompare(String(a ?? ''));
+}
+
+function toNumber(value: number | string | undefined) {
+  const numeric = Number(String(value ?? '').replace(/,/g, ''));
+  return Number.isFinite(numeric) ? numeric : 0;
+}
+
+export function getLatestRowsByItem(rows: RowItem[]) {
+  const latestByItem = new Map<string, RowItem>();
+
+  rows.forEach((row) => {
+    const key = row.itemCd;
+    const current = latestByItem.get(key);
+
+    if (!current) {
+      latestByItem.set(key, {
+        ...row,
+        stStk: toNumber(row.stStk),
+        inStk: toNumber(row.inStk),
+        outStk: toNumber(row.outStk),
+      });
+      return;
+    }
+
+    const latest = compareYmdDesc(current.ymd, row.ymd) > 0 ? row : current;
+    latestByItem.set(key, {
+      ...latest,
+      stStk: toNumber(current.stStk) + toNumber(row.stStk),
+      inStk: toNumber(current.inStk) + toNumber(row.inStk),
+      outStk: toNumber(current.outStk) + toNumber(row.outStk),
+    });
+  });
+
+  return Array.from(latestByItem.values()).sort((a, b) => {
+    const ymdOrder = compareYmdDesc(a.ymd, b.ymd);
+    if (ymdOrder !== 0) return ymdOrder;
+    return String(a.itemCd ?? '').localeCompare(String(b.itemCd ?? ''));
+  });
+}

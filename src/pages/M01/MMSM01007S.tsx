@@ -15,6 +15,7 @@ import { usePageApiFetch } from '@/services/common/getApiFetch';
 import {
   columns,
   exportHeaders,
+  getLatestRowsByItem,
   mapExportRow,
   type RowItem,
   type SearchForm,
@@ -49,6 +50,17 @@ const MMSM01007S: React.FC = () => {
       itemCd: currentForm.itemCd || '',
     }),
   });
+  const latestRows = useMemo(() => getLatestRowsByItem(result.content), [result.content]);
+  const latestResult = useMemo(
+    () => ({
+      ...result,
+      content: latestRows,
+      totalElements: latestRows.length,
+      totalPages: latestRows.length > 0 ? 1 : 0,
+      numberOfElements: latestRows.length,
+    }),
+    [latestRows, result]
+  );
 
   return (
     <div className="min-h-full bg-slate-50/60 p-4" ref={containerRef}>
@@ -83,7 +95,7 @@ const MMSM01007S: React.FC = () => {
                 {loading ? '조회중...' : '조회'}
               </button>
               <ExportCsvButton
-                rows={result.content}
+                rows={latestRows}
                 headers={exportHeaders}
                 mapRow={mapExportRow}
                 filename={() => `원자재재고현황_${form.endDate.split('-').join('')}.csv`}
@@ -114,20 +126,18 @@ const MMSM01007S: React.FC = () => {
             title="원자재 재고현황"
             right={
               <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
-                {result.totalElements}건
+                {latestRows.length}건
               </span>
             }
           />
           <div className="max-h-[68vh] overflow-auto" style={{ height: tableHeight }}>
             <DataGrid
-              dataSource={result.content}
-              pageResult={result}
+              dataSource={latestRows}
+              pageResult={latestResult}
               rowKey={(row, index) => `${row.itemCd ?? 'item'}-${row.ymd ?? 'ymd'}-${index}`}
               showBorders={true}
               loading={loading}
-              remoteOperations={true}
               emptyText="원자재 재고현황 데이터가 없습니다."
-              onPageChange={(page) => void fetchList(page)}
               classNames={{
                 table: 'min-w-[1260px] w-full text-sm',
               }}
