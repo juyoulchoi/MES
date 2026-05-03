@@ -50,7 +50,6 @@ type ReceivableDetailRow = DetailRow & {
 };
 
 const PURCHASE_SEARCH_START_DATE = '19000101';
-const DETAIL_ITEM_NAME_WIDTH = 220;
 
 function pickValue(source: Record<string, unknown>, keys: string[]) {
   for (const key of keys) {
@@ -364,7 +363,7 @@ export default function MMSM01003E() {
                 <Column
                   dataField="itemNm"
                   caption="품목명"
-                  width={DETAIL_ITEM_NAME_WIDTH}
+                  width={220}
                   alignment="left"
                 />
                 <Column dataField="unitCd" caption="단위" width={60} alignment="center" />

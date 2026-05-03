@@ -32,9 +32,6 @@ import {
 import { useEffect, useRef, useState } from 'react';
 import { useCodes } from '@/lib/hooks/useCodes';
 
-const EXCEL_TEMPLATE_HEADERS = ['품목코드', '품목명', '수량', '비고'];
-const DETAIL_ITEM_NAME_WIDTH = 220;
-
 export default function MMSM01001E() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [customerOpen, setCustomerOpen] = useState(false);
@@ -352,7 +349,7 @@ export default function MMSM01001E() {
           비고: '비고',
         },
       ],
-      EXCEL_TEMPLATE_HEADERS
+      ['품목코드', '품목명', '수량', '비고']
     );
   }
 
@@ -489,7 +486,7 @@ export default function MMSM01001E() {
                   onChange={(_row, rowIndex, checked) => toggleDetail(rowIndex, checked)}
                 />
                 <Column dataField="itemCd" caption="원자재코드" width={120} alignment="center" />
-                <Column dataField="itemNm" caption="원자재명" width={DETAIL_ITEM_NAME_WIDTH} />
+                <Column dataField="itemNm" caption="원자재명" width={220} />
                 <Column
                   dataField="reqYmd"
                   caption="납기 요청일"
