@@ -32,6 +32,15 @@ import {
 import { useEffect, useRef, useState } from 'react';
 import { useCodes } from '@/lib/hooks/useCodes';
 
+const DEFAULT_EM_GB = 'N';
+type MasterApiRow = MasterRow & {
+  ITEM_CD?: string;
+  ITEM_NM?: string;
+  UNIT_CD?: string;
+  UNIT_PRICE?: string | number;
+  unitPrice?: string | number;
+};
+
 export default function MMSM01001E() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [customerOpen, setCustomerOpen] = useState(false);
@@ -113,7 +122,20 @@ export default function MMSM01001E() {
   const isSave = masterLoading || detailLoading || saving || uploading;
   const isUpload = saving || uploading;
   useEffect(() => {
-    setMasterRows(masterResult.content.map((row) => ({ ...row, CHECK: false })));
+    setMasterRows(
+      masterResult.content.map((row) => {
+        const source = row as MasterApiRow;
+
+        return {
+          ...row,
+          itemCd: source.itemCd ?? source.ITEM_CD ?? '',
+          itemNm: source.itemNm ?? source.ITEM_NM ?? '',
+          unitCd: source.unitCd ?? source.UNIT_CD ?? '',
+          price: source.price ?? source.unitPrice ?? source.UNIT_PRICE ?? '',
+          CHECK: false,
+        };
+      })
+    );
   }, [masterResult.content]);
 
   useEffect(() => {
@@ -122,11 +144,11 @@ export default function MMSM01001E() {
       detailResult.content.map((row) => ({
         ...row,
         reqYmd: row.reqYmd || form.poYmd,
-        emGb: row.emGb || emCodes[0]?.code || '',
+        emGb: row.emGb || DEFAULT_EM_GB,
         CHECK: false,
       }))
     );
-  }, [detailResult.content, emCodes, form.poYmd]);
+  }, [detailResult.content, form.poYmd]);
 
   function toggleMaster(rowIndex: number, checked: boolean) {
     updateCheckedRows(setMasterRows, rowIndex, checked);
@@ -159,10 +181,10 @@ export default function MMSM01001E() {
         itemNm: row.itemNm ?? '',
         unitCd: row.unitCd ?? '',
         qty: row.qty ?? '',
-        price: row.price ?? '',
+        price: '',
         amt: row.amt ?? '',
         reqYmd: form.poYmd,
-        emGb: emCodes[0]?.code || '',
+        emGb: DEFAULT_EM_GB,
         itemTp: '',
         description: '',
       }));
@@ -264,7 +286,7 @@ export default function MMSM01001E() {
         price: row.price ?? '',
         amt: row.amt ?? '',
         reqYmd: form.poYmd,
-        emGb: emCodes[0]?.code || '',
+        emGb: DEFAULT_EM_GB,
         itemTp: '',
         description: row.desc ?? '',
       }))

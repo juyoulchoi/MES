@@ -25,6 +25,8 @@ import {
 } from '@/services/m02/mmsm02001';
 import { useEffect, useState } from 'react';
 
+const DEFAULT_EM_GB = 'N';
+
 export default function MMSM02001E() {
   const [customerOpen, setCustomerOpen] = useState(false);
   const [cstNm, setCstNm] = useState('');
@@ -110,11 +112,11 @@ export default function MMSM02001E() {
       detailResult.content.map((row) => ({
         ...row,
         reqYmd: row.reqYmd || form.soYmd,
-        emGb: row.emGb || emCodes[0]?.code || '',
+        emGb: row.emGb || DEFAULT_EM_GB,
         CHECK: false,
       }))
     );
-  }, [detailResult.content, emCodes, form.soYmd]);
+  }, [detailResult.content, form.soYmd]);
 
   function toggleMaster(rowIndex: number, checked: boolean) {
     updateCheckedRows(setMasterRows, rowIndex, checked);
@@ -149,7 +151,7 @@ export default function MMSM02001E() {
         qty: '',
         price: '',
         reqYmd: form.soYmd,
-        emGb: emCodes[0]?.code || '',
+        emGb: DEFAULT_EM_GB,
         description: '',
         endYn: '',
         salTp: '',
