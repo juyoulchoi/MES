@@ -29,17 +29,6 @@ export interface DetailRow extends MasterRow {
   mainYn?: 'Y' | 'N' | '';
 }
 
-export const exportHeaders = ['거래처코드', '거래처명', '구분', '담당자', '연락처', '대표여부'];
-
-export const mapExportRow = (row: DetailRow) => [
-  row.cstCd ?? row.itemCd ?? '',
-  row.cstNm ?? row.itemNm ?? '',
-  row.custGb ?? '',
-  row.mgrNm ?? '',
-  row.telNo ?? row.mgrTel ?? '',
-  row.mainYn ?? '',
-];
-
 export function formatRegNo(value: string) {
   const digits = value.replace(/\D/g, '').slice(0, 10);
   if (digits.length <= 3) return digits;

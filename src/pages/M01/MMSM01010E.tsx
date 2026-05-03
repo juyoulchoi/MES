@@ -3,7 +3,6 @@ import { useRef, useState, type ReactNode } from 'react';
 import AlertBox from '@/components/AlertBox';
 import CodeNameField from '@/components/CodeNameField';
 import CustomerCodePicker from '@/components/CustomerCodePicker';
-import ExportCsvButton from '@/components/ExportCsvButton';
 import SectionCard from '@/components/SectionCard';
 import SectionHeader from '@/components/SectionHeader';
 import { Column, DataGrid, Pager, Paging } from '@/components/table/DataGrid';
@@ -11,11 +10,9 @@ import { useAutoTableHeight } from '@/lib/hooks/useAutoTableHeight';
 import { http } from '@/lib/http';
 import { PAGE_SIZE, type PageableResponse } from '@/lib/pagination';
 import {
-  exportHeaders,
   formatRegNo,
   formatStatus,
   getContent,
-  mapExportRow,
   normalizeCustomerRow,
   normalizeMasterRow,
   onlyDigits,
@@ -115,12 +112,14 @@ function ClickableCell({
     <button
       type="button"
       onDoubleClick={onDoubleClick}
-      className={`w-full rounded px-1 py-0.5 text-sm text-slate-800 transition hover:bg-slate-100 ${
-        align === 'center' ? 'text-center' : 'text-left'
+      className={`group inline-flex min-h-7 w-full items-center gap-1.5 rounded-md border border-transparent px-2 py-1 text-sm font-medium text-sky-700 transition hover:text-sky-800 focus:outline-none ${
+        align === 'center' ? 'justify-center text-center' : 'justify-start text-left'
       }`}
-      title="더블 클릭하여 상세 보기"
+      title="더블클릭하여 거래처 상세 보기"
     >
-      {children}
+      <span className="truncate underline decoration-sky-300 underline-offset-4 group-hover:decoration-sky-500">
+        {children}
+      </span>
     </button>
   );
 }
@@ -130,7 +129,6 @@ export default function MMSM01010E() {
   const [cstCd, setCstCd] = useState('');
   const [cstNm, setCstNm] = useState('');
   const [master, setMaster] = useState<MasterRow[]>([]);
-  const [detail, setDetail] = useState<DetailRow[]>([]);
   const [detailPopupRow, setDetailPopupRow] = useState<DetailRow | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -152,37 +150,18 @@ export default function MMSM01010E() {
     return getContent(data).map((row) => normalizeMasterRow(row));
   }
 
-  async function loadDetail() {
-    if (!cstCd) return [];
-
-    const data = await http<CustomerApiRow>(`/api/v1/mdm/cust/${encodeURIComponent(cstCd)}`);
-    return getContent<CustomerApiRow>(data).map((row) => ({
-      ...normalizeCustomerRow(row),
-      isNew: false,
-    }));
-  }
-
   async function onSearch() {
     setLoading(true);
     setError(null);
 
     try {
-      const [masterRows, detailRows] = await Promise.all([loadMaster(), loadDetail()]);
-      setMaster(masterRows);
-      setDetail(detailRows);
+      setMaster(await loadMaster());
     } catch (e) {
       setMaster([]);
-      setDetail([]);
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
     }
-  }
-
-  function onDetailChange(rowIndex: number, patch: Partial<DetailRow>) {
-    setDetail((prev) =>
-      prev.map((row, index) => (index === rowIndex ? { ...row, ...patch } : row))
-    );
   }
 
   function openCustomerDetail(row: MasterRow | DetailRow) {
@@ -252,13 +231,6 @@ export default function MMSM01010E() {
             : row
         )
       );
-      setDetail((prev) =>
-        prev.map((row) =>
-          row.cstCd === detailPopupRow.cstCd
-            ? patchCustomerRow(row, detailPopupRow)
-            : row
-        )
-      );
       if (cstCd === detailPopupRow.cstCd) {
         setCstNm(detailPopupRow.cstNm ?? '');
       }
@@ -306,14 +278,6 @@ export default function MMSM01010E() {
               >
                 등록
               </button>
-              <ExportCsvButton
-                rows={detail}
-                headers={exportHeaders}
-                mapRow={mapExportRow}
-                filename={() => `원자재거래처관리_${cstCd || '전체'}.csv`}
-                variant="outline"
-                className="h-10 rounded-lg border border-emerald-200 bg-emerald-50 px-4 text-sm font-medium text-emerald-700 shadow-none transition hover:bg-emerald-100"
-              />
             </div>
           </div>
 
@@ -321,163 +285,66 @@ export default function MMSM01010E() {
 
         {error ? <AlertBox tone="error">{error}</AlertBox> : null}
 
-        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-          <SectionCard span="full" width="full">
-            <SectionHeader
-              title="거래처 목록"
-              right={
-                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
-                  {master.length}건
-                </span>
-              }
-            />
-            <div className="max-h-[68vh] overflow-auto" style={{ height: gridHeight }}>
-              <DataGrid
-                dataSource={master}
-                rowKey={(row, index) => `${row.cstCd ?? row.itemCd ?? 'master'}-${index}`}
-                showBorders={true}
-                loading={busy}
-                emptyText="추가 가능한 거래처 데이터가 없습니다."
-                classNames={{ table: 'min-w-[1120px] w-full text-sm' }}
-              >
-                <Paging enabled={true} defaultPageSize={PAGE_SIZE} />
-                <Pager visible={true} showPageSizeSelector={false} />
-                <Column<MasterRow>
-                  dataField="cstCd"
-                  caption="거래처코드"
-                  width={140}
-                  alignment="center"
-                  cellRender={(row) => (
-                    <ClickableCell onDoubleClick={() => openCustomerDetail(row)} align="center">
-                      {row.cstCd ?? ''}
-                    </ClickableCell>
-                  )}
-                />
-                <Column<MasterRow>
-                  dataField="cstNm"
-                  caption="거래처명"
-                  width={220}
-                  cellRender={(row) => (
-                    <ClickableCell onDoubleClick={() => openCustomerDetail(row)}>
-                      {row.cstNm ?? ''}
-                    </ClickableCell>
-                  )}
-                />
-                <Column<MasterRow>
-                  dataField="custGb"
-                  caption="구분"
-                  width={100}
-                  alignment="center"
-                />
-                <Column<MasterRow> dataField="ceoNm" caption="대표자명" width={120} />
-                <Column<MasterRow> dataField="mgrNm" caption="담당자" width={120} />
-                <Column<MasterRow> dataField="telNo" caption="전화번호" width={140} />
-                <Column<MasterRow>
-                  dataField="status"
-                  caption="상태"
-                  width={100}
-                  alignment="center"
-                  cellRender={(row) => formatStatus(row.status)}
-                />
-              </DataGrid>
-            </div>
-          </SectionCard>
-
-          <SectionCard span="full" width="full">
-            <SectionHeader
-              title="거래처 관리"
-              right={
-                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
-                  {detail.length}건
-                </span>
-              }
-            />
-            <div className="max-h-[68vh] overflow-auto" style={{ height: gridHeight }}>
-              <DataGrid
-                dataSource={detail}
-                rowKey={(row, index) => `${row.cstCd ?? row.itemCd ?? 'detail'}-${row.isNew ? 'new' : 'old'}-${index}`}
-                showBorders={true}
-                loading={busy}
-                emptyText="거래처 관리 데이터가 없습니다. 거래처 목록에서 거래처를 선택하세요."
-                classNames={{ table: 'min-w-[1260px] w-full text-sm' }}
-              >
-                <Paging enabled={true} defaultPageSize={PAGE_SIZE} />
-                <Pager visible={true} showPageSizeSelector={false} />
-                <Column<DetailRow>
-                  dataField="isNew"
-                  caption="신규"
-                  width={70}
-                  alignment="center"
-                  cellRender={(row) =>
-                    row.isNew ? (
-                      <span className="rounded-full bg-sky-50 px-2 py-0.5 text-xs font-medium text-sky-700">
-                        신규
-                      </span>
-                    ) : (
-                      ''
-                    )
-                  }
-                />
-                <Column<DetailRow>
-                  dataField="cstCd"
-                  caption="거래처코드"
-                  width={140}
-                  alignment="center"
-                  cellRender={(row) => (
-                    <ClickableCell onDoubleClick={() => openCustomerDetail(row)} align="center">
-                      {row.cstCd ?? ''}
-                    </ClickableCell>
-                  )}
-                />
-                <Column<DetailRow>
-                  dataField="cstNm"
-                  caption="거래처명"
-                  width={220}
-                  cellRender={(row) => (
-                    <ClickableCell onDoubleClick={() => openCustomerDetail(row)}>
-                      {row.cstNm ?? ''}
-                    </ClickableCell>
-                  )}
-                />
-                <Column<DetailRow>
-                  dataField="custGb"
-                  caption="구분"
-                  width={100}
-                  alignment="center"
-                />
-                <Column<DetailRow> dataField="ceoNm" caption="대표자명" width={120} />
-                <Column<DetailRow> dataField="mgrNm" caption="담당자" width={120} />
-                <Column<DetailRow> dataField="telNo" caption="전화번호" width={140} />
-                <Column<DetailRow>
-                  dataField="status"
-                  caption="상태"
-                  width={100}
-                  alignment="center"
-                  cellRender={(row) => formatStatus(row.status)}
-                />
-                <Column<DetailRow>
-                  dataField="mainYn"
-                  caption="대표여부"
-                  width={120}
-                  alignment="center"
-                  cellRender={(row, rowIndex) => (
-                    <select
-                      value={row.mainYn ?? ''}
-                      onChange={(event) =>
-                        onDetailChange(rowIndex, { mainYn: event.target.value as 'Y' | 'N' | '' })
-                      }
-                      className="h-8 w-full rounded-md border border-slate-200 bg-white px-2 text-sm outline-none focus:border-slate-400"
-                    >
-                      <option value=""></option>
-                      <option value="Y">Y</option>
-                      <option value="N">N</option>
-                    </select>
-                  )}
-                />
-              </DataGrid>
-            </div>
-          </SectionCard>
-        </div>
+        <SectionCard span="full" width="full">
+          <SectionHeader
+            title="거래처 목록"
+            right={
+              <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
+                {master.length}건
+              </span>
+            }
+          />
+          <div className="max-h-[68vh] overflow-auto" style={{ height: gridHeight }}>
+            <DataGrid
+              dataSource={master}
+              rowKey={(row, index) => `${row.cstCd ?? row.itemCd ?? 'master'}-${index}`}
+              showBorders={true}
+              loading={busy}
+              emptyText="거래처 데이터가 없습니다."
+              classNames={{ table: 'min-w-[1120px] w-full text-sm' }}
+            >
+              <Paging enabled={true} defaultPageSize={PAGE_SIZE} />
+              <Pager visible={true} showPageSizeSelector={false} />
+              <Column<MasterRow>
+                dataField="cstCd"
+                caption="거래처코드"
+                width={140}
+                alignment="center"
+                cellRender={(row) => (
+                  <ClickableCell onDoubleClick={() => openCustomerDetail(row)} align="center">
+                    {row.cstCd ?? ''}
+                  </ClickableCell>
+                )}
+              />
+              <Column<MasterRow>
+                dataField="cstNm"
+                caption="거래처명"
+                width={220}
+                cellRender={(row) => (
+                  <ClickableCell onDoubleClick={() => openCustomerDetail(row)}>
+                    {row.cstNm ?? ''}
+                  </ClickableCell>
+                )}
+              />
+              <Column<MasterRow>
+                dataField="custGb"
+                caption="구분"
+                width={100}
+                alignment="center"
+              />
+              <Column<MasterRow> dataField="ceoNm" caption="대표자명" width={120} />
+              <Column<MasterRow> dataField="mgrNm" caption="담당자" width={120} />
+              <Column<MasterRow> dataField="telNo" caption="전화번호" width={140} />
+              <Column<MasterRow>
+                dataField="status"
+                caption="상태"
+                width={100}
+                alignment="center"
+                cellRender={(row) => formatStatus(row.status)}
+              />
+            </DataGrid>
+          </div>
+        </SectionCard>
 
         {customerOpen ? (
           <CustomerCodePicker
@@ -501,11 +368,11 @@ export default function MMSM01010E() {
                   <h3 className="text-lg font-semibold text-slate-900">
                     {detailPopupRow.isRegister ? '거래처 등록' : '거래처 상세'}
                   </h3>
-                  <p className="text-sm text-slate-500">
-                    {detailPopupRow.isRegister
-                      ? '거래처 코드는 저장 시 자동 생성됩니다.'
-                      : `${detailPopupRow.cstCd} · ${detailPopupRow.cstNm}`}
-                  </p>
+                  {detailPopupRow.isRegister ? (
+                    <p className="text-sm text-slate-500">
+                      거래처 코드는 저장 시 자동 생성됩니다.
+                    </p>
+                  ) : null}
                 </div>
                 <div className="flex items-center gap-2">
                   <button
