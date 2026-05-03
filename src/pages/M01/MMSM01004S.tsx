@@ -225,7 +225,7 @@ const MMSM01004S: React.FC = () => {
           customer={{
             open: customerOpen,
             title: '거래처 정보',
-            custGb: 'CUSTOMER',
+            custGb: 'SUPPLIER',
             cstCd: form.cstCd,
             cstNm: form.cstNm,
             onClose: () => setCustomerOpen(false),

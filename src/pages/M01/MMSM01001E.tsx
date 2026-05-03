@@ -559,7 +559,7 @@ export default function MMSM01001E() {
           customer={{
             open: customerOpen,
             title: '거래처 정보',
-            custGb: 'CUSTOMER',
+            custGb: 'SUPPLIER',
             cstCd: form.cstCd,
             cstNm,
             onClose: () => setCustomerOpen(false),
