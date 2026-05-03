@@ -5,34 +5,12 @@ import { toYmd } from '@/lib/excel';
 type QueryValue = string | number | boolean | null | undefined;
 type QueryParams = Record<string, QueryValue>;
 
-function pickString(source: Record<string, unknown>, keys: string[]): string | undefined {
-  for (const key of keys) {
-    const value = source[key];
-    if (value !== undefined && value !== null && value !== '') {
-      return String(value);
-    }
-  }
-
-  return undefined;
-}
-
 function toApiParams(params: QueryParams): Record<string, string> {
   return Object.fromEntries(
     Object.entries(params)
       .filter(([, value]) => value !== undefined && value !== null)
       .map(([key, value]) => [key, String(value)])
   );
-}
-
-function pickNumberLike(source: Record<string, unknown>, keys: string[]): number | string | undefined {
-  const value = pickString(source, keys);
-  if (value === undefined) {
-    return undefined;
-  }
-
-  const normalized = value.replace(/,/g, '');
-  const numeric = Number(normalized);
-  return Number.isNaN(numeric) ? value : numeric;
 }
 
 function toNumericValue(value: number | string | null | undefined): number {
@@ -145,40 +123,9 @@ interface BuildSavePayloadRequest {
 }
 
 export function normalizeDetailRow(row: DetailRow | Record<string, unknown>): DetailRow {
-  const source = row as Record<string, unknown>;
   const detailRow = row as DetailRow;
 
-  return {
-    ...detailRow,
-    ivYmd: pickString(source, ['ivYmd', 'IV_YMD']) ?? detailRow.ivYmd,
-    ivSeq: pickString(source, ['ivSeq', 'IV_SEQ']) ?? detailRow.ivSeq,
-    ivSubSeq:
-      pickString(source, ['ivSubSeq', 'IV_SUB_SEQ', 'inSubSeq', 'IN_SUB_SEQ']) ?? detailRow.ivSubSeq,
-    poYmd: pickString(source, ['poYmd', 'PO_YMD']) ?? detailRow.poYmd,
-    poSeq: pickString(source, ['poSeq', 'PO_SEQ']) ?? detailRow.poSeq,
-    poSubSeq: pickString(source, ['poSubSeq', 'PO_SUB_SEQ']) ?? detailRow.poSubSeq,
-    itemCd: pickString(source, ['itemCd', 'ITEM_CD']) ?? detailRow.itemCd,
-    itemNm: pickString(source, ['itemNm', 'ITEM_NM']) ?? detailRow.itemNm,
-    unitCd: pickString(source, ['unitCd', 'UNIT_CD']) ?? detailRow.unitCd,
-    qty: pickString(source, ['qty', 'QTY']) ?? detailRow.qty,
-    price:
-      pickNumberLike(source, [
-        'price',
-        'ivPrice',
-        'poPrice',
-        'unitPrice',
-        'purPrice',
-        'PRICE',
-        'IV_PRICE',
-        'PO_PRICE',
-        'UNIT_PRICE',
-        'PUR_PRICE',
-      ]) ?? detailRow.price,
-    amt:
-      pickNumberLike(source, ['amt', 'ivAmt', 'poAmt', 'totAmt', 'AMT', 'IV_AMT', 'PO_AMT', 'TOT_AMT']) ??
-      detailRow.amt,
-    description: pickString(source, ['description', 'desc', 'DESC']) ?? detailRow.description,
-  };
+  return { ...detailRow };
 }
 
 export function getDetailRowKey(row: DetailRow) {

@@ -41,51 +41,46 @@ export function onlyDigits(value: string, maxLength?: number) {
   return maxLength ? digits.slice(0, maxLength) : digits;
 }
 
-function legacyString(row: object, key: string) {
-  const value = (row as Record<string, unknown>)[key];
-  return typeof value === 'string' ? value : undefined;
-}
-
 export function normalizeMasterRow(row: CustomerApiRow): MasterRow {
   return {
     ...row,
-    cstCd: row.cstCd ?? legacyString(row, 'CST_CD') ?? legacyString(row, 'ITEM_CD') ?? '',
-    cstNm: row.cstNm ?? legacyString(row, 'CST_NM') ?? legacyString(row, 'ITEM_NM') ?? '',
-    custGb: row.custGb ?? legacyString(row, 'CUST_GB') ?? '',
-    ceoNm: row.ceoNm ?? legacyString(row, 'CEO_NM') ?? '',
-    mgrNm: row.mgrNm ?? legacyString(row, 'MGR_NM') ?? '',
-    telNo: row.telNo ?? legacyString(row, 'TEL_NO') ?? '',
-    mgrTel: row.mgrTel ?? legacyString(row, 'MGR_TEL') ?? '',
-    email: row.email ?? legacyString(row, 'EMAIL') ?? '',
-    faxNo: row.faxNo ?? legacyString(row, 'FAX_NO') ?? '',
-    regNo: formatRegNo(row.regNo ?? legacyString(row, 'REG_NO') ?? ''),
-    postNo: row.postNo ?? legacyString(row, 'POST_NO') ?? '',
-    addr: row.addr ?? legacyString(row, 'ADDR') ?? '',
-    status: row.status ?? legacyString(row, 'STATUS') ?? 'ACTIVE',
-    itemCd: row.itemCd ?? legacyString(row, 'ITEM_CD') ?? '',
-    itemNm: row.itemNm ?? legacyString(row, 'ITEM_NM') ?? '',
+    cstCd: row.cstCd ?? '',
+    cstNm: row.cstNm ?? '',
+    custGb: row.custGb ?? '',
+    ceoNm: row.ceoNm ?? '',
+    mgrNm: row.mgrNm ?? '',
+    telNo: row.telNo ?? '',
+    mgrTel: row.mgrTel ?? '',
+    email: row.email ?? '',
+    faxNo: row.faxNo ?? '',
+    regNo: formatRegNo(row.regNo ?? ''),
+    postNo: row.postNo ?? '',
+    addr: row.addr ?? '',
+    status: row.status ?? 'ACTIVE',
+    itemCd: row.itemCd ?? '',
+    itemNm: row.itemNm ?? '',
   };
 }
 
 export function normalizeCustomerRow(row: CustomerApiRow | DetailRow): DetailRow {
   return {
     ...row,
-    cstCd: row.cstCd ?? legacyString(row, 'CST_CD') ?? legacyString(row, 'ITEM_CD') ?? '',
-    cstNm: row.cstNm ?? legacyString(row, 'CST_NM') ?? legacyString(row, 'ITEM_NM') ?? '',
-    custGb: row.custGb ?? legacyString(row, 'CUST_GB') ?? '',
-    ceoNm: row.ceoNm ?? legacyString(row, 'CEO_NM') ?? '',
-    mgrNm: row.mgrNm ?? legacyString(row, 'MGR_NM') ?? '',
-    telNo: row.telNo ?? legacyString(row, 'TEL_NO') ?? '',
-    mgrTel: row.mgrTel ?? legacyString(row, 'MGR_TEL') ?? '',
-    email: row.email ?? legacyString(row, 'EMAIL') ?? '',
-    faxNo: row.faxNo ?? legacyString(row, 'FAX_NO') ?? '',
-    regNo: formatRegNo(row.regNo ?? legacyString(row, 'REG_NO') ?? ''),
-    postNo: row.postNo ?? legacyString(row, 'POST_NO') ?? '',
-    addr: row.addr ?? legacyString(row, 'ADDR') ?? '',
-    status: row.status ?? legacyString(row, 'STATUS') ?? 'ACTIVE',
-    itemCd: row.itemCd ?? legacyString(row, 'ITEM_CD') ?? '',
-    itemNm: row.itemNm ?? legacyString(row, 'ITEM_NM') ?? '',
-    mainYn: row.mainYn ?? (legacyString(row, 'MAIN_YN') as 'Y' | 'N' | undefined) ?? '',
+    cstCd: row.cstCd ?? '',
+    cstNm: row.cstNm ?? '',
+    custGb: row.custGb ?? '',
+    ceoNm: row.ceoNm ?? '',
+    mgrNm: row.mgrNm ?? '',
+    telNo: row.telNo ?? '',
+    mgrTel: row.mgrTel ?? '',
+    email: row.email ?? '',
+    faxNo: row.faxNo ?? '',
+    regNo: formatRegNo(row.regNo ?? ''),
+    postNo: row.postNo ?? '',
+    addr: row.addr ?? '',
+    status: row.status ?? 'ACTIVE',
+    itemCd: row.itemCd ?? '',
+    itemNm: row.itemNm ?? '',
+    mainYn: row.mainYn ?? '',
   };
 }
 

@@ -24,28 +24,13 @@ export interface ApiRow extends RowItem {
   [key: string]: unknown;
 }
 
-function legacyString(row: ApiRow, key: string) {
-  const value = row[key];
-  return value === undefined || value === null ? undefined : String(value);
-}
-
 export function toYmd(value: string) {
   return value.split('-').join('');
 }
 
 export function normalizeRows(rows: ApiRow[]): RowItem[] {
   return rows.map((row, index) => ({
-    rnum: row.rnum ?? legacyString(row, 'RNUM'),
-    itemCd: row.itemCd ?? legacyString(row, 'ITEM_CD'),
-    itemNm: row.itemNm ?? legacyString(row, 'ITEM_NM'),
-    qty: row.qty ?? legacyString(row, 'QTY'),
-    unitCd: row.unitCd ?? legacyString(row, 'UNIT_CD'),
-    ymd: row.ymd ?? legacyString(row, 'YMD'),
-    stStk: row.stStk ?? legacyString(row, 'ST_STK') ?? legacyString(row, 'STK_QTY'),
-    inStk: row.inStk ?? legacyString(row, 'IN_STK') ?? legacyString(row, 'IN_QTY'),
-    outStk: row.outStk ?? legacyString(row, 'OUT_STK') ?? legacyString(row, 'OUT_QTY'),
-    endStk: row.endStk ?? legacyString(row, 'END_STK'),
-    description: row.description ?? legacyString(row, 'DESC'),
+    ...row,
     ...(row.rnum ? {} : { rnum: index + 1 }),
   }));
 }

@@ -8,28 +8,6 @@ export { RAW_MATERIAL_ITEM_GB } from '@/services/m01/constants';
 type QueryValue = string | number | boolean | null | undefined;
 type QueryParams = Record<string, QueryValue>;
 
-function pickString(source: Record<string, unknown>, keys: string[]): string | undefined {
-  for (const key of keys) {
-    const value = source[key];
-    if (value !== undefined && value !== null && value !== '') {
-      return String(value);
-    }
-  }
-
-  return undefined;
-}
-
-function pickNumberLike(source: Record<string, unknown>, keys: string[]): number | string | undefined {
-  const value = pickString(source, keys);
-  if (value === undefined) {
-    return undefined;
-  }
-
-  const normalized = value.replace(/,/g, '');
-  const numeric = Number(normalized);
-  return Number.isNaN(numeric) ? value : numeric;
-}
-
 function toApiParams(params: QueryParams): Record<string, string> {
   return Object.fromEntries(
     Object.entries(params)
@@ -131,26 +109,9 @@ interface BuildSavePayloadRequest {
 }
 
 export function normalizeDetailRow(row: DetailRow | Record<string, unknown>): DetailRow {
-  const source = row as Record<string, unknown>;
   const detailRow = row as DetailRow;
 
-  return {
-    ...detailRow,
-    giYmd: pickString(source, ['giYmd', 'GI_YMD']) ?? detailRow.giYmd,
-    giSeq: pickString(source, ['giSeq', 'GI_SEQ']) ?? detailRow.giSeq,
-    giSubSeq:
-      pickString(source, ['giSubSeq', 'GI_SUB_SEQ', 'outSubSeq', 'OUT_SUB_SEQ']) ??
-      detailRow.giSubSeq,
-    itemCd: pickString(source, ['itemCd', 'ITEM_CD']) ?? detailRow.itemCd,
-    itemNm: pickString(source, ['itemNm', 'ITEM_NM']) ?? detailRow.itemNm,
-    unitCd: pickString(source, ['unitCd', 'UNIT_CD']) ?? detailRow.unitCd,
-    qty: pickString(source, ['qty', 'QTY']) ?? detailRow.qty,
-    price:
-      pickNumberLike(source, ['price', 'giPrice', 'unitPrice', 'PRICE', 'GI_PRICE', 'UNIT_PRICE']) ??
-      detailRow.price,
-    amt: pickNumberLike(source, ['amt', 'giAmt', 'totAmt', 'AMT', 'GI_AMT', 'TOT_AMT']) ?? detailRow.amt,
-    description: pickString(source, ['description', 'desc', 'DESC']) ?? detailRow.description,
-  };
+  return { ...detailRow };
 }
 
 export function getDetailRowKey(row: DetailRow) {

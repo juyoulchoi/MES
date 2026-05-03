@@ -9,16 +9,6 @@ export { RAW_MATERIAL_ITEM_GB } from '@/services/m01/constants';
 type QueryValue = string | number | boolean | null | undefined;
 type QueryParams = Record<string, QueryValue>;
 
-function pickString(source: Record<string, unknown>, keys: string[]): string | undefined {
-  for (const key of keys) {
-    const value = source[key];
-    if (value !== undefined && value !== null && value !== '') {
-      return String(value);
-    }
-  }
-  return undefined;
-}
-
 function normalizeDateInputValue(value?: string): string | undefined {
   if (!value) {
     return undefined;
@@ -32,50 +22,12 @@ function normalizeDateInputValue(value?: string): string | undefined {
   return trimmed;
 }
 
-function pickNumberLike(source: Record<string, unknown>, keys: string[]): number | string | undefined {
-  const value = pickString(source, keys);
-  if (value === undefined) {
-    return undefined;
-  }
-
-  const normalized = value.replace(/,/g, '');
-  const numeric = Number(normalized);
-  return Number.isNaN(numeric) ? value : numeric;
-}
-
 export function normalizeDetailRow(row: DetailRow | Record<string, unknown>): DetailRow {
-  const source = row as Record<string, unknown>;
   const detailRow = row as DetailRow;
 
   return {
     ...detailRow,
-    poYmd: pickString(source, ['poYmd', 'PO_YMD']) ?? detailRow.poYmd,
-    poSeq: pickString(source, ['poSeq', 'PO_SEQ']) ?? detailRow.poSeq,
-    poSubSeq: pickString(source, ['poSubSeq', 'PO_SUB_SEQ']) ?? detailRow.poSubSeq,
-    itemCd: pickString(source, ['itemCd', 'ITEM_CD']) ?? detailRow.itemCd,
-    itemNm: pickString(source, ['itemNm', 'ITEM_NM']) ?? detailRow.itemNm,
-    unitCd: pickString(source, ['unitCd', 'UNIT_CD']) ?? detailRow.unitCd,
-    qty: pickString(source, ['qty', 'QTY']) ?? detailRow.qty,
-    price:
-      pickNumberLike(source, [
-        'price',
-        'poPrice',
-        'unitPrice',
-        'purPrice',
-        'PRICE',
-        'PO_PRICE',
-        'UNIT_PRICE',
-        'PUR_PRICE',
-      ]) ?? detailRow.price,
-    amt:
-      pickNumberLike(source, ['amt', 'poAmt', 'totAmt', 'AMT', 'PO_AMT', 'TOT_AMT']) ??
-      detailRow.amt,
-    reqYmd: normalizeDateInputValue(
-      pickString(source, ['reqYmd', 'regYmd', 'REQ_YMD', 'REG_YMD']) ?? detailRow.reqYmd
-    ),
-    emGb: pickString(source, ['emGb', 'EM_GB']) ?? detailRow.emGb,
-    itemTp: pickString(source, ['itemTp', 'ITEM_TP']) ?? detailRow.itemTp,
-    description: pickString(source, ['description', 'desc', 'DESC']) ?? detailRow.description,
+    reqYmd: normalizeDateInputValue(detailRow.reqYmd),
   };
 }
 
