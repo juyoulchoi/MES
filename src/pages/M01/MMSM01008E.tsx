@@ -12,6 +12,7 @@ import { useAutoTableHeight } from '@/lib/hooks/useAutoTableHeight';
 import { getApi } from '@/lib/axiosClient';
 import { http } from '@/lib/http';
 import { PAGE_SIZE } from '@/lib/pagination';
+import { formatNumber } from '@/lib/utils';
 import { updateCheckedRows } from '@/pages/M01/registerDetailShared';
 import {
   buildStockAdjustPayload,
@@ -228,12 +229,12 @@ export default function MMSM01008E() {
                 caption="조정량"
                 width={120}
                 alignment="right"
-                cellRender={(row, rowIndex) => (
-                  <input
-                    value={row.adjustQty ?? ''}
-                    onChange={(event) => updateRow(rowIndex, { adjustQty: event.target.value })}
-                    className="h-8 w-full rounded-md border border-slate-200 px-2 text-right text-sm outline-none focus:border-slate-400"
-                  />
+                cellRender={(row) => (
+                  <span className="block text-right text-sm text-slate-700">
+                    {row.adjustQty === undefined || row.adjustQty === ''
+                      ? ''
+                      : formatNumber(row.adjustQty)}
+                  </span>
                 )}
               />
               <Column
