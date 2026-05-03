@@ -1,10 +1,10 @@
 import CodeNameField from '@/components/CodeNameField';
 import ActionButtonGroup from '@/components/ActionButtonGroup';
 import AlertBox from '@/components/AlertBox';
-import CustomerCodePicker from '@/components/CustomerCodePicker';
 import DateEdit from '@/components/DateEdit';
 import SectionCard from '@/components/SectionCard';
 import SectionHeader from '@/components/SectionHeader';
+import SearchCodePickers from '@/components/SearchCodePickers';
 import { CheckColumn, Column, DataGrid } from '@/components/table/DataGrid';
 import { patchCheckedRow } from '@/lib/gridRows';
 import { http } from '@/lib/http';
@@ -20,15 +20,15 @@ import {
   type DetailRow,
   type SearchForm,
 } from '@/services/m01/mmsm01003';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 type PurchaseRow = Record<string, unknown> & {
   CHECK?: boolean;
   poYmd?: string;
   poSeq?: number | string;
   poSubSeq?: number | string;
-  receiptStatus?: string;
-  receiptStatusNm?: string;
+  rcptStat?: string;
+  rcptStatNm?: string;
   preIvQty?: number | string;
   ivQty?: number | string;
   remQty?: number | string;
@@ -41,8 +41,8 @@ type PurchaseRow = Record<string, unknown> & {
 };
 
 type ReceivableDetailRow = DetailRow & {
-  receiptStatus?: string;
-  receiptStatusNm?: string;
+  rcptStat?: string;
+  rcptStatNm?: string;
   orderQty?: number | string;
   preIvQty?: number | string;
   ivQty?: number | string;
@@ -50,6 +50,7 @@ type ReceivableDetailRow = DetailRow & {
 };
 
 const PURCHASE_SEARCH_START_DATE = '19000101';
+const DETAIL_ITEM_NAME_WIDTH = 220;
 
 function pickValue(source: Record<string, unknown>, keys: string[]) {
   for (const key of keys) {
@@ -95,12 +96,8 @@ function formatQty(value: number | string | undefined) {
 }
 
 function isReceivablePurchase(row: PurchaseRow) {
-  const receiptStatus = row.receiptStatus ?? '';
-  return (
-    toNumber(row.remQty) > 0 ||
-    receiptStatus === 'NOT_RECEIVED' ||
-    receiptStatus === 'PARTIAL_RECEIVED'
-  );
+  const rcptStat = row.rcptStat ?? '';
+  return toNumber(row.remQty) > 0 || rcptStat === 'NONE' || rcptStat === 'PART';
 }
 
 function normalizePurchaseRow(row: PurchaseRow): PurchaseRow {
@@ -109,12 +106,8 @@ function normalizePurchaseRow(row: PurchaseRow): PurchaseRow {
     poYmd: pickString(row, ['poYmd', 'PO_YMD']) ?? row.poYmd,
     poSeq: pickString(row, ['poSeq', 'PO_SEQ']) ?? row.poSeq,
     poSubSeq: pickString(row, ['poSubSeq', 'PO_SUB_SEQ']) ?? row.poSubSeq,
-    receiptStatus:
-      pickString(row, ['receiptStatus', 'RECEIPT_STATUS', 'status', 'STATUS']) ??
-      row.receiptStatus,
-    receiptStatusNm:
-      pickString(row, ['receiptStatusNm', 'RECEIPT_STATUS_NM', 'statusNm', 'STATUS_NM']) ??
-      row.receiptStatusNm,
+    rcptStat: pickString(row, ['rcptStat', 'RCPT_STAT']) ?? row.rcptStat,
+    rcptStatNm: pickString(row, ['rcptStatNm', 'RCPT_STAT_NM']) ?? row.rcptStatNm,
     preIvQty:
       pickNumberLike(row, [
         'preIvQty',
@@ -149,13 +142,11 @@ function formatPurchaseDate(row: PurchaseRow | ReceivableDetailRow) {
 }
 
 export default function MMSM01003E() {
-  const detailGridRef = useRef<HTMLDivElement | null>(null);
   const [customerOpen, setCustomerOpen] = useState(false);
   const [cstNm, setCstNm] = useState('');
   const [detailRows, setDetailRows] = useState<ReceivableDetailRow[]>([]);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [itemNameWidth, setItemNameWidth] = useState(220);
 
   const [form, setForm] = useState<SearchForm>(() => ({
     ivDate: getTodayYmd(),
@@ -205,8 +196,8 @@ export default function MMSM01003E() {
           poYmd: row.poYmd ?? '',
           poSeq: row.poSeq ?? '',
           poSubSeq: row.poSubSeq ?? '',
-          receiptStatus: row.receiptStatus,
-          receiptStatusNm: row.receiptStatusNm,
+          rcptStat: row.rcptStat,
+          rcptStatNm: row.rcptStatNm,
           orderQty: getOrderQty(row),
           preIvQty: row.preIvQty,
           ivQty: row.ivQty,
@@ -221,32 +212,6 @@ export default function MMSM01003E() {
         }))
     );
   }, [masterResult.content]);
-
-  useEffect(() => {
-    const element = detailGridRef.current;
-    if (!element) return;
-
-    const updateWidths = () => {
-      const nextWidth = element.clientWidth;
-      if (!nextWidth) return;
-
-      const fixedWidth = 48 + 120 + 120 + 90 + 80 + 80 + 120 + 40;
-      const remaining = Math.max(nextWidth - fixedWidth, 180);
-      const nextItemNameWidth = Math.min(Math.max(remaining, 180), 360);
-
-      setItemNameWidth(nextItemNameWidth);
-    };
-
-    updateWidths();
-    const observer = new ResizeObserver(updateWidths);
-    observer.observe(element);
-    window.addEventListener('resize', updateWidths);
-
-    return () => {
-      observer.disconnect();
-      window.removeEventListener('resize', updateWidths);
-    };
-  }, []);
 
   function toggleDetail(rowIndex: number, checked: boolean) {
     updateCheckedRows(setDetailRows, rowIndex, checked);
@@ -351,7 +316,7 @@ export default function MMSM01003E() {
           <AlertBox tone="error">{masterError ?? saveError}</AlertBox>
         )}
 
-        <div className="grid grid-cols-12 gap-4" ref={detailGridRef}>
+        <div className="grid grid-cols-12 gap-4">
           <SectionCard span="full" width="full">
             <SectionHeader
               title="입고 등록 대상"
@@ -396,7 +361,12 @@ export default function MMSM01003E() {
                   }}
                 />
                 <Column dataField="itemCd" caption="품목코드" width={90} alignment="center" />
-                <Column dataField="itemNm" caption="품목명" width={itemNameWidth} alignment="left" />
+                <Column
+                  dataField="itemNm"
+                  caption="품목명"
+                  width={DETAIL_ITEM_NAME_WIDTH}
+                  alignment="left"
+                />
                 <Column dataField="unitCd" caption="단위" width={60} alignment="center" />
                 <Column
                   dataField="qty"
@@ -439,19 +409,20 @@ export default function MMSM01003E() {
           </SectionCard>
         </div>
 
-        {customerOpen ? (
-          <CustomerCodePicker
-            title="거래처 정보"
-            custGb="CUSTOMER"
-            cstCd={form.cstCd}
-            cstNm={cstNm}
-            onClose={() => setCustomerOpen(false)}
-            onSelect={(value) => {
+        <SearchCodePickers
+          customer={{
+            open: customerOpen,
+            title: '거래처 정보',
+            custGb: 'CUSTOMER',
+            cstCd: form.cstCd,
+            cstNm,
+            onClose: () => setCustomerOpen(false),
+            onSelect: (value) => {
               setCstNm(value.cstNm);
               setForm((prev) => ({ ...prev, cstCd: value.cstCd }));
-            }}
-          />
-        ) : null}
+            },
+          }}
+        />
       </div>
     </div>
   );

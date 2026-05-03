@@ -3,9 +3,9 @@ import { useRef, useState } from 'react';
 import AlertBox from '@/components/AlertBox';
 import CodeNameField from '@/components/CodeNameField';
 import ExportCsvButton from '@/components/ExportCsvButton';
-import ItemCodePicker from '@/components/ItemCodePicker';
 import SectionCard from '@/components/SectionCard';
 import SectionHeader from '@/components/SectionHeader';
+import SearchCodePickers from '@/components/SearchCodePickers';
 import { Column, DataGrid, Pager, Paging } from '@/components/table/DataGrid';
 import { useAutoTableHeight } from '@/lib/hooks/useAutoTableHeight';
 import { http } from '@/lib/http';
@@ -127,20 +127,21 @@ export default function MMSM01009S() {
           </div>
         </SectionCard>
 
-        {itemPickerOpen ? (
-          <ItemCodePicker
-            title="원자재 정보"
-            itemGb="RAW,SUB"
-            itemNm={form.itemNm}
-            onClose={() => setItemPickerOpen(false)}
-            onSelect={(value) => {
+        <SearchCodePickers
+          item={{
+            open: itemPickerOpen,
+            title: '원자재 정보',
+            itemGb: 'RAW,SUB',
+            itemNm: form.itemNm,
+            onClose: () => setItemPickerOpen(false),
+            onSelect: (value) => {
               setForm({
                 itemCd: value.itemCd,
                 itemNm: value.itemNm,
               });
-            }}
-          />
-        ) : null}
+            },
+          }}
+        />
       </div>
     </div>
   );

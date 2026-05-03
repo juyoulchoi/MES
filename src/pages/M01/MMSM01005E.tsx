@@ -1,10 +1,10 @@
 import CodeNameField from '@/components/CodeNameField';
 import ActionButtonGroup from '@/components/ActionButtonGroup';
 import AlertBox from '@/components/AlertBox';
-import CustomerCodePicker from '@/components/CustomerCodePicker';
 import DateEdit from '@/components/DateEdit';
 import SectionCard from '@/components/SectionCard';
 import SectionHeader from '@/components/SectionHeader';
+import SearchCodePickers from '@/components/SearchCodePickers';
 import { CheckColumn, Column, DataGrid } from '@/components/table/DataGrid';
 import {
   exportExcelTemplate,
@@ -20,6 +20,7 @@ import {
 } from '@/pages/M01/registerDetailShared';
 import { usePageApiFetch } from '@/services/common/getApiFetch';
 import {
+  RAW_MATERIAL_ITEM_GB,
   buildMmsm01005SavePayload,
   createUploadedDetailRows,
   dedupeDetailRows,
@@ -46,11 +47,10 @@ type MasterRow = {
 };
 
 const EXCEL_TEMPLATE_HEADERS = ['품목코드', '품목명', '수량', '비고'];
-const RAW_MATERIAL_ITEM_GB = 'RAW,SUB';
+const DETAIL_ITEM_NAME_WIDTH = 220;
 
 export default function MMSM01005E() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const detailGridRef = useRef<HTMLDivElement | null>(null);
   const [customerOpen, setCustomerOpen] = useState(false);
   const [cstNm, setCstNm] = useState('');
   const [masterRows, setMasterRows] = useState<MasterRow[]>([]);
@@ -64,7 +64,6 @@ export default function MMSM01005E() {
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploadWarnings, setUploadWarnings] = useState<string[]>([]);
-  const [itemNameWidth, setItemNameWidth] = useState(220);
 
   const [form, setForm] = useState<SearchForm>(() => ({
     giDate: getTodayYmd(),
@@ -132,32 +131,6 @@ export default function MMSM01005E() {
       }))
     );
   }, [detailResult.content]);
-
-  useEffect(() => {
-    const element = detailGridRef.current;
-    if (!element) return;
-
-    const updateWidths = () => {
-      const nextWidth = element.clientWidth;
-      if (!nextWidth) return;
-
-      const fixedWidth = 48 + 120 + 90 + 120 + 180 + 40;
-      const remaining = Math.max(nextWidth - fixedWidth, 180);
-      const nextItemNameWidth = Math.min(Math.max(remaining, 180), 360);
-
-      setItemNameWidth(nextItemNameWidth);
-    };
-
-    updateWidths();
-    const observer = new ResizeObserver(updateWidths);
-    observer.observe(element);
-    window.addEventListener('resize', updateWidths);
-
-    return () => {
-      observer.disconnect();
-      window.removeEventListener('resize', updateWidths);
-    };
-  }, []);
 
   function toggleMaster(rowIndex: number, checked: boolean) {
     updateCheckedRows(setMasterRows, rowIndex, checked);
@@ -455,7 +428,7 @@ export default function MMSM01005E() {
 
           <SectionCard span="right" width="full">
             <SectionHeader title="출고 등록 상세" />
-            <div ref={detailGridRef} className="max-h-[68vh] overflow-auto">
+            <div className="max-h-[68vh] overflow-auto">
               <DataGrid
                 dataSource={detailRows}
                 showBorders={true}
@@ -473,7 +446,7 @@ export default function MMSM01005E() {
                   onChange={(_row, rowIndex, checked) => toggleDetail(rowIndex, checked)}
                 />
                 <Column dataField="itemCd" caption="원자재코드" width={120} alignment="center" />
-                <Column dataField="itemNm" caption="원자재명" width={itemNameWidth} />
+                <Column dataField="itemNm" caption="원자재명" width={DETAIL_ITEM_NAME_WIDTH} />
                 <Column dataField="unitCd" caption="단위" width={90} alignment="center" />
                 <Column
                   dataField="qty"
@@ -505,19 +478,20 @@ export default function MMSM01005E() {
           </SectionCard>
         </div>
 
-        {customerOpen ? (
-          <CustomerCodePicker
-            title="거래처 정보"
-            custGb="CUSTOMER"
-            cstCd={form.cstCd}
-            cstNm={cstNm}
-            onClose={() => setCustomerOpen(false)}
-            onSelect={(value) => {
+        <SearchCodePickers
+          customer={{
+            open: customerOpen,
+            title: '거래처 정보',
+            custGb: 'CUSTOMER',
+            cstCd: form.cstCd,
+            cstNm,
+            onClose: () => setCustomerOpen(false),
+            onSelect: (value) => {
               setCstNm(value.cstNm);
               setForm((prev) => ({ ...prev, cstCd: value.cstCd }));
-            }}
-          />
-        ) : null}
+            },
+          }}
+        />
       </div>
     </div>
   );

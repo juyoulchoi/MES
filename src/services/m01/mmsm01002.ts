@@ -34,8 +34,8 @@ export interface RowItem {
   reqYmd: string;
   ivYmd: string;
   endYn: string;
-  receiptStatus: string;
-  receiptStatusNm?: string;
+  rcptStat: string;
+  rcptStatNm?: string;
   status: string;
   description: string;
 }
@@ -65,18 +65,8 @@ export interface PurchaseCancelPayload {
   }>;
 }
 
-const receiptStatusLabelMap: Record<string, string> = {
-  NOT_RECEIVED: '미입고',
-  PARTIAL_RECEIVED: '부분입고',
-  RECEIVED_COMPLETE: '입고완료',
-};
-
-function formatReceiptStatus(value: string) {
-  return receiptStatusLabelMap[value] ?? value;
-}
-
-function getReceiptStatusLabel(row: Pick<RowItem, 'receiptStatus' | 'receiptStatusNm'>) {
-  return row.receiptStatusNm || formatReceiptStatus(row.receiptStatus);
+function getReceiptStatusLabel(row: Pick<RowItem, 'rcptStat' | 'rcptStatNm'>) {
+  return row.rcptStatNm || row.rcptStat;
 }
 
 export const columns: GridColumn<RowItem>[] = [
@@ -114,7 +104,7 @@ export const columns: GridColumn<RowItem>[] = [
     cellRender: (row) => formatNumber(row.remQty),
   },
   {
-    dataField: 'receiptStatus',
+    dataField: 'rcptStat',
     caption: '입고상태',
     width: 110,
     alignment: 'center',

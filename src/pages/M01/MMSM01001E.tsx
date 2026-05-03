@@ -1,13 +1,12 @@
 import CodeNameField from '@/components/CodeNameField';
 import ActionButtonGroup from '@/components/ActionButtonGroup';
 import AlertBox from '@/components/AlertBox';
-import CustomerCodePicker from '@/components/CustomerCodePicker';
 import DateEdit from '@/components/DateEdit';
 import DateInput from '@/components/DateInput';
 import SectionCard from '@/components/SectionCard';
 import SectionHeader from '@/components/SectionHeader';
+import SearchCodePickers from '@/components/SearchCodePickers';
 import { CheckColumn, Column, DataGrid } from '@/components/table/DataGrid';
-import { toYmd } from '@/lib/excel';
 import {
   exportExcelTemplate,
   parseExcelUploadFile,
@@ -16,33 +15,28 @@ import {
 import { patchCheckedRow, removeCheckedRows } from '@/lib/gridRows';
 import { http } from '@/lib/http';
 import { EmptyPageResult, PAGE_SIZE } from '@/lib/pagination';
-import {
-  calculateAmount,
-  getTodayYmd,
-  updateCheckedRows,
-} from '@/pages/M01/registerDetailShared';
+import { getTodayYmd, updateCheckedRows } from '@/pages/M01/registerDetailShared';
 import { usePageApiFetch } from '@/services/common/getApiFetch';
 import {
+  RAW_MATERIAL_ITEM_GB,
+  buildMmsm01001SavePayload,
   fetchMmsm01001Detail,
+  getNextDetailSubSeq,
   type AuthMeResponse,
   type DetailRow,
   type ExcelUploadRow,
   type ExcelValidateResponse,
   type MasterRow,
-  type SaveDetailRow,
-  type SaveMasterRow,
-  type SavePayload,
   type SearchForm,
 } from '@/services/m01/mmsm01001';
 import { useEffect, useRef, useState } from 'react';
 import { useCodes } from '@/lib/hooks/useCodes';
 
 const EXCEL_TEMPLATE_HEADERS = ['품목코드', '품목명', '수량', '비고'];
-const RAW_MATERIAL_ITEM_GB = 'RAW,SUB';
+const DETAIL_ITEM_NAME_WIDTH = 220;
 
 export default function MMSM01001E() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const detailGridRef = useRef<HTMLDivElement | null>(null);
   const [customerOpen, setCustomerOpen] = useState(false);
   const [cstNm, setCstNm] = useState('');
   const [saving, setSaving] = useState(false);
@@ -56,7 +50,6 @@ export default function MMSM01001E() {
   const [detailResult, setDetailResult] = useState(() => EmptyPageResult<DetailRow>(0, PAGE_SIZE));
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
-  const [itemNameWidth, setItemNameWidth] = useState(220);
   const minPoYmd = getTodayYmd();
 
   const [form, setForm] = useState<SearchForm>(() => ({
@@ -138,32 +131,6 @@ export default function MMSM01001E() {
     );
   }, [detailResult.content, emCodes, form.poYmd]);
 
-  useEffect(() => {
-    const element = detailGridRef.current;
-    if (!element) return;
-
-    const updateWidths = () => {
-      const nextWidth = element.clientWidth;
-      if (!nextWidth) return;
-
-      const fixedWidth = 48 + 120 + 140 + 130 + 90 + 120 + 120 + 40;
-      const remaining = Math.max(nextWidth - fixedWidth, 180);
-      const nextItemNameWidth = Math.min(Math.max(remaining, 180), 360);
-
-      setItemNameWidth(nextItemNameWidth);
-    };
-
-    updateWidths();
-    const observer = new ResizeObserver(updateWidths);
-    observer.observe(element);
-    window.addEventListener('resize', updateWidths);
-
-    return () => {
-      observer.disconnect();
-      window.removeEventListener('resize', updateWidths);
-    };
-  }, []);
-
   function toggleMaster(rowIndex: number, checked: boolean) {
     updateCheckedRows(setMasterRows, rowIndex, checked);
   }
@@ -181,19 +148,12 @@ export default function MMSM01001E() {
     );
   }
 
-  function getNextPoSubSeq(rows: DetailRow[]) {
-    return rows.reduce((max, row) => {
-      const seq = Number(row.poSubSeq) || 0;
-      return Math.max(max, seq);
-    }, 0);
-  }
-
   function onAddFromMaster() {
     const selected = masterRows.filter((row) => row.CHECK);
     if (selected.length === 0) return;
 
     setDetailRows((prev) => {
-      const nextPoSubSeq = getNextPoSubSeq(prev);
+      const nextPoSubSeq = getNextDetailSubSeq(prev);
       const additions = selected.map((row, index) => ({
         CHECK: true,
         method: 'I' as const,
@@ -364,79 +324,12 @@ export default function MMSM01001E() {
         return;
       }
 
-      const insertedDetailData: SaveDetailRow[] = detailRows
-        .filter((row) => (row.method ?? (row.poYmd && row.poSeq !== undefined ? 'U' : 'I')) === 'I')
-        .map((row) => ({
-          method: 'I',
-          poYmd: row.poYmd ?? '',
-          poSeq: row.poSeq === undefined || row.poSeq === null ? '' : String(row.poSeq),
-          poSubSeq: '',
-          reqYmd: toYmd(row.reqYmd ?? ''),
-          emGb: row.emGb ?? '',
-          desc: row.description ?? '',
-          itemCd: row.itemCd ?? '',
-          unitCd: row.unitCd ?? '',
-          qty: row.qty ?? '',
-          price: row.price ?? '',
-          amt: calculateAmount(row.qty, row.price),
-        }));
-
-      const updatedDetailData: SaveDetailRow[] = detailRows
-        .filter((row) => (row.method ?? (row.poYmd && row.poSeq !== undefined ? 'U' : 'I')) === 'U')
-        .map((row, index) => ({
-          method: 'U',
-          poYmd: row.poYmd ?? '',
-          poSeq: row.poSeq === undefined || row.poSeq === null ? '' : String(row.poSeq),
-          poSubSeq: row.poSubSeq ?? index + 1,
-          reqYmd: toYmd(row.reqYmd ?? ''),
-          emGb: row.emGb ?? '',
-          desc: row.description ?? '',
-          itemCd: row.itemCd ?? '',
-          unitCd: row.unitCd ?? '',
-          qty: row.qty ?? '',
-          price: row.price ?? '',
-          amt: calculateAmount(row.qty, row.price),
-        }));
-
-      const deletedData: SaveDetailRow[] = deletedDetailRows.map((row, index) => ({
-        method: 'D',
-        poYmd: row.poYmd ?? '',
-        poSeq: row.poSeq === undefined || row.poSeq === null ? '' : String(row.poSeq),
-        poSubSeq: row.poSubSeq ?? index + 1,
-        reqYmd: toYmd(row.reqYmd ?? ''),
-        emGb: row.emGb ?? '',
-        desc: row.description ?? '',
-        itemCd: row.itemCd ?? '',
-        unitCd: row.unitCd ?? '',
-        qty: row.qty ?? '',
-        price: row.price ?? '',
-        amt: calculateAmount(row.qty, row.price),
-      }));
-
-      const detailData = [...insertedDetailData, ...updatedDetailData, ...deletedData];
-      const deleteTarget = deletedDetailRows.find(
-        (row) => row.poYmd && row.poSeq !== undefined && row.poSeq !== null
-      );
-      const shouldDeleteMaster = detailRows.length === 0 && !!deleteTarget;
-
-      const masterData: SaveMasterRow[] = [
-        {
-          method: shouldDeleteMaster ? 'D' : 'I',
-          userId,
-          cstCd: form.cstCd,
-          poYmd: shouldDeleteMaster ? String(deleteTarget?.poYmd ?? '') : toYmd(form.poYmd),
-          poSeq:
-            shouldDeleteMaster && deleteTarget?.poSeq !== undefined && deleteTarget.poSeq !== null
-              ? String(deleteTarget.poSeq)
-              : '',
-          desc: '',
-        },
-      ];
-
-      const payload: SavePayload = {
-        masterData,
-        detailData,
-      };
+      const payload = buildMmsm01001SavePayload({
+        form,
+        detailRows,
+        deletedDetailRows,
+        userId,
+      });
 
       await http('/api/v1/material/pomst/savePayload', { method: 'POST', body: payload });
       setDeletedDetailRows([]);
@@ -579,7 +472,7 @@ export default function MMSM01001E() {
 
           <SectionCard span="right" width="full">
             <SectionHeader title="발주 등록 상세" />
-            <div ref={detailGridRef} className="max-h-[68vh] overflow-auto">
+            <div className="max-h-[68vh] overflow-auto">
               <DataGrid
                 dataSource={detailRows}
                 showBorders={true}
@@ -596,7 +489,7 @@ export default function MMSM01001E() {
                   onChange={(_row, rowIndex, checked) => toggleDetail(rowIndex, checked)}
                 />
                 <Column dataField="itemCd" caption="원자재코드" width={120} alignment="center" />
-                <Column dataField="itemNm" caption="원자재명" width={itemNameWidth} />
+                <Column dataField="itemNm" caption="원자재명" width={DETAIL_ITEM_NAME_WIDTH} />
                 <Column
                   dataField="reqYmd"
                   caption="납기 요청일"
@@ -662,19 +555,20 @@ export default function MMSM01001E() {
           </SectionCard>
         </div>
 
-        {customerOpen ? (
-          <CustomerCodePicker
-            title="거래처 정보"
-            custGb="CUSTOMER"
-            cstCd={form.cstCd}
-            cstNm={cstNm}
-            onClose={() => setCustomerOpen(false)}
-            onSelect={(value) => {
+        <SearchCodePickers
+          customer={{
+            open: customerOpen,
+            title: '거래처 정보',
+            custGb: 'CUSTOMER',
+            cstCd: form.cstCd,
+            cstNm,
+            onClose: () => setCustomerOpen(false),
+            onSelect: (value) => {
               setCstNm(value.cstNm);
               setForm((prev) => ({ ...prev, cstCd: value.cstCd }));
-            }}
-          />
-        ) : null}
+            },
+          }}
+        />
       </div>
     </div>
   );

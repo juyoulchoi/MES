@@ -2,12 +2,11 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 import AlertBox from '@/components/AlertBox';
 import CodeNameField from '@/components/CodeNameField';
-import CustomerCodePicker from '@/components/CustomerCodePicker';
 import ExportCsvButton from '@/components/ExportCsvButton';
 import FromToDateField from '@/components/FromToDateField';
-import ItemCodePicker from '@/components/ItemCodePicker';
 import SectionCard from '@/components/SectionCard';
 import SectionHeader from '@/components/SectionHeader';
+import SearchCodePickers from '@/components/SearchCodePickers';
 import { CheckColumn, Column, DataGrid, Pager, Paging } from '@/components/table/DataGrid';
 import { useAutoTableHeight } from '@/lib/hooks/useAutoTableHeight';
 import { http } from '@/lib/http';
@@ -227,34 +226,33 @@ const MMSM01006S: React.FC = () => {
           </div>
         </SectionCard>
 
-        {customerOpen ? (
-          <CustomerCodePicker
-            title="거래처 정보"
-            custGb="CUSTOMER"
-            cstCd={form.cstCd}
-            cstNm={form.cstNm}
-            onClose={() => setCustomerOpen(false)}
-            onSelect={(value) => {
+        <SearchCodePickers
+          customer={{
+            open: customerOpen,
+            title: '거래처 정보',
+            custGb: 'CUSTOMER',
+            cstCd: form.cstCd,
+            cstNm: form.cstNm,
+            onClose: () => setCustomerOpen(false),
+            onSelect: (value) => {
               setForm((prev) => ({ ...prev, cstCd: value.cstCd, cstNm: value.cstNm }));
-            }}
-          />
-        ) : null}
-
-        {itemPickerOpen ? (
-          <ItemCodePicker
-            title="원자재 정보"
-            itemGb="RAW,SUB"
-            itemNm={form.itemNm}
-            onClose={() => setItemPickerOpen(false)}
-            onSelect={(value) => {
+            },
+          }}
+          item={{
+            open: itemPickerOpen,
+            title: '원자재 정보',
+            itemGb: 'RAW,SUB',
+            itemNm: form.itemNm,
+            onClose: () => setItemPickerOpen(false),
+            onSelect: (value) => {
               setForm((prev) => ({
                 ...prev,
                 itemCd: value.itemCd,
                 itemNm: value.itemNm,
               }));
-            }}
-          />
-        ) : null}
+            },
+          }}
+        />
       </div>
     </div>
   );

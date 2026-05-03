@@ -1,10 +1,13 @@
 import { getApi } from '@/lib/axiosClient';
+import { toYmd } from '@/lib/excel';
 import { PAGE_SIZE, toPageResult, type PageResult, type PageableResponse } from '@/lib/pagination';
+import { calculateAmount } from '@/pages/M01/registerDetailShared';
+import { RAW_MATERIAL_ITEM_GB } from '@/services/m01/constants';
+
+export { RAW_MATERIAL_ITEM_GB } from '@/services/m01/constants';
 
 type QueryValue = string | number | boolean | null | undefined;
 type QueryParams = Record<string, QueryValue>;
-
-type DetailApiRow = DetailRow & Record<string, unknown>;
 
 function pickString(source: Record<string, unknown>, keys: string[]): string | undefined {
   for (const key of keys) {
@@ -40,18 +43,21 @@ function pickNumberLike(source: Record<string, unknown>, keys: string[]): number
   return Number.isNaN(numeric) ? value : numeric;
 }
 
-function normalizeDetailRow(row: DetailApiRow): DetailRow {
+export function normalizeDetailRow(row: DetailRow | Record<string, unknown>): DetailRow {
+  const source = row as Record<string, unknown>;
+  const detailRow = row as DetailRow;
+
   return {
-    ...row,
-    poYmd: pickString(row, ['poYmd', 'PO_YMD']) ?? row.poYmd,
-    poSeq: pickString(row, ['poSeq', 'PO_SEQ']) ?? row.poSeq,
-    poSubSeq: pickString(row, ['poSubSeq', 'PO_SUB_SEQ']) ?? row.poSubSeq,
-    itemCd: pickString(row, ['itemCd', 'ITEM_CD']) ?? row.itemCd,
-    itemNm: pickString(row, ['itemNm', 'ITEM_NM']) ?? row.itemNm,
-    unitCd: pickString(row, ['unitCd', 'UNIT_CD']) ?? row.unitCd,
-    qty: pickString(row, ['qty', 'QTY']) ?? row.qty,
+    ...detailRow,
+    poYmd: pickString(source, ['poYmd', 'PO_YMD']) ?? detailRow.poYmd,
+    poSeq: pickString(source, ['poSeq', 'PO_SEQ']) ?? detailRow.poSeq,
+    poSubSeq: pickString(source, ['poSubSeq', 'PO_SUB_SEQ']) ?? detailRow.poSubSeq,
+    itemCd: pickString(source, ['itemCd', 'ITEM_CD']) ?? detailRow.itemCd,
+    itemNm: pickString(source, ['itemNm', 'ITEM_NM']) ?? detailRow.itemNm,
+    unitCd: pickString(source, ['unitCd', 'UNIT_CD']) ?? detailRow.unitCd,
+    qty: pickString(source, ['qty', 'QTY']) ?? detailRow.qty,
     price:
-      pickNumberLike(row, [
+      pickNumberLike(source, [
         'price',
         'poPrice',
         'unitPrice',
@@ -60,15 +66,16 @@ function normalizeDetailRow(row: DetailApiRow): DetailRow {
         'PO_PRICE',
         'UNIT_PRICE',
         'PUR_PRICE',
-      ]) ?? row.price,
+      ]) ?? detailRow.price,
     amt:
-      pickNumberLike(row, ['amt', 'poAmt', 'totAmt', 'AMT', 'PO_AMT', 'TOT_AMT']) ?? row.amt,
+      pickNumberLike(source, ['amt', 'poAmt', 'totAmt', 'AMT', 'PO_AMT', 'TOT_AMT']) ??
+      detailRow.amt,
     reqYmd: normalizeDateInputValue(
-      pickString(row, ['reqYmd', 'regYmd', 'REQ_YMD', 'REG_YMD']) ?? row.reqYmd
+      pickString(source, ['reqYmd', 'regYmd', 'REQ_YMD', 'REG_YMD']) ?? detailRow.reqYmd
     ),
-    emGb: pickString(row, ['emGb', 'EM_GB']) ?? row.emGb,
-    itemTp: pickString(row, ['itemTp', 'ITEM_TP']) ?? row.itemTp,
-    description: pickString(row, ['description', 'desc', 'DESC']) ?? row.description,
+    emGb: pickString(source, ['emGb', 'EM_GB']) ?? detailRow.emGb,
+    itemTp: pickString(source, ['itemTp', 'ITEM_TP']) ?? detailRow.itemTp,
+    description: pickString(source, ['description', 'desc', 'DESC']) ?? detailRow.description,
   };
 }
 
@@ -175,7 +182,12 @@ interface FetchDetailRequest {
   pageSize?: number;
 }
 
-const RAW_MATERIAL_ITEM_GB = 'RAW,SUB';
+interface BuildSavePayloadRequest {
+  form: SearchForm;
+  detailRows: DetailRow[];
+  deletedDetailRows: DetailRow[];
+  userId: string;
+}
 
 function toApiParams(params: QueryParams): Record<string, string> {
   return Object.fromEntries(
@@ -190,7 +202,7 @@ export async function fetchMmsm01001Detail({
   page = 0,
   pageSize = PAGE_SIZE,
 }: FetchDetailRequest): Promise<PageResult<DetailRow>> {
-  const data = await getApi<PageableResponse<DetailApiRow> | DetailApiRow[]>(
+  const data = await getApi<PageableResponse<Record<string, unknown>> | Record<string, unknown>[]>(
     '/api/v1/material/podet/search',
     toApiParams({
       poYmdS: form.poYmd.split('-').join(''),
@@ -202,10 +214,124 @@ export async function fetchMmsm01001Detail({
     })
   );
 
-  const pageResult = toPageResult<DetailApiRow>(data, page, pageSize);
+  const pageResult = toPageResult<Record<string, unknown>>(data, page, pageSize);
 
   return {
     ...pageResult,
     content: pageResult.content.map((row) => normalizeDetailRow(row)),
+  };
+}
+
+export function getDetailRowKey(row: DetailRow) {
+  const normalized = normalizeDetailRow(row);
+  return [normalized.poYmd ?? '', normalized.poSeq ?? '', normalized.poSubSeq ?? ''].join('|');
+}
+
+export function dedupeDetailRows(rows: DetailRow[]) {
+  const map = new Map<string, DetailRow>();
+
+  rows.forEach((row) => {
+    map.set(getDetailRowKey(row), normalizeDetailRow(row));
+  });
+
+  return Array.from(map.values());
+}
+
+export function getNextDetailSubSeq(rows: DetailRow[]) {
+  return rows.reduce((max, row) => {
+    const seq = Number(row.poSubSeq) || 0;
+    return Math.max(max, seq);
+  }, 0);
+}
+
+export function buildMmsm01001SavePayload({
+  form,
+  detailRows,
+  deletedDetailRows,
+  userId,
+}: BuildSavePayloadRequest): SavePayload {
+  const deletedRows = dedupeDetailRows(deletedDetailRows);
+  const deletedRowKeySet = new Set(
+    deletedRows.map((row) => getDetailRowKey(row)).filter((key) => key !== '||')
+  );
+
+  const insertedDetailData: SaveDetailRow[] = detailRows
+    .map((row) => normalizeDetailRow(row))
+    .filter((row) => (row.method ?? (row.poYmd && row.poSeq !== undefined ? 'U' : 'I')) === 'I')
+    .map((row) => ({
+      method: 'I',
+      poYmd: row.poYmd ?? '',
+      poSeq: row.poSeq === undefined || row.poSeq === null ? '' : String(row.poSeq),
+      poSubSeq: '',
+      reqYmd: toYmd(row.reqYmd ?? ''),
+      emGb: row.emGb ?? '',
+      desc: row.description ?? '',
+      itemCd: row.itemCd ?? '',
+      unitCd: row.unitCd ?? '',
+      qty: row.qty ?? '',
+      price: row.price ?? '',
+      amt: calculateAmount(row.qty, row.price),
+    }));
+
+  const updatedDetailData: SaveDetailRow[] = detailRows
+    .map((row) => normalizeDetailRow(row))
+    .filter((row) => !deletedRowKeySet.has(getDetailRowKey(row)))
+    .filter((row) => (row.method ?? (row.poYmd && row.poSeq !== undefined ? 'U' : 'I')) === 'U')
+    .map((row, index) => ({
+      method: 'U',
+      poYmd: row.poYmd ?? '',
+      poSeq: row.poSeq === undefined || row.poSeq === null ? '' : String(row.poSeq),
+      poSubSeq: row.poSubSeq ?? index + 1,
+      reqYmd: toYmd(row.reqYmd ?? ''),
+      emGb: row.emGb ?? '',
+      desc: row.description ?? '',
+      itemCd: row.itemCd ?? '',
+      unitCd: row.unitCd ?? '',
+      qty: row.qty ?? '',
+      price: row.price ?? '',
+      amt: calculateAmount(row.qty, row.price),
+    }));
+
+  const deletedData: SaveDetailRow[] = deletedRows.map((currentRow, index) => {
+    const row = normalizeDetailRow(currentRow);
+
+    return {
+      method: 'D',
+      poYmd: row.poYmd ?? '',
+      poSeq: row.poSeq === undefined || row.poSeq === null ? '' : String(row.poSeq),
+      poSubSeq: row.poSubSeq ?? index + 1,
+      reqYmd: toYmd(row.reqYmd ?? ''),
+      emGb: row.emGb ?? '',
+      desc: row.description ?? '',
+      itemCd: row.itemCd ?? '',
+      unitCd: row.unitCd ?? '',
+      qty: row.qty ?? '',
+      price: row.price ?? '',
+      amt: calculateAmount(row.qty, row.price),
+    };
+  });
+
+  const deleteTarget = deletedRows.find(
+    (row) => row.poYmd && row.poSeq !== undefined && row.poSeq !== null
+  );
+  const shouldDeleteMaster = detailRows.length === 0 && !!deleteTarget;
+
+  const masterData: SaveMasterRow[] = [
+    {
+      method: shouldDeleteMaster ? 'D' : 'I',
+      userId,
+      cstCd: form.cstCd,
+      poYmd: shouldDeleteMaster ? String(deleteTarget?.poYmd ?? '') : toYmd(form.poYmd),
+      poSeq:
+        shouldDeleteMaster && deleteTarget?.poSeq !== undefined && deleteTarget.poSeq !== null
+          ? String(deleteTarget.poSeq)
+          : '',
+      desc: '',
+    },
+  ];
+
+  return {
+    masterData,
+    detailData: [...insertedDetailData, ...updatedDetailData, ...deletedData],
   };
 }

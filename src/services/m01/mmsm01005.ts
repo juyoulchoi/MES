@@ -3,6 +3,8 @@ import { toYmd } from '@/lib/excel';
 import { PAGE_SIZE, toPageResult, type PageResult, type PageableResponse } from '@/lib/pagination';
 import { calculateAmount } from '@/pages/M01/registerDetailShared';
 
+export { RAW_MATERIAL_ITEM_GB } from '@/services/m01/constants';
+
 type QueryValue = string | number | boolean | null | undefined;
 type QueryParams = Record<string, QueryValue>;
 
