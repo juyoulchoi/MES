@@ -395,7 +395,7 @@ export default function MMSM01010E() {
 
               <div className="grid gap-x-8 gap-y-4 overflow-auto p-6 md:grid-cols-2">
                 <DetailInput
-                  label="거래처코드"
+                  label="거래처"
                   value={detailPopupRow.isRegister ? '자동 생성' : detailPopupRow.cstCd}
                   readOnly
                 />

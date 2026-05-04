@@ -26,7 +26,7 @@ const MMSM01002S: React.FC = () => {
   const today = useMemo(() => new Date(), []);
   const first = useMemo(() => new Date(today.getFullYear(), today.getMonth(), 1), [today]);
   const [customerOpen, setCustomerOpen] = useState(false);
-  const [itemPickerOpen, setitemPickerOpen] = useState(false);
+  const [itemPickerOpen, setItemPickerOpen] = useState(false);
   const [rows, setRows] = useState<RowItem[]>([]);
   const [canceling, setCanceling] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -125,7 +125,7 @@ const MMSM01002S: React.FC = () => {
         <SectionCard span="full" padding="md">
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-[446px_546px_1fr] xl:gap-12">
             <FromToDateField
-              label="요청일자"
+              label="발주일자"
               fromValue={form.startDate}
               toValue={form.endDate}
               onFromChange={(value) => setForm({ ...form, startDate: value })}
@@ -175,13 +175,13 @@ const MMSM01002S: React.FC = () => {
 
           <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-[546px_1fr]">
             <CodeNameField
-              label="제품명"
+              label="원자재명"
               id="item"
               code={form.itemCd}
               name={form.itemNm}
               codePlaceholder="코드"
-              namePlaceholder="제품 선택"
-              onSearch={() => setitemPickerOpen(true)}
+              namePlaceholder="원자재 선택"
+              onSearch={() => setItemPickerOpen(true)}
               onClear={() =>
                 setForm((prev) => ({ ...prev, itemGb: '', itemCd: '', itemNm: '' }))
               }
@@ -193,7 +193,7 @@ const MMSM01002S: React.FC = () => {
 
         <SectionCard span="full" width="full">
           <SectionHeader
-            title="발주 현황"
+            title="원자재 발주현황"
             right={
               <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
                 {result.totalElements}건
@@ -208,7 +208,7 @@ const MMSM01002S: React.FC = () => {
               showBorders={true}
               loading={loading}
               remoteOperations={true}
-              emptyText="발주 현황 데이터가 없습니다."
+              emptyText="원자재 발주현황 데이터가 없습니다."
               onPageChange={(page) => void fetchList(page)}
               classNames={{
                 table: 'min-w-[1480px] w-full text-sm',
@@ -253,7 +253,7 @@ const MMSM01002S: React.FC = () => {
             title: '원자재 정보',
             itemGb: 'RAW,SUB',
             itemNm: form.itemNm,
-            onClose: () => setitemPickerOpen(false),
+            onClose: () => setItemPickerOpen(false),
             onSelect: (value) => {
               setForm((prev) => ({
                 ...prev,

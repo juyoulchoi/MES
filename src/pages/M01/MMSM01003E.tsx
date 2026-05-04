@@ -286,7 +286,7 @@ export default function MMSM01003E() {
               onChange={(value) => setForm((prev) => ({ ...prev, ivDate: value }))}
             />
             <CodeNameField
-              label="거래처코드"
+              label="거래처"
               id="cust"
               code={form.cstCd}
               name={cstNm}

@@ -408,7 +408,7 @@ export default function MMSM01001E() {
               }}
             />
             <CodeNameField
-              label="거래처코드"
+              label="거래처"
               id="cust"
               code={form.cstCd}
               name={cstNm}
