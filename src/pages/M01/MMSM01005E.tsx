@@ -298,7 +298,7 @@ export default function MMSM01005E() {
 
       await http('/api/v1/material/gimst/savePayload', { method: 'POST', body: payload });
       setDeletedDetailRows([]);
-      await Promise.all([fetchMasterList(0), fetchDetailList(0)]);
+      await fetchDetailList(0);
       window.alert('저장되었습니다.');
     } catch (e) {
       setSaveError(e instanceof Error ? e.message : String(e));
