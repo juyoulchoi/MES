@@ -7,6 +7,7 @@ import SectionCard from '@/components/SectionCard';
 import SectionHeader from '@/components/SectionHeader';
 import { Column, DataGrid, Pager, Paging } from '@/components/table/DataGrid';
 import { useAutoTableHeight } from '@/lib/hooks/useAutoTableHeight';
+import StatusActionButtons from '@/components/StatusActionButtons';
 import { http } from '@/lib/http';
 import { PAGE_SIZE, type PageableResponse } from '@/lib/pagination';
 import { gridScrollClass, pageContentClass, pageShellClass } from '@/lib/pageStyles';
@@ -19,6 +20,8 @@ import {
   onlyDigits,
   patchCustomerRow,
   toCustInfoPayload,
+  exportHeaders,
+  mapExportRow,
   type CustomerApiRow,
   type DetailRow,
   type MasterRow,
@@ -262,22 +265,18 @@ export default function MMSM01010E() {
               }}
             />
 
-            <div className="flex flex-wrap items-end justify-end gap-2">
-              <button
-                onClick={() => void onSearch()}
-                disabled={busy}
-                className="h-10 rounded-lg bg-slate-900 px-4 text-sm font-medium text-white transition hover:bg-slate-800 disabled:opacity-50"
-              >
-                {loading ? '조회중...' : '조회'}
-              </button>
-              <button
-                onClick={openRegisterPopup}
-                disabled={busy}
-                className="h-10 rounded-lg border border-sky-200 bg-sky-50 px-4 text-sm font-medium text-sky-700 transition hover:bg-sky-100 disabled:opacity-50"
-              >
-                등록
-              </button>
-            </div>
+            <StatusActionButtons
+              loading={loading}
+              onSearch={() => void onSearch()}
+              onSave={() => void openRegisterPopup()}
+              saveLabel="등록"
+              exportProps={{
+                rows: master,
+                headers: exportHeaders,
+                mapRow: mapExportRow,
+                filename: () => `거래처관리.csv`,
+              }}
+            />
           </div>
         </SectionCard>
 
