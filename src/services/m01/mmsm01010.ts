@@ -1,6 +1,7 @@
 import type { PageableResponse } from '@/lib/pagination';
 
 export interface MasterRow {
+  rnum?: number | string;
   cstCd?: string;
   cstNm?: string;
   custGb?: string;
@@ -88,7 +89,7 @@ export function toCustInfoPayload(row: DetailRow) {
   return {
     method: 'Y',
     isNew: row.isRegister ? 'I' : '',
-    cstCd: row.isRegister ? '' : row.cstCd ?? '',
+    cstCd: row.isRegister ? '' : (row.cstCd ?? ''),
     cstNm: row.cstNm ?? '',
     regNo: formatRegNo(row.regNo ?? ''),
     ceoNm: row.ceoNm ?? '',
@@ -125,6 +126,44 @@ export function patchCustomerRow<T extends MasterRow | DetailRow>(
     status: patch.status ?? row.status,
   };
 }
+
+export const exportHeaders = [
+  '순번',
+  '거래처코드',
+  '거래처명',
+  '거래처구분',
+  '대표자명',
+  '담당자명',
+  '전화번호',
+  '담당자연락처',
+  '이메일',
+  '팩스번호',
+  '사업자등록번호',
+  '우편번호',
+  '주소',
+  '상태',
+  '원자재코드',
+  '원자재명',
+];
+
+export const mapExportRow = (row: MasterRow, index: number) => [
+  row.rnum ?? index + 1,
+  row.cstCd,
+  row.cstNm ?? '',
+  row.custGb,
+  row.ceoNm ?? '',
+  row.mgrNm ?? '',
+  row.telNo ?? '',
+  row.mgrTel ?? '',
+  row.email ?? '',
+  row.faxNo ?? '',
+  formatRegNo(row.regNo ?? ''),
+  row.postNo ?? '',
+  row.addr ?? '',
+  row.status ?? 'ACTIVE',
+  row.itemCd,
+  row.itemNm ?? '',
+];
 
 export function formatStatus(value?: string) {
   if (value === 'INACTIVE') return '비활성화';
