@@ -474,14 +474,16 @@ export default function MMSM01005E() {
                   )}
                 />
                 <Column
-                  dataField="description"
-                  caption="비고"
-                  width={180}
+                  dataField="price"
+                  caption="단가"
+                  width={120}
+                  alignment="right"
+                  headerAlignment="center"
                   cellRender={(row: DetailRow, rowIndex) => (
                     <input
-                      className={editableInputClass}
-                      value={row.description ?? ''}
-                      onChange={(e) => onDetailChange(rowIndex, { description: e.target.value })}
+                      className={editableNumberInputClass}
+                      value={row.price ?? ''}
+                      onChange={(e) => onDetailChange(rowIndex, { price: e.target.value })}
                     />
                   )}
                 />

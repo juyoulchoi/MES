@@ -183,7 +183,7 @@ const MMSM01004S: React.FC = () => {
               dataSource={rows}
               pageResult={displayResult}
               rowKey={(row, index) =>
-                `${row.ivYmd ?? 'iv'}-${row.ivSeq ?? 'seq'}-${row.inSubSeq ?? 'sub'}-${row.itemCd ?? 'item'}-${index}`
+                `${row.ivYmd ?? 'iv'}-${row.ivSeq ?? 'seq'}-${row.ivSubSeq ?? 'sub'}-${row.itemCd ?? 'item'}-${index}`
               }
               showBorders={true}
               loading={loading}
