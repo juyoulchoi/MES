@@ -2,14 +2,20 @@ import React, { useMemo, useRef, useState } from 'react';
 
 import AlertBox from '@/components/AlertBox';
 import CodeNameField from '@/components/CodeNameField';
-import ExportCsvButton from '@/components/ExportCsvButton';
 import FromToDateField from '@/components/FromToDateField';
 import SectionCard from '@/components/SectionCard';
 import SectionHeader from '@/components/SectionHeader';
 import SearchCodePickers from '@/components/SearchCodePickers';
+import StatusActionButtons from '@/components/StatusActionButtons';
 import { Column, DataGrid, Pager, Paging } from '@/components/table/DataGrid';
 import { useAutoTableHeight } from '@/lib/hooks/useAutoTableHeight';
 import { PAGE_SIZE } from '@/lib/pagination';
+import {
+  gridScrollClass,
+  pageContentClass,
+  pageShellClass,
+  statusSearchGridClass,
+} from '@/lib/pageStyles';
 import { usePageApiFetch } from '@/services/common/getApiFetch';
 import {
   columns,
@@ -62,10 +68,10 @@ const MMSM01007S: React.FC = () => {
   );
 
   return (
-    <div className="min-h-full bg-slate-50/60 p-4" ref={containerRef}>
-      <div className="mx-auto flex max-w-[1680px] flex-col gap-4">
+    <div className={pageShellClass} ref={containerRef}>
+      <div className={pageContentClass}>
         <SectionCard span="full" padding="md">
-          <div className="grid grid-cols-1 gap-4 xl:grid-cols-[446px_546px_1fr] xl:gap-12">
+          <div className={statusSearchGridClass}>
             <FromToDateField
               label="출고일자"
               fromValue={form.startDate}
@@ -85,23 +91,16 @@ const MMSM01007S: React.FC = () => {
               onClear={() => setForm((prev) => ({ ...prev, cstCd: '', cstNm: '' }))}
             />
 
-            <div className="flex flex-wrap items-end justify-end gap-2">
-              <button
-                onClick={() => void fetchList(0)}
-                className="h-10 rounded-lg bg-slate-900 px-4 text-sm font-medium text-white transition hover:bg-slate-800 disabled:opacity-50"
-                disabled={loading}
-              >
-                {loading ? '조회중...' : '조회'}
-              </button>
-              <ExportCsvButton
-                rows={latestRows}
-                headers={exportHeaders}
-                mapRow={mapExportRow}
-                filename={() => `원자재재고현황_${form.endDate.split('-').join('')}.csv`}
-                variant="outline"
-                className="h-10 rounded-lg border border-emerald-200 bg-emerald-50 px-4 text-sm font-medium text-emerald-700 shadow-none transition hover:bg-emerald-100"
-              />
-            </div>
+            <StatusActionButtons
+              loading={loading}
+              onSearch={() => void fetchList(0)}
+              exportProps={{
+                rows: latestRows,
+                headers: exportHeaders,
+                mapRow: mapExportRow,
+                filename: () => `원자재재고현황_${form.endDate.split('-').join('')}.csv`,
+              }}
+            />
           </div>
 
           <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-[546px_1fr]">
@@ -124,7 +123,7 @@ const MMSM01007S: React.FC = () => {
           <SectionHeader
             title="재고 현황"
           />
-          <div className="max-h-[68vh] overflow-auto" style={{ height: tableHeight }}>
+          <div className={gridScrollClass} style={{ height: tableHeight }}>
             <DataGrid
               dataSource={latestRows}
               pageResult={latestResult}

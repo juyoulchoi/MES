@@ -11,13 +11,24 @@ import {
   parseExcelUploadFile,
   validateExcelUploadRows,
 } from '@/lib/excelUpload';
-import { patchCheckedRow, removeCheckedRows } from '@/lib/gridRows';
+import { patchCheckedRow, removeCheckedRows, updateCheckedRows } from '@/lib/gridRows';
 import { http } from '@/lib/http';
 import { EmptyPageResult, PAGE_SIZE } from '@/lib/pagination';
 import {
-  getTodayYmd,
-  updateCheckedRows,
-} from '@/pages/M01/registerDetailShared';
+  addTransferButtonClass,
+  countBadgeClass,
+  deleteTransferButtonClass,
+  editableInputClass,
+  editableNumberInputClass,
+  gridScrollClass,
+  pageContentClass,
+  pageShellClass,
+  registerSearchGridClass,
+  registerSplitGridClass,
+  transferButtonGroupClass,
+  transferColumnClass,
+} from '@/lib/pageStyles';
+import { getTodayYmd } from '@/lib/registerDetailUtils';
 import { usePageApiFetch } from '@/services/common/getApiFetch';
 import {
   RAW_MATERIAL_ITEM_GB,
@@ -324,8 +335,8 @@ export default function MMSM01005E() {
   }
 
   return (
-    <div className="min-h-full bg-slate-50/60 p-4">
-      <div className="mx-auto flex max-w-[1680px] flex-col gap-4">
+    <div className={pageShellClass}>
+      <div className={pageContentClass}>
         <input
           ref={fileInputRef}
           type="file"
@@ -335,7 +346,7 @@ export default function MMSM01005E() {
         />
 
         <SectionCard span="full" padding="md">
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-[450px_420px_1fr]">
+          <div className={registerSearchGridClass}>
             <DateEdit
               label="출고일자"
               value={form.giDate}
@@ -378,17 +389,17 @@ export default function MMSM01005E() {
           </AlertBox>
         )}
 
-        <div className="grid grid-cols-12 gap-4">
+        <div className={registerSplitGridClass}>
           <SectionCard span="left" width="full">
             <SectionHeader
               title="원자재"
               right={
-                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
+                <span className={countBadgeClass}>
                   {masterRows.length}건
                 </span>
               }
             />
-            <div className="max-h-[68vh] overflow-auto">
+            <div className={gridScrollClass}>
               <DataGrid
                 dataSource={masterRows}
                 showBorders={true}
@@ -406,17 +417,17 @@ export default function MMSM01005E() {
             </div>
           </SectionCard>
 
-          <div className="col-span-12 flex items-center justify-center md:col-span-1">
-            <div className="flex w-full flex-row gap-2 md:w-[60px] md:min-w-[60px] md:flex-col">
+          <div className={transferColumnClass}>
+            <div className={transferButtonGroupClass}>
               <button
                 onClick={onAddFromMaster}
-                className="flex-1 rounded-xl border border-emerald-200 bg-emerald-50 px-2 py-3 text-sm font-medium text-emerald-700 transition hover:bg-emerald-100"
+                className={addTransferButtonClass}
               >
                 추가
               </button>
               <button
                 onClick={onDeleteDetail}
-                className="flex-1 rounded-xl border border-rose-200 bg-rose-50 px-2 py-3 text-sm font-medium text-rose-700 transition hover:bg-rose-100"
+                className={deleteTransferButtonClass}
               >
                 삭제
               </button>
@@ -425,11 +436,11 @@ export default function MMSM01005E() {
 
           <SectionCard span="right" width="full">
             <SectionHeader title="등록 상세" right={
-                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
+                <span className={countBadgeClass}>
                   {detailRows.length}건
                 </span>
               }/>
-            <div className="max-h-[68vh] overflow-auto">
+            <div className={gridScrollClass}>
               <DataGrid
                 dataSource={detailRows}
                 showBorders={true}
@@ -456,7 +467,7 @@ export default function MMSM01005E() {
                   alignment="right"
                   cellRender={(row: DetailRow, rowIndex) => (
                     <input
-                      className="h-8 w-full rounded border border-slate-200 px-2 text-right"
+                      className={editableNumberInputClass}
                       value={row.qty ?? ''}
                       onChange={(e) => onDetailChange(rowIndex, { qty: e.target.value })}
                     />
@@ -468,7 +479,7 @@ export default function MMSM01005E() {
                   width={180}
                   cellRender={(row: DetailRow, rowIndex) => (
                     <input
-                      className="h-8 w-full rounded border border-slate-200 px-2"
+                      className={editableInputClass}
                       value={row.description ?? ''}
                       onChange={(e) => onDetailChange(rowIndex, { description: e.target.value })}
                     />

@@ -1,14 +1,16 @@
 import { useRef, useState } from 'react';
 
 import AlertBox from '@/components/AlertBox';
-import ExportCsvButton from '@/components/ExportCsvButton';
 import FromToDateField from '@/components/FromToDateField';
 import SectionCard from '@/components/SectionCard';
 import SectionHeader from '@/components/SectionHeader';
+import StatusActionButtons from '@/components/StatusActionButtons';
 import { Column, DataGrid, Pager, Paging } from '@/components/table/DataGrid';
 import { useAutoTableHeight } from '@/lib/hooks/useAutoTableHeight';
 import { http } from '@/lib/http';
 import { PAGE_SIZE } from '@/lib/pagination';
+import { gridScrollClass, pageContentClass, pageShellClass } from '@/lib/pageStyles';
+import { getTodayYmd } from '@/lib/registerDetailUtils';
 import {
   columns,
   exportHeaders,
@@ -19,10 +21,6 @@ import {
   type RowItem,
   type SearchForm,
 } from '@/services/m01/mmsm01011';
-
-function getTodayYmd() {
-  return new Date().toISOString().slice(0, 10);
-}
 
 function getFirstDayOfMonthYmd() {
   const today = new Date();
@@ -60,8 +58,8 @@ export default function MMSM01011S() {
   }
 
   return (
-    <div className="min-h-full bg-slate-50/60 p-4" ref={containerRef}>
-      <div className="mx-auto flex max-w-[1680px] flex-col gap-4">
+    <div className={pageShellClass} ref={containerRef}>
+      <div className={pageContentClass}>
         <SectionCard span="full" padding="md">
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-[450px_1fr]">
             <FromToDateField
@@ -72,23 +70,16 @@ export default function MMSM01011S() {
               onToChange={(value) => setForm((prev) => ({ ...prev, endDate: value }))}
             />
 
-            <div className="flex flex-wrap items-end justify-end gap-2">
-              <button
-                onClick={() => void onSearch()}
-                className="h-10 rounded-lg bg-slate-900 px-4 text-sm font-medium text-white transition hover:bg-slate-800 disabled:opacity-50"
-                disabled={loading}
-              >
-                {loading ? '조회중...' : '조회'}
-              </button>
-              <ExportCsvButton
-                rows={rows}
-                headers={exportHeaders}
-                mapRow={mapExportRow}
-                filename={() => `재고조정내역_${toYmd(form.startDate)}_${toYmd(form.endDate)}.csv`}
-                variant="outline"
-                className="h-10 rounded-lg border border-emerald-200 bg-emerald-50 px-4 text-sm font-medium text-emerald-700 shadow-none transition hover:bg-emerald-100"
-              />
-            </div>
+            <StatusActionButtons
+              loading={loading}
+              onSearch={() => void onSearch()}
+              exportProps={{
+                rows,
+                headers: exportHeaders,
+                mapRow: mapExportRow,
+                filename: () => `재고조정내역_${toYmd(form.startDate)}_${toYmd(form.endDate)}.csv`,
+              }}
+            />
           </div>
         </SectionCard>
 
@@ -98,7 +89,7 @@ export default function MMSM01011S() {
           <SectionHeader
             title="재고조정 내역"
           />
-          <div className="max-h-[68vh] overflow-auto" style={{ height: tableHeight }}>
+          <div className={gridScrollClass} style={{ height: tableHeight }}>
             <DataGrid
               dataSource={rows}
               rowKey={(row, index) => `${row.ymd ?? 'date'}-${row.itemCd ?? 'item'}-${index}`}

@@ -8,11 +8,15 @@ import SearchCodePickers from '@/components/SearchCodePickers';
 import { CheckColumn, Column, DataGrid } from '@/components/table/DataGrid';
 import { patchCheckedRow } from '@/lib/gridRows';
 import { http } from '@/lib/http';
-import { formatNumber } from '@/lib/utils';
 import {
-  getTodayYmd,
-  updateCheckedRows,
-} from '@/pages/M01/registerDetailShared';
+  gridScrollClass,
+  pageContentClass,
+  pageShellClass,
+  registerSearchGridClass,
+} from '@/lib/pageStyles';
+import { formatNumber } from '@/lib/utils';
+import { updateCheckedRows } from '@/lib/gridRows';
+import { getTodayYmd } from '@/lib/registerDetailUtils';
 import { usePageApiFetch } from '@/services/common/getApiFetch';
 import {
   buildMmsm01003SavePayload,
@@ -276,10 +280,10 @@ export default function MMSM01003E() {
   }
 
   return (
-    <div className="min-h-full bg-slate-50/60 p-4">
-      <div className="mx-auto flex max-w-[1680px] flex-col gap-4">
+    <div className={pageShellClass}>
+      <div className={pageContentClass}>
         <SectionCard span="full" padding="md">
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-[450px_420px_1fr]">
+          <div className={registerSearchGridClass}>
             <DateEdit
               label="입고일자"
               value={form.ivDate}
@@ -320,7 +324,7 @@ export default function MMSM01003E() {
             <SectionHeader
               title="입고 등록"
             />
-            <div className="max-h-[68vh] overflow-auto">
+            <div className={gridScrollClass}>
               <DataGrid
                 dataSource={detailRows}
                 showBorders={true}
@@ -343,7 +347,6 @@ export default function MMSM01003E() {
                   alignment="center"
                   cellRender={(row: ReceivableDetailRow) => {
                     const purchase = formatPurchaseDate(row);
-
                     return (
                       <div className="leading-tight">
                         <div className="font-medium text-slate-800">{purchase.date}</div>

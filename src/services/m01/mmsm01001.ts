@@ -1,7 +1,7 @@
 import { getApi } from '@/lib/axiosClient';
 import { toYmd } from '@/lib/excel';
 import { PAGE_SIZE, toPageResult, type PageResult, type PageableResponse } from '@/lib/pagination';
-import { calculateAmount } from '@/pages/M01/registerDetailShared';
+import { calculateAmount } from '@/lib/registerDetailUtils';
 import { RAW_MATERIAL_ITEM_GB } from '@/services/m01/constants';
 
 export { RAW_MATERIAL_ITEM_GB } from '@/services/m01/constants';

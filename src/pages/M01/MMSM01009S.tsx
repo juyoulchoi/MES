@@ -2,14 +2,15 @@ import { useRef, useState } from 'react';
 
 import AlertBox from '@/components/AlertBox';
 import CodeNameField from '@/components/CodeNameField';
-import ExportCsvButton from '@/components/ExportCsvButton';
 import SectionCard from '@/components/SectionCard';
 import SectionHeader from '@/components/SectionHeader';
 import SearchCodePickers from '@/components/SearchCodePickers';
+import StatusActionButtons from '@/components/StatusActionButtons';
 import { Column, DataGrid, Pager, Paging } from '@/components/table/DataGrid';
 import { useAutoTableHeight } from '@/lib/hooks/useAutoTableHeight';
 import { http } from '@/lib/http';
 import { PAGE_SIZE } from '@/lib/pagination';
+import { gridScrollClass, pageContentClass, pageShellClass } from '@/lib/pageStyles';
 import {
   columns,
   exportHeaders,
@@ -50,8 +51,8 @@ export default function MMSM01009S() {
   }
 
   return (
-    <div className="min-h-full bg-slate-50/60 p-4" ref={containerRef}>
-      <div className="mx-auto flex max-w-[1680px] flex-col gap-4">
+    <div className={pageShellClass} ref={containerRef}>
+      <div className={pageContentClass}>
         <SectionCard span="full" padding="md">
           <div className="grid grid-cols-1 gap-3 xl:grid-cols-[546px_1fr]">
             <CodeNameField
@@ -65,23 +66,16 @@ export default function MMSM01009S() {
               onClear={() => setForm({ itemCd: '', itemNm: '' })}
             />
 
-            <div className="flex flex-wrap items-end justify-end gap-2">
-              <button
-                onClick={() => void onSearch()}
-                className="h-10 rounded-lg bg-slate-900 px-4 text-sm font-medium text-white transition hover:bg-slate-800 disabled:opacity-50"
-                disabled={loading}
-              >
-                {loading ? '조회중...' : '조회'}
-              </button>
-              <ExportCsvButton
-                rows={rows}
-                headers={exportHeaders}
-                mapRow={mapExportRow}
-                filename="투입이력현황.csv"
-                variant="outline"
-                className="h-10 rounded-lg border border-emerald-200 bg-emerald-50 px-4 text-sm font-medium text-emerald-700 shadow-none transition hover:bg-emerald-100"
-              />
-            </div>
+            <StatusActionButtons
+              loading={loading}
+              onSearch={() => void onSearch()}
+              exportProps={{
+                rows,
+                headers: exportHeaders,
+                mapRow: mapExportRow,
+                filename: '투입이력현황.csv',
+              }}
+            />
           </div>
         </SectionCard>
 
@@ -91,7 +85,7 @@ export default function MMSM01009S() {
           <SectionHeader
             title="투입 이력 현황"
           />
-          <div className="max-h-[68vh] overflow-auto" style={{ height: tableHeight }}>
+          <div className={gridScrollClass} style={{ height: tableHeight }}>
             <DataGrid
               dataSource={rows}
               rowKey={(row, index) =>

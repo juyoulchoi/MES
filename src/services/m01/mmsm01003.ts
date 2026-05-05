@@ -1,6 +1,7 @@
 import { getApi } from '@/lib/axiosClient';
 import { PAGE_SIZE, toPageResult, type PageResult, type PageableResponse } from '@/lib/pagination';
 import { toYmd } from '@/lib/excel';
+import { calculateAmount } from '@/lib/registerDetailUtils';
 
 type QueryValue = string | number | boolean | null | undefined;
 type QueryParams = Record<string, QueryValue>;
@@ -11,17 +12,6 @@ function toApiParams(params: QueryParams): Record<string, string> {
       .filter(([, value]) => value !== undefined && value !== null)
       .map(([key, value]) => [key, String(value)])
   );
-}
-
-function toNumericValue(value: number | string | null | undefined): number {
-  if (value === null || value === undefined || value === '') return 0;
-  const normalized = String(value).replace(/,/g, '');
-  const numeric = Number(normalized);
-  return Number.isNaN(numeric) ? 0 : numeric;
-}
-
-function calculateAmount(qty: number | string | undefined, price: number | string | undefined) {
-  return toNumericValue(qty) * toNumericValue(price);
 }
 
 export interface SearchForm {

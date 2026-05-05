@@ -9,6 +9,7 @@ import { Column, DataGrid, Pager, Paging } from '@/components/table/DataGrid';
 import { useAutoTableHeight } from '@/lib/hooks/useAutoTableHeight';
 import { http } from '@/lib/http';
 import { PAGE_SIZE, type PageableResponse } from '@/lib/pagination';
+import { gridScrollClass, pageContentClass, pageShellClass } from '@/lib/pageStyles';
 import {
   formatRegNo,
   formatStatus,
@@ -243,8 +244,8 @@ export default function MMSM01010E() {
   }
 
   return (
-    <div className="min-h-full bg-slate-50/60 p-4" ref={containerRef}>
-      <div className="mx-auto flex max-w-[1680px] flex-col gap-4">
+    <div className={pageShellClass} ref={containerRef}>
+      <div className={pageContentClass}>
         <SectionCard span="full" padding="md">
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-[546px_1fr] xl:gap-12">
             <CodeNameField
@@ -284,7 +285,7 @@ export default function MMSM01010E() {
 
         <SectionCard span="full" width="full">
           <SectionHeader title="거래처 목록" />
-          <div className="max-h-[68vh] overflow-auto" style={{ height: gridHeight }}>
+          <div className={gridScrollClass} style={{ height: gridHeight }}>
             <DataGrid
               dataSource={master}
               rowKey={(row, index) => `${row.cstCd ?? row.itemCd ?? 'master'}-${index}`}

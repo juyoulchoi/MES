@@ -3,17 +3,19 @@ import React, { useRef, useState } from 'react';
 import AlertBox from '@/components/AlertBox';
 import CodeNameField from '@/components/CodeNameField';
 import DateEdit from '@/components/DateEdit';
-import ExportCsvButton from '@/components/ExportCsvButton';
 import ItemCodePicker from '@/components/ItemCodePicker';
 import SectionCard from '@/components/SectionCard';
 import SectionHeader from '@/components/SectionHeader';
+import StatusActionButtons from '@/components/StatusActionButtons';
 import { CheckColumn, Column, DataGrid, Pager, Paging } from '@/components/table/DataGrid';
 import { useAutoTableHeight } from '@/lib/hooks/useAutoTableHeight';
 import { getApi } from '@/lib/axiosClient';
 import { http } from '@/lib/http';
 import { PAGE_SIZE } from '@/lib/pagination';
+import { gridScrollClass, pageContentClass, pageShellClass } from '@/lib/pageStyles';
 import { formatNumber } from '@/lib/utils';
-import { updateCheckedRows } from '@/pages/M01/registerDetailShared';
+import { updateCheckedRows } from '@/lib/gridRows';
+import { getTodayYmd } from '@/lib/registerDetailUtils';
 import {
   buildStockAdjustPayload,
   calculateAdjustQty,
@@ -24,10 +26,6 @@ import {
   type RowItem,
   type SearchForm,
 } from '@/services/m01/mmsm01008';
-
-function getTodayYmd() {
-  return new Date().toISOString().slice(0, 10);
-}
 
 export default function MMSM01008E() {
   const [itemPickerOpen, setItemPickerOpen] = useState(false);
@@ -125,8 +123,8 @@ export default function MMSM01008E() {
   }
 
   return (
-    <div className="min-h-full bg-slate-50/60 p-4" ref={containerRef}>
-      <div className="mx-auto flex max-w-[1680px] flex-col gap-4">
+    <div className={pageShellClass} ref={containerRef}>
+      <div className={pageContentClass}>
         <SectionCard span="full" padding="md">
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-[450px_546px_1fr]">
             <DateEdit
@@ -146,30 +144,19 @@ export default function MMSM01008E() {
               onClear={() => setForm((prev) => ({ ...prev, itemCd: '', itemNm: '' }))}
             />
 
-            <div className="flex flex-wrap items-end justify-end gap-2">
-              <button
-                onClick={() => void fetchList()}
-                className="h-10 rounded-lg bg-slate-900 px-4 text-sm font-medium text-white transition hover:bg-slate-800 disabled:opacity-50"
-                disabled={busy}
-              >
-                {loading ? '조회중...' : '조회'}
-              </button>
-              <button
-                onClick={() => void onSave()}
-                className="h-10 rounded-lg border border-sky-200 bg-sky-50 px-4 text-sm font-medium text-sky-700 transition hover:bg-sky-100 disabled:opacity-50"
-                disabled={busy}
-              >
-                {saving ? '저장중...' : '저장'}
-              </button>
-              <ExportCsvButton
-                rows={rows}
-                headers={exportHeaders}
-                mapRow={mapExportRow}
-                filename={() => `원자재재고조정_${form.adjustDate.split('-').join('')}.csv`}
-                variant="outline"
-                className="h-10 rounded-lg border border-emerald-200 bg-emerald-50 px-4 text-sm font-medium text-emerald-700 shadow-none transition hover:bg-emerald-100"
-              />
-            </div>
+            <StatusActionButtons
+              loading={loading}
+              saving={saving}
+              disabled={busy}
+              onSearch={() => void fetchList()}
+              onSave={() => void onSave()}
+              exportProps={{
+                rows,
+                headers: exportHeaders,
+                mapRow: mapExportRow,
+                filename: () => `원자재재고조정_${form.adjustDate.split('-').join('')}.csv`,
+              }}
+            />
           </div>
         </SectionCard>
 
@@ -179,7 +166,7 @@ export default function MMSM01008E() {
           <SectionHeader
             title="재고 조정"
           />
-          <div className="max-h-[68vh] overflow-auto" style={{ height: tableHeight }}>
+          <div className={gridScrollClass} style={{ height: tableHeight }}>
             <DataGrid
               dataSource={rows}
               rowKey={(row, index) => `${row.itemCd ?? 'item'}-${row.ymd ?? 'ymd'}-${index}`}
