@@ -39,7 +39,7 @@ export interface BaseTableClassNames {
 export const tableClassNames: BaseTableClassNames = {
   table: 'min-w-[1000px] w-full text-sm',
   thead: 'sticky top-0 bg-gray-100 z-10',
-  headerCell: 'py-2 px-2 text-gray-700 text-xs font-semibold border-b',
+  headerCell: 'py-2 px-2 text-gray-700 text-xs font-semibold border-b border-r border-slate-200 last:border-r-0',
   bodyRow: 'border-b last:border-b-0 hover:bg-gray-50',
   bodyCell: 'py-2 px-2',
   emptyCell: 'py-10 text-center text-gray-400',

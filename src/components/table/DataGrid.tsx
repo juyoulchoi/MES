@@ -83,7 +83,7 @@ const dataGridClassNames: BaseTableClassNames = {
   table: 'w-full text-sm',
   thead: 'sticky top-0 bg-background z-10',
   headerRow: 'border-b',
-  headerCell: 'p-2',
+  headerCell: 'p-2 border-r border-slate-200 last:border-r-0',
   bodyRow: 'border-b hover:bg-muted/30',
   bodyCell: 'p-2',
   emptyCell: 'p-3 text-center text-muted-foreground',
@@ -163,9 +163,7 @@ function toTableColumn<T>(element: ReactElement<DataGridColumnProps<T>>, index: 
     headerStyle,
     cellRender,
   } = element.props;
-  const resolvedHeaderStyle = headerAlignment
-    ? { textAlign: headerAlignment, ...(headerStyle ?? {}) }
-    : headerStyle;
+  const resolvedHeaderStyle = { textAlign: headerAlignment ?? 'center', ...(headerStyle ?? {}) };
 
   return {
     key: element.key ? String(element.key) : `${String(dataField)}-${index}`,
