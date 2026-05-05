@@ -399,7 +399,7 @@ export default function MMSM02001E() {
           </div>
 
           <SectionCard span="right" width="full">
-            <SectionHeader title="수주 등록 상세" />
+            <SectionHeader title="등록 상세" />
             <div className={gridScrollClass}>
               <DataGrid
                 dataSource={detailRows}
