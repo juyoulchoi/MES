@@ -133,12 +133,12 @@ const MMSM01002S: React.FC = () => {
             />
 
             <CodeNameField
-              label="거래처명"
+              label="거래처"
               id="cust"
               code={form.cstCd}
               name={form.cstNm}
               codePlaceholder="코드"
-              namePlaceholder="거래처 선택"
+              namePlaceholder="거래처명"
               onSearch={() => setCustomerOpen(true)}
               onClear={() =>
                 setForm((prev) => ({ ...prev, cstCd: '', cstNm: '' }))
@@ -175,12 +175,12 @@ const MMSM01002S: React.FC = () => {
 
           <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-[546px_1fr]">
             <CodeNameField
-              label="원자재명"
+              label="원자재"
               id="item"
               code={form.itemCd}
               name={form.itemNm}
               codePlaceholder="코드"
-              namePlaceholder="원자재 선택"
+              namePlaceholder="원자재명"
               onSearch={() => setItemPickerOpen(true)}
               onClear={() =>
                 setForm((prev) => ({ ...prev, itemGb: '', itemCd: '', itemNm: '' }))
@@ -193,12 +193,7 @@ const MMSM01002S: React.FC = () => {
 
         <SectionCard span="full" width="full">
           <SectionHeader
-            title="원자재 발주현황"
-            right={
-              <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
-                {result.totalElements}건
-              </span>
-            }
+            title="발주 현황"
           />
           <div className="max-h-[68vh] overflow-auto" style={{ height: tableHeight }}>
             <DataGrid
@@ -208,7 +203,6 @@ const MMSM01002S: React.FC = () => {
               showBorders={true}
               loading={loading}
               remoteOperations={true}
-              emptyText="원자재 발주현황 데이터가 없습니다."
               onPageChange={(page) => void fetchList(page)}
               classNames={{
                 table: 'min-w-[1480px] w-full text-sm',

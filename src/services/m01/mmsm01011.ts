@@ -43,7 +43,7 @@ export const columns: GridColumn<RowItem>[] = [
     alignment: 'center',
     cellRender: (row, index) => row.rnum ?? index + 1,
   },
-  { dataField: 'ymd', caption: '기준일자', width: 120, alignment: 'center' },
+  { dataField: 'ymd', caption: '실사일자', width: 120, alignment: 'center' },
   { dataField: 'itemCd', caption: '원자재코드', width: 130, alignment: 'center' },
   { dataField: 'itemNm', caption: '원자재명', width: 240 },
   {
@@ -86,7 +86,7 @@ export const columns: GridColumn<RowItem>[] = [
 
 export const exportHeaders = [
   '순번',
-  '기준일자',
+  '실사일자',
   '원자재코드',
   '원자재명',
   '현재고',

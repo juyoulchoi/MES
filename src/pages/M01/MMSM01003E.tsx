@@ -172,7 +172,7 @@ export default function MMSM01003E() {
 
   async function onSearch() {
     if (!form.cstCd) {
-      window.alert('거래처 코드는 조회 필수값입니다.');
+      window.alert('거래처는 조회 필수값입니다.');
       return;
     }
 
@@ -291,7 +291,7 @@ export default function MMSM01003E() {
               code={form.cstCd}
               name={cstNm}
               codePlaceholder="코드"
-              namePlaceholder="거래처 선택"
+              namePlaceholder="거래처명"
               onSearch={() => setCustomerOpen(true)}
               onClear={() => {
                 setCstNm('');
@@ -318,12 +318,7 @@ export default function MMSM01003E() {
         <div className="grid grid-cols-12 gap-4">
           <SectionCard span="full" width="full">
             <SectionHeader
-              title="입고 등록 대상"
-              right={
-                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
-                  {detailRows.length}건
-                </span>
-              }
+              title="입고 등록"
             />
             <div className="max-h-[68vh] overflow-auto">
               <DataGrid
@@ -332,7 +327,7 @@ export default function MMSM01003E() {
                 rowKey={(row, index) =>
                   `${row.poYmd ?? 'po'}-${row.poSeq ?? 'seq'}-${row.poSubSeq ?? 'sub'}-${row.itemCd ?? 'item'}-${index}`
                 }
-                emptyText="입고 등록 가능한 미입고 발주 품목이 없습니다."
+                emptyText="입고 등록 가능한 미입고 원자재가 없습니다."
                 classNames={{
                   table: 'min-w-[1040px] w-full text-sm',
                 }}
@@ -343,7 +338,7 @@ export default function MMSM01003E() {
                 />
                 <Column
                   dataField="poYmd"
-                  caption="발주"
+                  caption="발주일자"
                   width={120}
                   alignment="center"
                   cellRender={(row: ReceivableDetailRow) => {
@@ -359,42 +354,21 @@ export default function MMSM01003E() {
                     );
                   }}
                 />
-                <Column dataField="itemCd" caption="품목코드" width={90} alignment="center" />
-                <Column
-                  dataField="itemNm"
-                  caption="품목명"
-                  width={220}
-                  alignment="left"
-                />
+                <Column dataField="itemCd" caption="원자재코드" width={90} alignment="center" />
+                <Column dataField="itemNm" caption="원자재명" width={220} />
                 <Column dataField="unitCd" caption="단위" width={60} alignment="center" />
-                <Column
-                  dataField="qty"
-                  caption="발주수량"
-                  width={90}
-                  alignment="right"
+                <Column dataField="qty" caption="발주수량" width={90} alignment="right"
                   cellRender={(row: ReceivableDetailRow) => formatQty(row.orderQty)}
                 />
-                <Column
-                  dataField="preIvQty"
-                  caption="기입고"
-                  width={80}
-                  alignment="right"
+                <Column dataField="preIvQty" caption="기입고" width={80} alignment="right"
                   cellRender={(row: ReceivableDetailRow) => formatNumber(getReceivedQty(row))}
                 />
-                <Column
-                  dataField="remQty"
-                  caption="잔량"
-                  width={80}
-                  alignment="right"
+                <Column dataField="remQty" caption="잔량" width={80} alignment="right"
                   cellRender={(row: ReceivableDetailRow) => (
                     <span className="font-semibold text-emerald-700">{formatQty(row.remQty)}</span>
                   )}
                 />
-                <Column
-                  dataField="qty"
-                  caption="입고수량"
-                  width={120}
-                  alignment="right"
+                <Column dataField="qty" caption="입고수량" width={120} alignment="right"
                   cellRender={(row: DetailRow, rowIndex) => (
                     <input
                       className="h-8 w-full rounded border border-slate-200 px-2 text-right"

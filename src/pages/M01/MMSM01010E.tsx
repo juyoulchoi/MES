@@ -226,9 +226,7 @@ export default function MMSM01010E() {
 
       setMaster((prev) =>
         prev.map((row) =>
-          row.cstCd === detailPopupRow.cstCd
-            ? patchCustomerRow(row, detailPopupRow)
-            : row
+          row.cstCd === detailPopupRow.cstCd ? patchCustomerRow(row, detailPopupRow) : row
         )
       );
       if (cstCd === detailPopupRow.cstCd) {
@@ -250,12 +248,12 @@ export default function MMSM01010E() {
         <SectionCard span="full" padding="md">
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-[546px_1fr] xl:gap-12">
             <CodeNameField
-              label="거래처명"
+              label="거래처"
               id="cust"
               code={cstCd}
               name={cstNm}
               codePlaceholder="코드"
-              namePlaceholder="거래처 선택"
+              namePlaceholder="거래처명"
               onSearch={() => setCustomerOpen(true)}
               onClear={() => {
                 setCstCd('');
@@ -280,32 +278,23 @@ export default function MMSM01010E() {
               </button>
             </div>
           </div>
-
         </SectionCard>
 
         {error ? <AlertBox tone="error">{error}</AlertBox> : null}
 
         <SectionCard span="full" width="full">
-          <SectionHeader
-            title="거래처 목록"
-            right={
-              <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
-                {master.length}건
-              </span>
-            }
-          />
+          <SectionHeader title="거래처 목록" />
           <div className="max-h-[68vh] overflow-auto" style={{ height: gridHeight }}>
             <DataGrid
               dataSource={master}
               rowKey={(row, index) => `${row.cstCd ?? row.itemCd ?? 'master'}-${index}`}
               showBorders={true}
               loading={busy}
-              emptyText="거래처 데이터가 없습니다."
               classNames={{ table: 'min-w-[1120px] w-full text-sm' }}
             >
               <Paging enabled={true} defaultPageSize={PAGE_SIZE} />
               <Pager visible={true} showPageSizeSelector={false} />
-              <Column<MasterRow>
+              <Column
                 dataField="cstCd"
                 caption="거래처코드"
                 width={140}
@@ -316,7 +305,7 @@ export default function MMSM01010E() {
                   </ClickableCell>
                 )}
               />
-              <Column<MasterRow>
+              <Column
                 dataField="cstNm"
                 caption="거래처명"
                 width={220}
@@ -326,16 +315,11 @@ export default function MMSM01010E() {
                   </ClickableCell>
                 )}
               />
-              <Column<MasterRow>
-                dataField="custGb"
-                caption="구분"
-                width={100}
-                alignment="center"
-              />
-              <Column<MasterRow> dataField="ceoNm" caption="대표자명" width={120} />
-              <Column<MasterRow> dataField="mgrNm" caption="담당자" width={120} />
-              <Column<MasterRow> dataField="telNo" caption="전화번호" width={140} />
-              <Column<MasterRow>
+              <Column dataField="custGb" caption="구분" width={100} alignment="center" />
+              <Column dataField="ceoNm" caption="대표자명" width={120} />
+              <Column dataField="mgrNm" caption="담당자" width={120} />
+              <Column dataField="telNo" caption="전화번호" width={140} />
+              <Column
                 dataField="status"
                 caption="상태"
                 width={100}
@@ -369,9 +353,7 @@ export default function MMSM01010E() {
                     {detailPopupRow.isRegister ? '거래처 등록' : '거래처 상세'}
                   </h3>
                   {detailPopupRow.isRegister ? (
-                    <p className="text-sm text-slate-500">
-                      거래처 코드는 저장 시 자동 생성됩니다.
-                    </p>
+                    <p className="text-sm text-slate-500">거래처 코드는 저장 시 자동 생성됩니다.</p>
                   ) : null}
                 </div>
                 <div className="flex items-center gap-2">
@@ -400,15 +382,11 @@ export default function MMSM01010E() {
                   readOnly
                 />
                 <DetailInput
-                  label="거래처명"
+                  label="거래처"
                   value={detailPopupRow.cstNm}
                   onChange={(value) => updateDetailPopup({ cstNm: value })}
                 />
-                <DetailInput
-                  label="거래처구분"
-                  value={detailPopupRow.custGb}
-                  readOnly
-                />
+                <DetailInput label="거래처구분" value={detailPopupRow.custGb} readOnly />
                 <DetailInput
                   label="사업자번호"
                   value={detailPopupRow.regNo}
@@ -466,7 +444,6 @@ export default function MMSM01010E() {
             </div>
           </div>
         ) : null}
-
       </div>
     </div>
   );

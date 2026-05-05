@@ -136,12 +136,12 @@ export default function MMSM01008E() {
             />
 
             <CodeNameField
-              label="원자재명"
+              label="원자재"
               id="item"
               code={form.itemCd}
               name={form.itemNm}
               codePlaceholder="코드"
-              namePlaceholder="원자재 선택"
+              namePlaceholder="원자재명"
               onSearch={() => setItemPickerOpen(true)}
               onClear={() => setForm((prev) => ({ ...prev, itemCd: '', itemNm: '' }))}
             />
@@ -177,12 +177,7 @@ export default function MMSM01008E() {
 
         <SectionCard span="full" width="full">
           <SectionHeader
-            title="원자재 재고조정"
-            right={
-              <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
-                {rows.length}건
-              </span>
-            }
+            title="재고 조정"
           />
           <div className="max-h-[68vh] overflow-auto" style={{ height: tableHeight }}>
             <DataGrid
@@ -190,7 +185,6 @@ export default function MMSM01008E() {
               rowKey={(row, index) => `${row.itemCd ?? 'item'}-${row.ymd ?? 'ymd'}-${index}`}
               showBorders={true}
               loading={busy}
-              emptyText="재고 조정 대상 데이터가 없습니다."
               classNames={{
                 table: 'min-w-[1420px] w-full text-sm',
               }}

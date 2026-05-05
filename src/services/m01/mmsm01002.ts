@@ -78,7 +78,7 @@ export const columns: GridColumn<RowItem>[] = [
     alignment: 'center',
     cellRender: (row) => `${row.poYmd}_${row.poSeq}_${row.poSubSeq}`,
   },
-  { dataField: 'itemCd', caption: '품목코드', width: 120, alignment: 'center' },
+  { dataField: 'itemCd', caption: '원자재코드', width: 120, alignment: 'center' },
   { dataField: 'itemNm', caption: '원자재명', width: 180 },
   {
     dataField: 'price',
@@ -112,9 +112,8 @@ export const columns: GridColumn<RowItem>[] = [
   },
   { dataField: 'cstNm', caption: '거래처명', width: 160 },
   { dataField: 'reqYmd', caption: '입고요청일', width: 120, alignment: 'center' },
-  { dataField: 'emGb', caption: '발주구분', width: 110, alignment: 'center' },
+  { dataField: 'emGb', caption: '긴급구분', width: 110, alignment: 'center' },
   { dataField: 'preIvQty', caption: '기입고량', width: 120, alignment: 'right' },
-  { dataField: 'description', caption: '비고', width: 260 },
 ];
 
 export const exportHeaders = [
@@ -131,14 +130,13 @@ export const exportHeaders = [
   '입고상태',
   '기입고량',
   '입고량',
-  '품목코드',
-  '단위코드',
+  '원자재코드',
+  '단위',
   '긴급구분',
   '입고요청일',
   '입고일',
   '완료여부',
   '상태',
-  '비고',
 ];
 
 export const mapExportRow = (r: RowItem) => [
@@ -210,5 +208,4 @@ export function buildPurchaseCancelPayload(rows: RowItem[], userId: string): Pur
     };
   });
 }
-
 

@@ -104,7 +104,7 @@ export default function MMSM01005E() {
 
   async function onSearch() {
     if (!form.cstCd) {
-      window.alert('거래처 코드는 조회 필수값입니다.');
+      window.alert('거래처는 조회 필수값입니다.');
       return;
     }
 
@@ -312,14 +312,14 @@ export default function MMSM01005E() {
       '원자재출고등록양식.xlsx',
       [
         {
-          품목코드: 'RM001',
-          품목명: '원자재명',
+          원자재코드: 'RM001',
+          원자재명: '원자재명',
           단위: 'EA',
           수량: 100,
           비고: '비고',
         },
       ],
-      ['품목코드', '품목명', '단위', '수량', '비고']
+      ['원자재코드', '원자재명', '단위', '수량', '비고']
     );
   }
 
@@ -347,7 +347,7 @@ export default function MMSM01005E() {
               code={form.cstCd}
               name={cstNm}
               codePlaceholder="코드"
-              namePlaceholder="거래처 선택"
+              namePlaceholder="거래처명"
               onSearch={() => setCustomerOpen(true)}
               onClear={() => {
                 setCstNm('');
@@ -381,7 +381,7 @@ export default function MMSM01005E() {
         <div className="grid grid-cols-12 gap-4">
           <SectionCard span="left" width="full">
             <SectionHeader
-              title="출고 후보 원자재"
+              title="원자재"
               right={
                 <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
                   {masterRows.length}건
@@ -393,14 +393,14 @@ export default function MMSM01005E() {
                 dataSource={masterRows}
                 showBorders={true}
                 rowKey={(row, index) => row.itemCd || index}
-                emptyText="출고 후보 원자재가 없습니다."
+                emptyText="원자재가 없습니다."
               >
                 <CheckColumn
                   checked={(row) => !!row.CHECK}
                   onChange={(_row, rowIndex, checked) => toggleMaster(rowIndex, checked)}
                 />
                 <Column dataField="itemCd" caption="원자재코드" width={80} alignment="center" />
-                <Column dataField="itemNm" caption="원자재명" width={120} alignment="left" />
+                <Column dataField="itemNm" caption="원자재명" width={120} />
                 <Column dataField="unitCd" caption="단위" width={60} alignment="center" />
               </DataGrid>
             </div>
@@ -424,7 +424,11 @@ export default function MMSM01005E() {
           </div>
 
           <SectionCard span="right" width="full">
-            <SectionHeader title="출고 등록 상세" />
+            <SectionHeader title="등록 상세" right={
+                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
+                  {detailRows.length}건
+                </span>
+              }/>
             <div className="max-h-[68vh] overflow-auto">
               <DataGrid
                 dataSource={detailRows}
@@ -433,7 +437,7 @@ export default function MMSM01005E() {
                   const key = getDetailRowKey(row);
                   return key === '||' ? `${row.itemCd ?? 'item'}-${index}` : `${key}-${index}`;
                 }}
-                emptyText="출고 상세 데이터가 없습니다. 좌측 후보에서 선택 후 추가하세요."
+                emptyText="원자재에서 선택 후 추가하세요."
                 classNames={{
                   table: 'min-w-[980px] w-full text-sm',
                 }}

@@ -11,6 +11,7 @@ export interface SearchForm {
 }
 
 export interface RowItem {
+  rnum?: number | string;
   itemCd: string;
   itemNm?: string;
   qty?: number;
@@ -23,6 +24,7 @@ export interface RowItem {
 }
 
 export const columns: GridColumn<RowItem>[] = [
+  { dataField: 'rnum', caption: '순번', width: 80, alignment: 'center', cellRender: (row, index) => row.rnum ?? index + 1 },
   { dataField: 'ymd', caption: '기준일자', width: 120, alignment: 'center' },
   { dataField: 'itemCd', caption: '원자재코드', width: 120, alignment: 'center' },
   { dataField: 'itemNm', caption: '원자재명', width: 220 },
@@ -58,6 +60,7 @@ export const columns: GridColumn<RowItem>[] = [
 ];
 
 export const exportHeaders = [
+  '순번',
   '기준일자',
   '원자재코드',
   '원자재명',
@@ -68,7 +71,8 @@ export const exportHeaders = [
   '출고수량',
 ];
 
-export const mapExportRow = (row: RowItem) => [
+export const mapExportRow = (row: RowItem, index: number) => [
+  row.rnum ?? index + 1,
   row.ymd ?? '',
   row.itemCd,
   row.itemNm ?? '',

@@ -12,6 +12,7 @@ export interface SearchForm {
 
 export interface RowItem {
   CHECK?: boolean;
+  rnum?: number | string;
   giYmd: string;
   giSeq: number;
   giSubSeq: number;
@@ -45,6 +46,7 @@ export interface IssueCancelPayload {
 }
 
 export const columns: GridColumn<RowItem>[] = [
+  { dataField: 'rnum', caption: '순번', width: 80, alignment: 'center', cellRender: (row, index) => row.rnum ?? index + 1 },
   { dataField: 'giYmd', caption: '출고일자', width: 120, alignment: 'center' },
   { dataField: 'giSeq', caption: '출고순번', width: 88, alignment: 'center' },
   { dataField: 'giSubSeq', caption: '상세순번', width: 88, alignment: 'center' },
@@ -62,6 +64,7 @@ export const columns: GridColumn<RowItem>[] = [
 ];
 
 export const exportHeaders = [
+  '순번',
   '출고일자',
   '출고순번',
   '상세순번',
@@ -72,7 +75,8 @@ export const exportHeaders = [
   '비고',
 ];
 
-export const mapExportRow = (row: RowItem) => [
+export const mapExportRow = (row: RowItem, index: number) => [
+  row.rnum ?? index + 1,
   row.giYmd,
   row.giSeq,
   row.giSubSeq,

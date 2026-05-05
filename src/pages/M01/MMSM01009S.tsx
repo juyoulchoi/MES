@@ -55,12 +55,12 @@ export default function MMSM01009S() {
         <SectionCard span="full" padding="md">
           <div className="grid grid-cols-1 gap-3 xl:grid-cols-[546px_1fr]">
             <CodeNameField
-              label="원자재명"
+              label="원자재"
               id="item"
               code={form.itemCd}
               name={form.itemNm}
               codePlaceholder="코드"
-              namePlaceholder="원자재 선택"
+              namePlaceholder="원자재명"
               onSearch={() => setItemPickerOpen(true)}
               onClear={() => setForm({ itemCd: '', itemNm: '' })}
             />
@@ -77,7 +77,7 @@ export default function MMSM01009S() {
                 rows={rows}
                 headers={exportHeaders}
                 mapRow={mapExportRow}
-                filename="원자재투입이력현황.csv"
+                filename="투입이력현황.csv"
                 variant="outline"
                 className="h-10 rounded-lg border border-emerald-200 bg-emerald-50 px-4 text-sm font-medium text-emerald-700 shadow-none transition hover:bg-emerald-100"
               />
@@ -89,12 +89,7 @@ export default function MMSM01009S() {
 
         <SectionCard span="full" width="full">
           <SectionHeader
-            title="원자재 투입 이력 현황"
-            right={
-              <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
-                {rows.length}건
-              </span>
-            }
+            title="투입 이력 현황"
           />
           <div className="max-h-[68vh] overflow-auto" style={{ height: tableHeight }}>
             <DataGrid
@@ -104,7 +99,6 @@ export default function MMSM01009S() {
               }
               showBorders={true}
               loading={loading}
-              emptyText="원자재 투입 이력 데이터가 없습니다."
               classNames={{
                 table: 'min-w-[980px] w-full text-sm',
               }}

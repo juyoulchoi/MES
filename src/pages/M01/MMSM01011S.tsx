@@ -84,7 +84,7 @@ export default function MMSM01011S() {
                 rows={rows}
                 headers={exportHeaders}
                 mapRow={mapExportRow}
-                filename={() => `원자재재고조정내역_${toYmd(form.startDate)}_${toYmd(form.endDate)}.csv`}
+                filename={() => `재고조정내역_${toYmd(form.startDate)}_${toYmd(form.endDate)}.csv`}
                 variant="outline"
                 className="h-10 rounded-lg border border-emerald-200 bg-emerald-50 px-4 text-sm font-medium text-emerald-700 shadow-none transition hover:bg-emerald-100"
               />
@@ -96,12 +96,7 @@ export default function MMSM01011S() {
 
         <SectionCard span="full" width="full">
           <SectionHeader
-            title="원자재 재고조정 내역"
-            right={
-              <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
-                {rows.length}건
-              </span>
-            }
+            title="재고조정 내역"
           />
           <div className="max-h-[68vh] overflow-auto" style={{ height: tableHeight }}>
             <DataGrid
@@ -109,7 +104,6 @@ export default function MMSM01011S() {
               rowKey={(row, index) => `${row.ymd ?? 'date'}-${row.itemCd ?? 'item'}-${index}`}
               showBorders={true}
               loading={loading}
-              emptyText="원자재 재고조정 내역 데이터가 없습니다."
               classNames={{
                 table: 'min-w-[1420px] w-full text-sm',
               }}
