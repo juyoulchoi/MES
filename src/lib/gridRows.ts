@@ -1,3 +1,5 @@
+import type { Dispatch, SetStateAction } from 'react';
+
 export type CheckableRow = {
   CHECK?: boolean;
 };
@@ -20,4 +22,12 @@ export function patchCheckedRow<T extends CheckableRow>(
 
 export function removeCheckedRows<T extends CheckableRow>(rows: T[]) {
   return rows.filter((row) => !row.CHECK);
+}
+
+export function updateCheckedRows<T extends CheckableRow>(
+  setRows: Dispatch<SetStateAction<T[]>>,
+  rowIndex: number,
+  checked: boolean
+) {
+  setRows((prev) => toggleCheckedRow(prev, rowIndex, checked));
 }
