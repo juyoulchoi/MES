@@ -7,10 +7,23 @@ import SectionCard from '@/components/SectionCard';
 import SectionHeader from '@/components/SectionHeader';
 import SearchCodePickers from '@/components/SearchCodePickers';
 import { CheckColumn, Column, DataGrid } from '@/components/table/DataGrid';
-import { patchCheckedRow, removeCheckedRows } from '@/lib/gridRows';
+import { patchCheckedRow, removeCheckedRows, updateCheckedRows } from '@/lib/gridRows';
 import { http } from '@/lib/http';
 import { EmptyPageResult, PAGE_SIZE } from '@/lib/pagination';
-import { getTodayYmd, updateCheckedRows } from '@/pages/M01/registerDetailShared';
+import {
+  addTransferButtonClass,
+  deleteTransferButtonClass,
+  editableNumberInputClass,
+  editableSelectClass,
+  gridScrollClass,
+  pageContentClass,
+  pageShellClass,
+  registerSearchGridClass,
+  registerSplitGridClass,
+  transferButtonGroupClass,
+  transferColumnClass,
+} from '@/lib/pageStyles';
+import { getTodayYmd } from '@/lib/registerDetailUtils';
 import { useCodes } from '@/lib/hooks/useCodes';
 import {
   buildMmsm02001SavePayload,
@@ -94,7 +107,7 @@ export default function MMSM02001E() {
 
   async function onSearch() {
     if (!form.cstCd) {
-      window.alert('거래처 코드는 조회 필수값입니다.');
+      window.alert('거래처는 조회 필수값입니다.');
       return;
     }
 
@@ -264,15 +277,7 @@ export default function MMSM02001E() {
   }
 
   function onExportCsv() {
-    const headers = [
-      '품목코드',
-      '품목명',
-      '납기요청일',
-      '단위',
-      '수량',
-      '단가',
-      '긴급구분',
-    ];
+    const headers = ['원자재코드', '원자재명', '납기요청일', '단위', '수량', '단가', '긴급구분'];
     const lines = detailRows.map((row) =>
       [
         row.itemCd ?? '',
@@ -301,10 +306,10 @@ export default function MMSM02001E() {
   }
 
   return (
-    <div className="min-h-full bg-slate-50/60 p-4">
-      <div className="mx-auto flex max-w-[1680px] flex-col gap-4">
+    <div className={pageShellClass}>
+      <div className={pageContentClass}>
         <SectionCard span="full" padding="md">
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-[450px_420px_1fr]">
+          <div className={registerSearchGridClass}>
             <DateEdit
               label="수주일자"
               value={form.soYmd}
@@ -316,7 +321,7 @@ export default function MMSM02001E() {
               code={form.cstCd}
               name={cstNm}
               codePlaceholder="코드"
-              namePlaceholder="거래처 선택"
+              namePlaceholder="거래처명"
               onSearch={() => setCustomerOpen(true)}
               onClear={() => {
                 setCstNm('');
@@ -349,7 +354,7 @@ export default function MMSM02001E() {
           <AlertBox tone="error">{masterError ?? detailError ?? saveError}</AlertBox>
         )}
 
-        <div className="grid grid-cols-12 gap-4">
+        <div className={registerSplitGridClass}>
           <SectionCard span="left" width="full">
             <SectionHeader
               title="수주 예비 품목"
@@ -359,35 +364,34 @@ export default function MMSM02001E() {
                 </span>
               }
             />
-            <div className="max-h-[68vh] overflow-auto">
+            <div className={gridScrollClass}>
               <DataGrid
                 dataSource={masterRows}
                 showBorders={true}
                 rowKey={(row, index) => row.itemCd || index}
-                emptyText="수주 후보 데이터가 없습니다."
               >
                 <CheckColumn
                   checked={(row) => !!row.CHECK}
                   onChange={(_row, rowIndex, checked) => toggleMaster(rowIndex, checked)}
                 />
-                <Column dataField="itemCd" caption="품목코드" width={100} alignment="center" />
-                <Column dataField="itemNm" caption="품목명" width={160} alignment="left" />
+                <Column dataField="itemCd" caption="원자재코드" width={100} alignment="center" />
+                <Column dataField="itemNm" caption="원자재명" width={160} />
                 <Column dataField="unitCd" caption="단위" width={80} alignment="center" />
               </DataGrid>
             </div>
           </SectionCard>
 
-          <div className="col-span-12 flex items-center justify-center md:col-span-1">
-            <div className="flex w-full flex-row gap-2 md:w-[60px] md:min-w-[60px] md:flex-col">
+          <div className={transferColumnClass}>
+            <div className={transferButtonGroupClass}>
               <button
                 onClick={onAddFromMaster}
-                className="flex-1 rounded-xl border border-emerald-200 bg-emerald-50 px-2 py-3 text-sm font-medium text-emerald-700 transition hover:bg-emerald-100"
+                className={addTransferButtonClass}
               >
                 추가
               </button>
               <button
                 onClick={onDeleteDetail}
-                className="flex-1 rounded-xl border border-rose-200 bg-rose-50 px-2 py-3 text-sm font-medium text-rose-700 transition hover:bg-rose-100"
+                className={deleteTransferButtonClass}
               >
                 삭제
               </button>
@@ -396,14 +400,14 @@ export default function MMSM02001E() {
 
           <SectionCard span="right" width="full">
             <SectionHeader title="수주 등록 상세" />
-            <div className="max-h-[68vh] overflow-auto">
+            <div className={gridScrollClass}>
               <DataGrid
                 dataSource={detailRows}
                 showBorders={true}
                 rowKey={(row, index) =>
                   `${form.soYmd}-${form.seq || 'new'}-${row.soSubSeq ?? 'detail'}-${row.itemCd ?? 'item'}-${index}`
                 }
-                emptyText="수주 상세 데이터가 없습니다. 좌측 후보에서 선택 후 추가하세요."
+                emptyText="원자재에서 선택 후 추가하세요."
                 classNames={{
                   table: 'min-w-[980px] w-full text-sm',
                 }}
@@ -412,8 +416,8 @@ export default function MMSM02001E() {
                   checked={(row) => !!row.CHECK}
                   onChange={(_row, rowIndex, checked) => toggleDetail(rowIndex, checked)}
                 />
-                <Column dataField="itemCd" caption="품목코드" width={120} alignment="center" />
-                <Column dataField="itemNm" caption="품목명" width={220} />
+                <Column dataField="itemCd" caption="원자재코드" width={120} alignment="center" />
+                <Column dataField="itemNm" caption="원자재명" width={220} />
                 <Column
                   dataField="reqYmd"
                   caption="납기 요청일"
@@ -434,7 +438,7 @@ export default function MMSM02001E() {
                   alignment="center"
                   cellRender={(row: DetailRow, rowIndex) => (
                     <select
-                      className="h-8 w-full rounded border border-slate-200 bg-white px-2 text-center"
+                      className={editableSelectClass}
                       value={row.emGb || ''}
                       onChange={(event) => onDetailChange(rowIndex, { emGb: event.target.value })}
                     >
@@ -460,7 +464,7 @@ export default function MMSM02001E() {
                   alignment="right"
                   cellRender={(row: DetailRow, rowIndex) => (
                     <input
-                      className="h-8 w-full rounded border border-slate-200 px-2 text-right"
+                      className={editableNumberInputClass}
                       value={row.qty ?? ''}
                       onChange={(event) => onDetailChange(rowIndex, { qty: event.target.value })}
                     />
@@ -474,7 +478,7 @@ export default function MMSM02001E() {
                   headerAlignment="center"
                   cellRender={(row: DetailRow, rowIndex) => (
                     <input
-                      className="h-8 w-full rounded border border-slate-200 px-2 text-right"
+                      className={editableNumberInputClass}
                       value={row.price ?? ''}
                       onChange={(event) => onDetailChange(rowIndex, { price: event.target.value })}
                     />

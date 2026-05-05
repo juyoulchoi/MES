@@ -1,6 +1,6 @@
 import { getApi } from '@/lib/axiosClient';
 import { PAGE_SIZE, toPageResult, type PageResult, type PageableResponse } from '@/lib/pagination';
-import { calculateAmount } from '@/pages/M01/registerDetailShared';
+import { calculateAmount } from '@/lib/registerDetailUtils';
 
 type ApiRow = Record<string, unknown>;
 const SALES_ITEM_GB = 'FG,SFG';
