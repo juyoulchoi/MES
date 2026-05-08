@@ -1,85 +1,133 @@
 import { useEffect, useState } from 'react';
+
+import AlertBox from '@/components/AlertBox';
+import CodeNameField from '@/components/CodeNameField';
+import SectionCard from '@/components/SectionCard';
+import SectionHeader from '@/components/SectionHeader';
+import { CheckColumn, Column, DataGrid } from '@/components/table/DataGrid';
+import { toYmd } from '@/lib/excel';
 import { http } from '@/lib/http';
+import {
+  countBadgeClass,
+  gridScrollClass,
+  pageContentClass,
+  pageShellClass,
+  searchButtonClass,
+  statusActionGroupClass,
+} from '@/lib/pageStyles';
+import { useCodes } from '@/lib/hooks/useCodes';
+import { getTodayYmd } from '@/lib/registerDetailUtils';
+import {
+  exportMmsm02002PlanCsv,
+  normalizeMmsm02002MasterRow,
+} from '@/services/m02/mmsm02002';
+import type {
+  Mmsm02002BomMaterialRow,
+  Mmsm02002MasterRow,
+  Mmsm02002PlanReviewResponse,
+  Mmsm02002PlanStatus,
+  Mmsm02002ProcessRow,
+  Mmsm02002SalesLinkRow,
+  Mmsm02002SearchForm,
+} from '@/services/m02/mmsm02002';
 
-// 생산계획 생성 (MMSM02002E)
-// 상단: 수주일자 필터 + 조회/추가/저장/삭제/엑셀
-// 본문: 마스터 그리드 + 하단(좌: 재단, 우: 재단원자재) 그리드
-
-type MasterRow = {
-  CHECK?: boolean;
-  ISNEW?: boolean;
-  SO_YMD?: string; // 수주일자(yyyy.MM.dd or yyyymmdd)
-  ITEM_CD?: string;
-  ITEM_NM?: string;
-  CST_CD?: string;
-  CST_NM?: string;
-  ITEM_TP?: string;
-  WID?: string | number;
-  HGT?: string | number;
-  QTY?: string | number;
-  PRD_PLAN_YMD?: string;
-};
-
-type DetailMatRow = {
-  CHECK?: boolean;
-  PRE_MAT_NM?: string; // 공정코드
-  PRE_MAT_SPEC?: string; // 공정명
-};
-
-type DetailItemRow = {
-  CHECK?: boolean;
-  PRE_MED_NM?: string; // 구분
-  CHECK_METHOD_NM?: string; // 종류
-  CHECK_CYCLE?: string; // 규격
-};
-
-function toYMD(d: string) {
-  if (!d) return '';
-  const dt = new Date(d);
-  if (isNaN(dt.getTime())) return '';
-  const y = dt.getFullYear();
-  const m = `${dt.getMonth() + 1}`.padStart(2, '0');
-  const day = `${dt.getDate()}`.padStart(2, '0');
-  return `${y}${m}${day}`;
-}
+const searchLabelClass = 'font-medium text-slate-700';
+const searchControlClass = 'h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm';
 
 export default function MMSM02002E() {
-  // Filters
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  const [form, setForm] = useState<Mmsm02002SearchForm>(() => {
+    const today = getTodayYmd();
 
-  // Data
-  const [master, setMaster] = useState<MasterRow[]>([]);
-  const [detailMat, setDetailMat] = useState<DetailMatRow[]>([]);
-  const [detailItem, setDetailItem] = useState<DetailItemRow[]>([]);
+    return {
+      dateType: 'PLAN',
+      dateFrom: today,
+      dateTo: today,
+      cstCd: '',
+      cstNm: '',
+      itemCd: '',
+      itemNm: '',
+      planStatus: '',
+      procCd: '',
+    };
+  });
+  const [master, setMaster] = useState<Mmsm02002MasterRow[]>([]);
+  const [bomMaterials, setBomMaterials] = useState<Mmsm02002BomMaterialRow[]>([]);
+  const [processRows, setProcessRows] = useState<Mmsm02002ProcessRow[]>([]);
+  const [salesLinks, setSalesLinks] = useState<Mmsm02002SalesLinkRow[]>([]);
   const [loading, setLoading] = useState(false);
+  const [detailLoading, setDetailLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { codes: dateTypeCodes } = useCodes('PLAN_DATE');
+  const { codes: planStatusCodes } = useCodes('PLAN_STAT');
 
   useEffect(() => {
-    const today = new Date();
-    const yyyy = today.getFullYear();
-    const mm = `${today.getMonth() + 1}`.padStart(2, '0');
-    const dd = `${today.getDate()}`.padStart(2, '0');
-    const ymd = `${yyyy}-${mm}-${dd}`;
-    setStartDate(ymd);
-    setEndDate(ymd);
-  }, []);
+    const selected = master.find((row) => row.CHECK);
+    const prdPlnYmd = selected?.prdPlnYmd ?? selected?.planYmd;
+    const prdPlnSeq = Number(selected?.prdPlnSeq ?? selected?.planNo);
+
+    if (!selected || !prdPlnYmd || !Number.isFinite(prdPlnSeq)) {
+      setBomMaterials([]);
+      setProcessRows([]);
+      setSalesLinks([]);
+      return;
+    }
+
+    let ignore = false;
+
+    async function fetchReview() {
+      setDetailLoading(true);
+      setError(null);
+
+      try {
+        const qs = new URLSearchParams({
+          prdPlnYmd: prdPlnYmd ?? '',
+          prdPlnSeq: String(prdPlnSeq),
+        }).toString();
+        const data = await http<Mmsm02002PlanReviewResponse>(
+          `/api/v1/planning/prdplnmst/review?${qs}`
+        );
+
+        if (ignore) return;
+
+        setBomMaterials(Array.isArray(data.bomMaterials) ? data.bomMaterials : []);
+        setProcessRows(Array.isArray(data.processRows) ? data.processRows : []);
+        setSalesLinks(Array.isArray(data.salesLinks) ? data.salesLinks : []);
+      } catch (e) {
+        if (ignore) return;
+        setError(e instanceof Error ? e.message : String(e));
+        setBomMaterials([]);
+        setProcessRows([]);
+        setSalesLinks([]);
+      } finally {
+        if (!ignore) setDetailLoading(false);
+      }
+    }
+
+    void fetchReview();
+
+    return () => {
+      ignore = true;
+    };
+  }, [master]);
 
   async function onSearch() {
     setLoading(true);
     setError(null);
+
     try {
-      const qs = new URLSearchParams({ start: toYMD(startDate), end: toYMD(endDate) }).toString();
-      const data = await http<MasterRow[]>(`/api/m02/mmsm02002/master?${qs}`);
-      const list = (Array.isArray(data) ? data : []).map((r) => ({
-        ...r,
-        CHECK: false,
-        ISNEW: false,
-      }));
-      setMaster(list);
-      // 조회 시 디테일은 초기화(마스터 선택 후 추가/조회 흐름 반영)
-      setDetailMat([]);
-      setDetailItem([]);
+      const qs = new URLSearchParams({
+        dateType: form.dateType,
+        dateFrom: toYmd(form.dateFrom),
+        dateTo: toYmd(form.dateTo),
+        cstCd: form.cstCd,
+        itemCd: form.itemCd,
+        planStatus: form.planStatus,
+        procCd: form.procCd,
+      }).toString();
+      const data = await http<Mmsm02002MasterRow[]>(
+        `/api/v1/planning/prdplnmst/searchPrdPlnList?${qs}`
+      );
+      setMaster((Array.isArray(data) ? data : []).map(normalizeMmsm02002MasterRow));
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -87,448 +135,231 @@ export default function MMSM02002E() {
     }
   }
 
-  function toggleMaster(i: number, checked: boolean) {
-    setMaster((prev) => {
-      const next = [...prev];
-      next[i] = { ...next[i], CHECK: checked };
-      return next;
-    });
-  }
-
-  function onAddMaster() {
-    const today = new Date();
-    const yyyy = today.getFullYear();
-    const mm = `${today.getMonth() + 1}`.padStart(2, '0');
-    const dd = `${today.getDate()}`.padStart(2, '0');
-    const ymdDot = `${yyyy}.${mm}.${dd}`;
-    setMaster((prev) => [
-      {
-        CHECK: true,
-        ISNEW: true,
-        SO_YMD: ymdDot,
-        ITEM_CD: '',
-        ITEM_NM: '',
-        CST_CD: '',
-        CST_NM: '',
-        ITEM_TP: '',
-        WID: '',
-        HGT: '',
-        QTY: '',
-        PRD_PLAN_YMD: ymdDot,
-      },
-      ...prev,
-    ]);
-  }
-
-  function onDeleteMaster() {
-    // 신규행은 즉시 제거, 기존행은 CHECK 표시된 것만 제외(서버 삭제는 저장 시 처리 가능)
-    setMaster((prev) => prev.filter((r) => !(r.CHECK && r.ISNEW)));
+  function toggleMaster(rowIndex: number, checked: boolean) {
+    setMaster((prev) =>
+      prev.map((row, index) => ({
+        ...row,
+        CHECK: checked && index === rowIndex,
+      }))
+    );
   }
 
   function onExportCsv() {
-    const headers = [
-      '선택',
-      '수주일자',
-      '제품코드',
-      '제품명',
-      '거래처코드',
-      '거래처명',
-      '종류',
-      '가로',
-      '세로',
-      '계획수량',
-      '등록일자',
-    ];
-    const lines = master.map((r) =>
-      [
-        r.CHECK ? 'Y' : '',
-        r.SO_YMD ?? '',
-        r.ITEM_CD ?? '',
-        r.ITEM_NM ?? '',
-        r.CST_CD ?? '',
-        r.CST_NM ?? '',
-        r.ITEM_TP ?? '',
-        r.WID ?? '',
-        r.HGT ?? '',
-        r.QTY ?? '',
-        r.PRD_PLAN_YMD ?? '',
-      ]
-        .map((v) => (v ?? '').toString().replace(/"/g, '""'))
-        .map((v) => `"${v}"`)
-        .join(',')
-    );
-    const csv = [headers.join(','), ...lines].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'MMSM02002E_master.csv';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  }
-
-  async function onSave() {
-    // 선택된 마스터 기준으로 저장 생성 처리(서버 규격 협의 필요)
-    const targets = master.filter((r) => r.CHECK);
-    if (targets.length === 0) {
-      setError('저장할 대상이 없습니다.');
-      return;
-    }
-    if (!window.confirm('저장 하시겠습니까?')) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const payload = targets.map((r) => ({
-        METHOD: r.ISNEW ? 'I' : 'U',
-        SO_YMD: r.SO_YMD ?? '',
-        ITEM_CD: r.ITEM_CD ?? '',
-        QTY: r.QTY ?? '',
-        PRD_PLAN_YMD: r.PRD_PLAN_YMD ?? '',
-      }));
-      await http(`/api/m02/mmsm02002/save`, { method: 'POST', body: payload });
-      await onSearch();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  // Detail: 재단
-  function toggleDetailMat(i: number, checked: boolean) {
-    setDetailMat((prev) => {
-      const next = [...prev];
-      next[i] = { ...next[i], CHECK: checked };
-      return next;
-    });
-  }
-  function addDetailMat() {
-    setDetailMat((prev) => [{ CHECK: true, PRE_MAT_NM: '', PRE_MAT_SPEC: '' }, ...prev]);
-  }
-  function delDetailMat() {
-    setDetailMat((prev) => prev.filter((r) => !r.CHECK));
-  }
-  function onChangeDetailMat(i: number, patch: Partial<DetailMatRow>) {
-    setDetailMat((prev) => {
-      const next = [...prev];
-      next[i] = { ...next[i], ...patch, CHECK: true };
-      return next;
-    });
-  }
-
-  // Detail: 재단원자재
-  function toggleDetailItem(i: number, checked: boolean) {
-    setDetailItem((prev) => {
-      const next = [...prev];
-      next[i] = { ...next[i], CHECK: checked };
-      return next;
-    });
-  }
-  function addDetailItem() {
-    setDetailItem((prev) => [
-      { CHECK: true, PRE_MED_NM: '', CHECK_METHOD_NM: '', CHECK_CYCLE: '' },
-      ...prev,
-    ]);
-  }
-  function delDetailItem() {
-    setDetailItem((prev) => prev.filter((r) => !r.CHECK));
-  }
-  function onChangeDetailItem(i: number, patch: Partial<DetailItemRow>) {
-    setDetailItem((prev) => {
-      const next = [...prev];
-      next[i] = { ...next[i], ...patch, CHECK: true };
-      return next;
-    });
+    exportMmsm02002PlanCsv(master);
   }
 
   return (
-    <div className="p-3 space-y-3">
-      <div className="text-base font-semibold">생산계획 생성</div>
-
-      {/* Filters & Buttons */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-2 items-end">
-        <label className="flex flex-col text-sm">
-          <span className="mb-1">수주일자(시작)</span>
-          <input
-            type="date"
-            className="h-8 border rounded px-2"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-          />
-        </label>
-        <label className="flex flex-col text-sm">
-          <span className="mb-1">수주일자(끝)</span>
-          <input
-            type="date"
-            className="h-8 border rounded px-2"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-          />
-        </label>
-        <div className="md:col-span-3 flex gap-2 justify-end">
-          <button
-            onClick={onSearch}
-            disabled={loading}
-            className="h-8 px-3 border rounded bg-primary text-primary-foreground disabled:opacity-50"
-          >
-            조회
-          </button>
-          <button onClick={onAddMaster} disabled={loading} className="h-8 px-3 border rounded">
-            추가
-          </button>
-          <button onClick={onSave} disabled={loading} className="h-8 px-3 border rounded">
-            저장
-          </button>
-          <button onClick={onDeleteMaster} disabled={loading} className="h-8 px-3 border rounded">
-            삭제
-          </button>
-          <button onClick={onExportCsv} className="h-8 px-3 border rounded">
-            엑셀
-          </button>
-        </div>
-      </div>
-
-      {error && (
-        <div className="text-sm text-destructive border border-destructive/30 rounded p-2">
-          {error}
-        </div>
-      )}
-
-      {/* Master Grid */}
-      <div className="border rounded overflow-auto max-h-[35vh]">
-        <table className="w-full text-sm">
-          <thead className="sticky top-0 bg-background">
-            <tr className="border-b">
-              <th className="w-12 p-2 text-center">선택</th>
-              <th className="w-28 p-2 text-center">수주일자</th>
-              <th className="w-0 p-2 text-center">제품코드</th>
-              <th className="w-40 p-2 text-left">제품명</th>
-              <th className="w-28 p-2 text-center">거래처코드</th>
-              <th className="w-36 p-2 text-left">거래처명</th>
-              <th className="w-24 p-2 text-left">종류</th>
-              <th className="w-20 p-2 text-right">가로</th>
-              <th className="w-20 p-2 text-right">세로</th>
-              <th className="w-24 p-2 text-right">계획수량</th>
-              <th className="w-28 p-2 text-center">등록일자</th>
-            </tr>
-          </thead>
-          <tbody>
-            {master.map((r, i) => (
-              <tr key={i} className="border-b hover:bg-muted/30">
-                <td className="p-2 text-center">
-                  <input
-                    type="checkbox"
-                    checked={!!r.CHECK}
-                    onChange={(e) => toggleMaster(i, e.target.checked)}
-                  />
-                </td>
-                <td className="p-1 text-center">
-                  <input
-                    className="h-8 border rounded px-2 w-full"
-                    value={r.SO_YMD ?? ''}
-                    readOnly
-                  />
-                </td>
-                <td className="p-1 text-center">
-                  <input
-                    className="h-8 border rounded px-2 w-full"
-                    value={r.ITEM_CD ?? ''}
-                    readOnly
-                  />
-                </td>
-                <td className="p-1 text-left">
-                  <input
-                    className="h-8 border rounded px-2 w-full"
-                    value={r.ITEM_NM ?? ''}
-                    readOnly
-                  />
-                </td>
-                <td className="p-1 text-center">
-                  <input
-                    className="h-8 border rounded px-2 w-full"
-                    value={r.CST_CD ?? ''}
-                    readOnly
-                  />
-                </td>
-                <td className="p-1 text-left">
-                  <input
-                    className="h-8 border rounded px-2 w-full"
-                    value={r.CST_NM ?? ''}
-                    readOnly
-                  />
-                </td>
-                <td className="p-1 text-left">
-                  <input
-                    className="h-8 border rounded px-2 w-full"
-                    value={r.ITEM_TP ?? ''}
-                    readOnly
-                  />
-                </td>
-                <td className="p-1 text-right">
-                  <input
-                    className="h-8 border rounded px-2 w-full text-right"
-                    value={r.WID ?? ''}
-                    readOnly
-                  />
-                </td>
-                <td className="p-1 text-right">
-                  <input
-                    className="h-8 border rounded px-2 w-full text-right"
-                    value={r.HGT ?? ''}
-                    readOnly
-                  />
-                </td>
-                <td className="p-1 text-right">
-                  <input
-                    className="h-8 border rounded px-2 w-full text-right"
-                    value={r.QTY ?? ''}
-                    readOnly
-                  />
-                </td>
-                <td className="p-1 text-center">
-                  <input
-                    className="h-8 border rounded px-2 w-full"
-                    value={r.PRD_PLAN_YMD ?? ''}
-                    readOnly
-                  />
-                </td>
-              </tr>
-            ))}
-            {master.length === 0 && (
-              <tr>
-                <td colSpan={11} className="p-3 text-center text-muted-foreground">
-                  마스터 데이터가 없습니다. 조건 선택 후 조회하세요.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Details Split */}
-      <div className="grid grid-cols-12 gap-3">
-        {/* 재단 */}
-        <div className="col-span-12 md:col-span-6 space-y-2">
-          <div className="flex items-center gap-2">
-            <button onClick={addDetailMat} className="h-8 px-3 border rounded">
-              재단추가
-            </button>
-            <button onClick={delDetailMat} className="h-8 px-3 border rounded">
-              재단삭제
-            </button>
-          </div>
-          <div className="border rounded overflow-auto max-h-[32vh]">
-            <table className="w-full text-sm">
-              <thead className="sticky top-0 bg-background">
-                <tr className="border-b">
-                  <th className="w-12 p-2 text-center">선택</th>
-                  <th className="w-40 p-2 text-left">공정코드</th>
-                  <th className="p-2 text-left">공정명</th>
-                </tr>
-              </thead>
-              <tbody>
-                {detailMat.map((r, i) => (
-                  <tr key={i} className="border-b hover:bg-muted/30">
-                    <td className="p-2 text-center">
-                      <input
-                        type="checkbox"
-                        checked={!!r.CHECK}
-                        onChange={(e) => toggleDetailMat(i, e.target.checked)}
-                      />
-                    </td>
-                    <td className="p-1">
-                      <input
-                        className="h-8 border rounded px-2 w-full"
-                        value={r.PRE_MAT_NM ?? ''}
-                        onChange={(e) => onChangeDetailMat(i, { PRE_MAT_NM: e.target.value })}
-                      />
-                    </td>
-                    <td className="p-1">
-                      <input
-                        className="h-8 border rounded px-2 w-full"
-                        value={r.PRE_MAT_SPEC ?? ''}
-                        onChange={(e) => onChangeDetailMat(i, { PRE_MAT_SPEC: e.target.value })}
-                      />
-                    </td>
-                  </tr>
+    <div className={pageShellClass}>
+      <div className={pageContentClass}>
+        <SectionCard span="full" padding="md">
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-[650px_546px_1fr]">
+            <div className="flex flex-wrap items-end gap-2">
+              <span className={`${searchLabelClass} flex h-10 w-[96px] items-center text-sm`}>
+                검색일자
+              </span>
+              <select
+                className={`${searchControlClass} w-[150px]`}
+                value={form.dateType}
+                onChange={(event) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    dateType: event.target.value,
+                  }))
+                }
+              >
+                {dateTypeCodes.map((code) => (
+                  <option key={code.code} value={code.code}>
+                    {code.name}
+                  </option>
                 ))}
-                {detailMat.length === 0 && (
-                  <tr>
-                    <td colSpan={3} className="p-3 text-center text-muted-foreground">
-                      재단 데이터가 없습니다. 추가 버튼으로 행을 추가하세요.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+              </select>
+              <input
+                type="date"
+                className={`${searchControlClass} w-[150px]`}
+                value={form.dateFrom}
+                max={form.dateTo || undefined}
+                onChange={(event) =>
+                  setForm((prev) => ({ ...prev, dateFrom: event.target.value }))
+                }
+              />
+              <span className="flex h-10 items-center text-sm text-slate-500">~</span>
+              <input
+                type="date"
+                className={`${searchControlClass} w-[150px]`}
+                value={form.dateTo}
+                min={form.dateFrom || undefined}
+                onChange={(event) =>
+                  setForm((prev) => ({ ...prev, dateTo: event.target.value }))
+                }
+              />
+            </div>
+            <CodeNameField
+              label="거래처"
+              id="cust"
+              code={form.cstCd}
+              name={form.cstNm}
+              codePlaceholder="코드"
+              namePlaceholder="거래처명"
+              onSearch={() => undefined}
+              onClear={() => setForm((prev) => ({ ...prev, cstCd: '', cstNm: '' }))}
+            />
+            <div className={statusActionGroupClass}>
+              <button onClick={() => void onSearch()} className={searchButtonClass} disabled={loading}>
+                {loading ? '조회중...' : '조회'}
+              </button>
+              <button onClick={onExportCsv} className={searchButtonClass}>
+                엑셀
+              </button>
+            </div>
           </div>
-        </div>
 
-        {/* 재단원자재 */}
-        <div className="col-span-12 md:col-span-6 space-y-2">
-          <div className="flex items-center gap-2">
-            <button onClick={addDetailItem} className="h-8 px-3 border rounded">
-              재단원자재추가
-            </button>
-            <button onClick={delDetailItem} className="h-8 px-3 border rounded">
-              재단원자재삭제
-            </button>
-          </div>
-          <div className="border rounded overflow-auto max-h-[32vh]">
-            <table className="w-full text-sm">
-              <thead className="sticky top-0 bg-background">
-                <tr className="border-b">
-                  <th className="w-12 p-2 text-center">선택</th>
-                  <th className="w-40 p-2 text-left">구분</th>
-                  <th className="w-40 p-2 text-left">종류</th>
-                  <th className="p-2 text-center">규격</th>
-                </tr>
-              </thead>
-              <tbody>
-                {detailItem.map((r, i) => (
-                  <tr key={i} className="border-b hover:bg-muted/30">
-                    <td className="p-2 text-center">
-                      <input
-                        type="checkbox"
-                        checked={!!r.CHECK}
-                        onChange={(e) => toggleDetailItem(i, e.target.checked)}
-                      />
-                    </td>
-                    <td className="p-1">
-                      <input
-                        className="h-8 border rounded px-2 w-full"
-                        value={r.PRE_MED_NM ?? ''}
-                        onChange={(e) => onChangeDetailItem(i, { PRE_MED_NM: e.target.value })}
-                      />
-                    </td>
-                    <td className="p-1">
-                      <input
-                        className="h-8 border rounded px-2 w-full"
-                        value={r.CHECK_METHOD_NM ?? ''}
-                        onChange={(e) => onChangeDetailItem(i, { CHECK_METHOD_NM: e.target.value })}
-                      />
-                    </td>
-                    <td className="p-1 text-center">
-                      <input
-                        className="h-8 border rounded px-2 w-full"
-                        value={r.CHECK_CYCLE ?? ''}
-                        onChange={(e) => onChangeDetailItem(i, { CHECK_CYCLE: e.target.value })}
-                      />
-                    </td>
-                  </tr>
+          <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-[546px_230px_300px_1fr]">
+            <CodeNameField
+              label="제품"
+              id="item"
+              code={form.itemCd}
+              name={form.itemNm}
+              codePlaceholder="코드"
+              namePlaceholder="제품명"
+              onSearch={() => undefined}
+              onClear={() => setForm((prev) => ({ ...prev, itemCd: '', itemNm: '' }))}
+            />
+            <label className="flex h-10 items-center gap-2 text-sm">
+              <span className={`${searchLabelClass} w-[96px] shrink-0`}>계획상태</span>
+              <select
+                className={`${searchControlClass} w-[110px]`}
+                value={form.planStatus}
+                onChange={(event) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    planStatus: event.target.value as Mmsm02002PlanStatus,
+                  }))
+                }
+              >
+                <option value="">전체</option>
+                {planStatusCodes.map((code) => (
+                  <option key={code.code} value={code.code}>
+                    {code.name}
+                  </option>
                 ))}
-                {detailItem.length === 0 && (
-                  <tr>
-                    <td colSpan={4} className="p-3 text-center text-muted-foreground">
-                      재단원자재 데이터가 없습니다. 추가 버튼으로 행을 추가하세요.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+              </select>
+            </label>
+            <label className="flex h-10 items-center gap-2 text-sm">
+              <span className={`${searchLabelClass} w-[96px] shrink-0`}>공정</span>
+              <input
+                className={`${searchControlClass} w-[170px]`}
+                placeholder="공정코드"
+                value={form.procCd}
+                onChange={(event) => setForm((prev) => ({ ...prev, procCd: event.target.value }))}
+              />
+            </label>
           </div>
+        </SectionCard>
+
+        {error && <AlertBox tone="error">{error}</AlertBox>}
+
+        <SectionCard span="full" width="full">
+          <SectionHeader
+            title="생산계획 목록"
+            right={<span className={countBadgeClass}>{master.length}건</span>}
+          />
+          <div className={gridScrollClass}>
+            <DataGrid
+              dataSource={master}
+              showBorders={true}
+              rowKey={(row, index) =>
+                `${row.planYmd ?? row.soYmd ?? 'plan'}-${row.planNo ?? row.soNo ?? 'no'}-${row.itemCd ?? 'item'}-${index}`
+              }
+              emptyText="생산계획 목록 데이터가 없습니다. 조건 선택 후 조회하세요."
+              classNames={{
+                table: 'min-w-[1680px] w-full text-sm',
+              }}
+            >
+              <CheckColumn
+                checked={(row) => !!row.CHECK}
+                onChange={(_row, rowIndex, checked) => toggleMaster(rowIndex, checked)}
+              />
+              <Column dataField="planYmd" caption="계획일자" width={120} alignment="center" />
+              <Column dataField="planNo" caption="계획번호" width={110} alignment="center" />
+              <Column dataField="soYmd" caption="수주일자" width={120} alignment="center" />
+              <Column dataField="soNo" caption="수주번호" width={110} alignment="center" />
+              <Column dataField="cstNm" caption="거래처" width={170} />
+              <Column dataField="itemCd" caption="제품코드" width={120} alignment="center" />
+              <Column dataField="itemNm" caption="제품명" width={200} />
+              <Column dataField="unitCd" caption="단위" width={80} alignment="center" />
+              <Column dataField="soQty" caption="수주수량" width={110} alignment="right" />
+              <Column dataField="planQty" caption="계획수량" width={110} alignment="right" />
+              <Column dataField="reqYmd" caption="납기요청일" width={120} alignment="center" />
+              <Column dataField="prdPlanYmd" caption="생산예정일" width={120} alignment="center" />
+              <Column dataField="procNm" caption="공정" width={130} />
+              <Column dataField="planStatusNm" caption="계획상태" width={100} alignment="center" />
+            </DataGrid>
+          </div>
+        </SectionCard>
+
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+          <SectionCard span="full" width="full">
+            <SectionHeader
+              title="BOM 기준 필요 자재"
+              right={<span className={countBadgeClass}>{detailLoading ? '조회중...' : `${bomMaterials.length}건`}</span>}
+            />
+            <div className={gridScrollClass}>
+              <DataGrid
+                dataSource={bomMaterials}
+                showBorders={true}
+                rowKey={(_row, index) => `bom-${index}`}
+                emptyText="BOM 기준 필요 자재 데이터가 없습니다."
+              >
+                <Column dataField="matCd" caption="원자재코드" width={120} alignment="center" />
+                <Column dataField="matNm" caption="원자재명" width={180} />
+                <Column dataField="reqQty" caption="소요량" width={100} alignment="right" />
+                <Column dataField="stockQty" caption="재고" width={100} alignment="right" />
+                <Column dataField="shortageQty" caption="부족수량" width={110} alignment="right" />
+              </DataGrid>
+            </div>
+          </SectionCard>
+
+          <SectionCard span="full" width="full">
+            <SectionHeader
+              title="공정/작업 순서"
+              right={<span className={countBadgeClass}>{detailLoading ? '조회중...' : `${processRows.length}건`}</span>}
+            />
+            <div className={gridScrollClass}>
+              <DataGrid
+                dataSource={processRows}
+                showBorders={true}
+                rowKey={(_row, index) => `proc-${index}`}
+                emptyText="공정/작업 순서 데이터가 없습니다."
+              >
+                <Column dataField="procCd" caption="공정코드" width={120} alignment="center" />
+                <Column dataField="procNm" caption="공정명" width={160} />
+                <Column dataField="procSeq" caption="순서" width={100} alignment="right" />
+                <Column dataField="unitCd" caption="기준단위" width={140} />
+              </DataGrid>
+            </div>
+          </SectionCard>
+
+          <SectionCard span="full" width="full">
+            <SectionHeader
+              title="수주 연결 정보"
+              right={<span className={countBadgeClass}>{detailLoading ? '조회중...' : `${salesLinks.length}건`}</span>}
+            />
+            <div className={gridScrollClass}>
+              <DataGrid
+                dataSource={salesLinks}
+                showBorders={true}
+                rowKey={(_row, index) => `sales-${index}`}
+                emptyText="수주 연결 정보 데이터가 없습니다."
+              >
+                <Column dataField="originSoNo" caption="원 수주번호" width={130} alignment="center" />
+                <Column dataField="custDueYmd" caption="고객 납기" width={120} alignment="center" />
+                <Column dataField="cstNm" caption="거래처" width={140} />
+                <Column dataField="soQty" caption="수주수량" width={100} alignment="right" />
+                <Column dataField="unitCd" caption="단위" width={80} alignment="center" />
+                <Column dataField="priority" caption="긴급" width={80} alignment="center" />
+              </DataGrid>
+            </div>
+          </SectionCard>
         </div>
       </div>
     </div>
