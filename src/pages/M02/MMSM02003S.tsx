@@ -110,7 +110,7 @@ export default function MMSM02003S() {
               loading={loading}
               emptyText="생산 현황 데이터가 없습니다. 조건 선택 후 조회하세요."
               classNames={{
-                table: 'min-w-[1020px] w-full text-sm',
+                table: 'min-w-[1580px] w-full text-sm',
               }}
             >
               <Paging enabled={true} defaultPageSize={PAGE_SIZE} />
