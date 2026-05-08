@@ -82,6 +82,22 @@ export interface SavePayload {
   detailData: SaveDetailRow[];
 }
 
+export interface CreatePlanRequest {
+  method: 'I';
+  isNew: 'I';
+  prdPlnYmd: string;
+  itemCd: string;
+  planQty: string | number;
+  unitCd: string;
+  soYmd: string;
+  soSeq: number;
+  soSubSeq: number;
+  prdQty: string | number;
+  cstCd: string;
+  endYn: 'N';
+  planStatus: 'IN_PROGRESS';
+}
+
 export interface AuthMeResponse {
   user?: {
     userid?: string;
@@ -287,4 +303,35 @@ export function buildMmsm02001SavePayload({
 
 export function buildMmsm02001PlanPayload(form: SearchForm) {
   return [{ SO_YMD: toApiYmd(form.soYmd), SEQ: form.seq || '', CST_CD: form.cstCd || '' }];
+}
+
+function toNumberValue(value: string | number | undefined) {
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) ? numberValue : 0;
+}
+
+export function buildMmsm02001PlanRequests({
+  form,
+  detailRows,
+  planYmd,
+}: {
+  form: SearchForm;
+  detailRows: DetailRow[];
+  planYmd: string;
+}): CreatePlanRequest[] {
+  return detailRows.map((row) => ({
+    method: 'I',
+    isNew: 'I',
+    prdPlnYmd: toApiYmd(planYmd),
+    itemCd: row.itemCd ?? '',
+    planQty: row.qty ?? 0,
+    unitCd: row.unitCd ?? '',
+    soYmd: toApiYmd(row.soYmd || form.soYmd),
+    soSeq: toNumberValue(row.soSeq),
+    soSubSeq: toNumberValue(row.soSubSeq),
+    prdQty: 0,
+    cstCd: form.cstCd,
+    endYn: 'N',
+    planStatus: 'IN_PROGRESS',
+  }));
 }

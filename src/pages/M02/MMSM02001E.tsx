@@ -27,7 +27,7 @@ import { getTodayYmd } from '@/lib/registerDetailUtils';
 import { useCodes } from '@/lib/hooks/useCodes';
 import {
   buildMmsm02001SavePayload,
-  buildMmsm02001PlanPayload,
+  buildMmsm02001PlanRequests,
   fetchMmsm02001Detail,
   fetchMmsm02001Master,
   getNextDetailSubSeq,
@@ -259,16 +259,46 @@ export default function MMSM02001E() {
   }
 
   async function onCreatePlan() {
+    const selectedRows = detailRows.filter((row) => row.CHECK);
+    if (selectedRows.length === 0) {
+      setSaveError('생산계획을 생성할 수주 상세를 선택하세요.');
+      return;
+    }
+
+    const unsavedRowIndex = selectedRows.findIndex(
+      (row) => row.method === 'I' || !row.soYmd || row.soSeq === undefined || row.soSeq === null
+    );
+    if (unsavedRowIndex >= 0) {
+      setSaveError('저장되지 않은 수주 상세가 있습니다. 먼저 저장 후 생산계획을 생성하세요.');
+      return;
+    }
+
+    const invalidRowIndex = selectedRows.findIndex(
+      (row) => !row.itemCd || !row.unitCd || !row.qty || Number(row.qty) <= 0
+    );
+    if (invalidRowIndex >= 0) {
+      setSaveError('선택한 수주 상세의 품목, 단위, 수량을 확인하세요.');
+      return;
+    }
+
     if (!window.confirm('선택된 수주로 생산계획을 생성하시겠습니까?')) return;
 
     setSaving(true);
     setSaveError(null);
 
     try {
-      await http('/api/m02/mmsm02001/plan', {
-        method: 'POST',
-        body: buildMmsm02001PlanPayload(form),
+      const requests = buildMmsm02001PlanRequests({
+        form,
+        detailRows: selectedRows,
+        planYmd: getTodayYmd(),
       });
+
+      for (const request of requests) {
+        await http('/api/v1/planning/prdplnmst', { method: 'POST', body: request });
+      }
+
+      window.alert('생산계획을 생성했습니다.');
+      await fetchDetailList(0);
     } catch (e) {
       setSaveError(e instanceof Error ? e.message : String(e));
     } finally {
