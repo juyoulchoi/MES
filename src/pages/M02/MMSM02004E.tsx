@@ -1,347 +1,643 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+
+import AlertBox from '@/components/AlertBox';
+import CodeNameField from '@/components/CodeNameField';
+import SectionCard from '@/components/SectionCard';
+import SectionHeader from '@/components/SectionHeader';
+import { CheckColumn, Column, DataGrid, Pager, Paging } from '@/components/table/DataGrid';
+import { useAutoTableHeight } from '@/lib/hooks/useAutoTableHeight';
+import { useCodes } from '@/lib/hooks/useCodes';
+import { toYmd } from '@/lib/excel';
 import { http } from '@/lib/http';
+import { PAGE_SIZE } from '@/lib/pagination';
+import {
+  countBadgeClass,
+  gridScrollClass,
+  pageContentClass,
+  pageShellClass,
+  saveButtonClass,
+  searchButtonClass,
+  statusActionGroupClass,
+} from '@/lib/pageStyles';
+import { getTodayYmd } from '@/lib/registerDetailUtils';
+import { formatNumber } from '@/lib/utils';
+import {
+  normalizeMmsm02002MasterRow,
+  type Mmsm02002BomMaterialRow,
+  type Mmsm02002MasterRow,
+  type Mmsm02002PlanReviewResponse,
+  type Mmsm02002PlanStatus,
+  type Mmsm02002ProcessRow,
+  type Mmsm02002SalesLinkRow,
+  type Mmsm02002SearchForm,
+} from '@/services/m02/mmsm02002';
 
-// 생산현황(편집) - MMSM02004E
-// 필터: 수주일자(시작/끝), 공정
-// 기능: 조회, 저장, 엑셀(CSV)
-// 그리드: 작업일자, 공정, 제품명, 거래처명, 계획수량, 생산수량(편집)
+const searchLabelClass = 'font-medium text-slate-700';
+const searchControlClass = 'h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm';
+const detailLabelClass =
+  'flex w-28 shrink-0 items-center bg-slate-50 px-3 font-medium text-slate-700';
+const detailInputClass = 'h-9 w-full rounded border border-slate-200 bg-white px-2 text-sm';
+const detailNumberInputClass = `${detailInputClass} text-right`;
 
-type Row = {
-  CHECK?: boolean;
-  ISNEW?: boolean;
-  REQ_YMD?: string; // 작업일자
-  PROC_CD?: string; // 공정코드(내부)
-  LINE_NM?: string; // 공정명(표시)
-  ITEM_CD?: string; // 제품코드(내부키 가능성)
-  ITEM_NM?: string; // 제품명
-  CST_NM?: string; // 거래처명
-  PRD_QTY?: string | number; // 계획수량
-  QTY?: string | number; // 생산수량(편집)
+type WorkOrderCreateResponse = {
+  workOrderYmd?: string;
+  workOrderSeq?: number;
 };
 
-function toYMD(d: string) {
-  if (!d) return '';
-  const dt = new Date(d);
-  if (isNaN(dt.getTime())) return '';
-  const y = dt.getFullYear();
-  const m = `${dt.getMonth() + 1}`.padStart(2, '0');
-  const day = `${dt.getDate()}`.padStart(2, '0');
-  return `${y}${m}${day}`;
+function escapeCsvValue(value: unknown) {
+  return `"${String(value ?? '').replace(/"/g, '""')}"`;
+}
+
+function downloadCsv(filename: string, headers: string[], rows: unknown[][]) {
+  const csv = [
+    headers.map(escapeCsvValue).join(','),
+    ...rows.map((row) => row.map(escapeCsvValue).join(',')),
+  ].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  document.body.removeChild(anchor);
+  URL.revokeObjectURL(url);
+}
+
+function getFirstDayOfMonthYmd() {
+  const today = new Date();
+  return new Date(today.getFullYear(), today.getMonth(), 1).toISOString().slice(0, 10);
 }
 
 export default function MMSM02004E() {
-  // Filters
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
-  const [proc, setProc] = useState(''); // 공정 필터(코드 또는 명)
+  const [form, setForm] = useState<Mmsm02002SearchForm>(() => {
+    const today = getTodayYmd();
 
-  // Data
-  const [rows, setRows] = useState<Row[]>([]);
+    return {
+      dateType: 'PLAN',
+      dateFrom: getFirstDayOfMonthYmd(),
+      dateTo: today,
+      cstCd: '',
+      cstNm: '',
+      itemCd: '',
+      itemNm: '',
+      planStatus: '',
+      procCd: '',
+    };
+  });
+  const [plans, setPlans] = useState<Mmsm02002MasterRow[]>([]);
+  const [bomMaterials, setBomMaterials] = useState<Mmsm02002BomMaterialRow[]>([]);
+  const [processRows, setProcessRows] = useState<Mmsm02002ProcessRow[]>([]);
+  const [salesLinks, setSalesLinks] = useState<Mmsm02002SalesLinkRow[]>([]);
+  const [workOrderYmd, setWorkOrderYmd] = useState(getTodayYmd());
+  const [orderQty, setOrderQty] = useState('');
+  const [remark, setRemark] = useState('');
   const [loading, setLoading] = useState(false);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const tableHeight = useAutoTableHeight(containerRef);
+  const { codes: dateTypeCodes } = useCodes('PLAN_DATE');
+  const { codes: planStatusCodes } = useCodes('PLAN_STAT');
 
-  // 공정 선택 모달(행단위)
-  const [procModal, setProcModal] = useState<{
-    open: boolean;
-    index: number | null;
-    code: string;
-    name: string;
-  }>({ open: false, index: null, code: '', name: '' });
+  const selectedPlan = plans.find((row) => row.CHECK);
 
   useEffect(() => {
-    const today = new Date();
-    const yyyy = today.getFullYear();
-    const mm = `${today.getMonth() + 1}`.padStart(2, '0');
-    const dd = `${today.getDate()}`.padStart(2, '0');
-    const ymd = `${yyyy}-${mm}-${dd}`;
-    setStartDate(ymd);
-    setEndDate(ymd);
-  }, []);
+    setOrderQty(selectedPlan?.planQty == null ? '' : String(selectedPlan.planQty));
+    setRemark('');
+  }, [selectedPlan]);
+
+  useEffect(() => {
+    const prdPlnYmd = selectedPlan?.prdPlnYmd ?? selectedPlan?.planYmd;
+    const prdPlnSeq = Number(selectedPlan?.prdPlnSeq ?? selectedPlan?.planNo);
+
+    if (!selectedPlan || !prdPlnYmd || !Number.isFinite(prdPlnSeq)) {
+      setBomMaterials([]);
+      setProcessRows([]);
+      setSalesLinks([]);
+      return;
+    }
+
+    let ignore = false;
+
+    async function fetchWorkOrderDetail() {
+      setDetailLoading(true);
+      setError(null);
+
+      try {
+        const qs = new URLSearchParams({
+          prdPlnYmd: prdPlnYmd ?? '',
+          prdPlnSeq: String(prdPlnSeq),
+        }).toString();
+        const data = await http<Mmsm02002PlanReviewResponse>(
+          `/api/v1/planning/prdplnmst/review?${qs}`
+        );
+
+        if (ignore) return;
+
+        setBomMaterials(Array.isArray(data.bomMaterials) ? data.bomMaterials : []);
+        setProcessRows(Array.isArray(data.processRows) ? data.processRows : []);
+        setSalesLinks(Array.isArray(data.salesLinks) ? data.salesLinks : []);
+      } catch (e) {
+        if (ignore) return;
+        setBomMaterials([]);
+        setProcessRows([]);
+        setSalesLinks([]);
+        setError(e instanceof Error ? e.message : String(e));
+      } finally {
+        if (!ignore) setDetailLoading(false);
+      }
+    }
+
+    void fetchWorkOrderDetail();
+
+    return () => {
+      ignore = true;
+    };
+  }, [selectedPlan]);
 
   async function onSearch() {
     setLoading(true);
     setError(null);
+
     try {
       const qs = new URLSearchParams({
-        start: toYMD(startDate),
-        end: toYMD(endDate),
-        proc: proc || '',
+        dateType: form.dateType,
+        dateFrom: toYmd(form.dateFrom),
+        dateTo: toYmd(form.dateTo),
+        cstCd: form.cstCd,
+        itemCd: form.itemCd,
+        planStatus: form.planStatus,
+        procCd: form.procCd,
       }).toString();
-      const data = await http<Row[]>(`/api/m02/mmsm02004/list?${qs}`);
-      const list = (Array.isArray(data) ? data : []).map((r) => ({
-        ...r,
-        CHECK: false,
-        ISNEW: false,
-      }));
-      setRows(list);
+      const data = await http<Mmsm02002MasterRow[]>(
+        `/api/v1/planning/prdplnmst/searchPrdPlnList?${qs}`
+      );
+      setPlans((Array.isArray(data) ? data : []).map(normalizeMmsm02002MasterRow));
     } catch (e) {
+      setPlans([]);
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
     }
   }
 
-  function toggle(i: number, checked: boolean) {
-    setRows((prev) => {
-      const next = [...prev];
-      next[i] = { ...next[i], CHECK: checked };
-      return next;
-    });
-  }
-
-  function onChange(i: number, patch: Partial<Row>) {
-    setRows((prev) => {
-      const next = [...prev];
-      next[i] = { ...next[i], ...patch, CHECK: true };
-      return next;
-    });
-  }
-
-  function openProcPicker(i: number) {
-    const r = rows[i];
-    setProcModal({ open: true, index: i, code: r.PROC_CD || '', name: r.LINE_NM || '' });
-  }
-  function applyProcPicker() {
-    if (procModal.index == null) return;
-    onChange(procModal.index, { PROC_CD: procModal.code, LINE_NM: procModal.name });
-    setProcModal({ open: false, index: null, code: '', name: '' });
+  function togglePlan(rowIndex: number, checked: boolean) {
+    setPlans((prev) =>
+      prev.map((row, index) => ({
+        ...row,
+        CHECK: checked && index === rowIndex,
+      }))
+    );
   }
 
   function onExportCsv() {
-    const headers = ['선택', '작업일자', '공정', '제품명', '거래처명', '계획수량', '생산수량'];
-    const lines = rows.map((r) =>
-      [
-        r.CHECK ? 'Y' : '',
-        r.REQ_YMD ?? '',
-        r.LINE_NM ?? '',
-        r.ITEM_NM ?? '',
-        r.CST_NM ?? '',
-        r.PRD_QTY ?? '',
-        r.QTY ?? '',
-      ]
-        .map((v) => (v ?? '').toString().replace(/"/g, '""'))
-        .map((v) => `"${v}"`)
-        .join(',')
-    );
-    const csv = [headers.join(','), ...lines].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'MMSM02004E.csv';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    const headers = [
+      '계획일자',
+      '계획번호',
+      '수주일자',
+      '수주번호',
+      '거래처',
+      '제품코드',
+      '제품명',
+      '단위',
+      '계획수량',
+      '납기요청일',
+      '생산예정일',
+      '공정',
+      '계획상태',
+    ];
+    const rows = plans.map((row) => [
+      row.planYmd,
+      row.planNo,
+      row.soYmd,
+      row.soNo,
+      row.cstNm,
+      row.itemCd,
+      row.itemNm,
+      row.unitCd,
+      row.planQty,
+      row.reqYmd,
+      row.prdPlanYmd,
+      row.procNm,
+      row.planStatusNm,
+    ]);
+
+    downloadCsv(`작업지시서_${toYmd(form.dateFrom)}_${toYmd(form.dateTo)}.csv`, headers, rows);
   }
 
-  async function onSave() {
-    const targets = rows.filter((r) => r.CHECK);
-    if (targets.length === 0) {
-      setError('저장할 대상이 없습니다.');
+  async function onSaveWorkOrder() {
+    const prdPlnYmd = selectedPlan?.prdPlnYmd ?? selectedPlan?.planYmd;
+    const prdPlnSeq = Number(selectedPlan?.prdPlnSeq ?? selectedPlan?.planNo);
+    const normalizedQty = Number(String(orderQty).replace(/,/g, ''));
+
+    if (!selectedPlan || !prdPlnYmd || !Number.isFinite(prdPlnSeq)) {
+      setError('작업지시를 등록할 생산계획을 선택하세요.');
       return;
     }
-    if (!window.confirm('저장 하시겠습니까?')) return;
-    setLoading(true);
+    if (!workOrderYmd) {
+      setError('작업지시일자를 입력하세요.');
+      return;
+    }
+    if (!Number.isFinite(normalizedQty) || normalizedQty <= 0) {
+      setError('지시수량은 0보다 큰 숫자로 입력하세요.');
+      return;
+    }
+    if (processRows.length === 0) {
+      setError('공정 순서가 없어 작업지시를 등록할 수 없습니다.');
+      return;
+    }
+    if (!window.confirm('작업지시를 등록하시겠습니까?')) return;
+
+    setSaving(true);
     setError(null);
+
     try {
-      const payload = targets.map((r) => ({
-        METHOD: r.ISNEW ? 'I' : 'U',
-        REQ_YMD: r.REQ_YMD ?? '',
-        PROC_CD: r.PROC_CD ?? '',
-        ITEM_CD: r.ITEM_CD ?? '',
-        QTY: r.QTY ?? '',
-      }));
-      await http(`/api/m02/mmsm02004/save`, { method: 'POST', body: payload });
-      await onSearch();
+      const response = await http<WorkOrderCreateResponse>('/api/v1/planning/workOrders', {
+        method: 'POST',
+        body: {
+          workOrderYmd: toYmd(workOrderYmd),
+          prdPlnYmd,
+          prdPlnSeq,
+          orderQty: normalizedQty,
+          remark,
+        },
+      });
+      window.alert(
+        `작업지시가 등록되었습니다. (${response.workOrderYmd ?? toYmd(workOrderYmd)}-${response.workOrderSeq ?? ''})`
+      );
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   }
 
   return (
-    <div className="p-3 space-y-3">
-      <div className="text-base font-semibold">생산현황(편집)</div>
-
-      {/* Filters */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-2 items-end">
-        <label className="flex flex-col text-sm">
-          <span className="mb-1">수주일자(시작)</span>
-          <input
-            type="date"
-            className="h-8 border rounded px-2"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-          />
-        </label>
-        <label className="flex flex-col text-sm">
-          <span className="mb-1">수주일자(끝)</span>
-          <input
-            type="date"
-            className="h-8 border rounded px-2"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-          />
-        </label>
-        <label className="flex flex-col text-sm md:col-span-2">
-          <span className="mb-1">공정</span>
-          <input
-            className="h-8 border rounded px-2"
-            value={proc}
-            onChange={(e) => setProc(e.target.value)}
-            placeholder="공정코드/명"
-          />
-        </label>
-        <div className="flex gap-2 justify-end">
-          <button
-            onClick={onSearch}
-            disabled={loading}
-            className="h-8 px-3 border rounded bg-primary text-primary-foreground disabled:opacity-50"
-          >
-            조회
-          </button>
-          <button onClick={onSave} disabled={loading} className="h-8 px-3 border rounded">
-            저장
-          </button>
-          <button onClick={onExportCsv} className="h-8 px-3 border rounded">
-            엑셀
-          </button>
-        </div>
-      </div>
-
-      {error && (
-        <div className="text-sm text-destructive border border-destructive/30 rounded p-2">
-          {error}
-        </div>
-      )}
-
-      {/* Grid */}
-      <div className="border rounded overflow-auto max-h-[70vh]">
-        <table className="w-full text-sm">
-          <thead className="sticky top-0 bg-background">
-            <tr className="border-b">
-              <th className="w-12 p-2 text-center">선택</th>
-              <th className="w-28 p-2 text-center">작업일자</th>
-              <th className="w-40 p-2 text-left">공정</th>
-              <th className="w-40 p-2 text-left">제품명</th>
-              <th className="w-36 p-2 text-left">거래처명</th>
-              <th className="w-28 p-2 text-right">계획수량</th>
-              <th className="w-28 p-2 text-right">생산수량</th>
-              <th className="w-16 p-2 text-center">공정선택</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r, i) => (
-              <tr key={i} className="border-b hover:bg-muted/30">
-                <td className="p-2 text-center">
-                  <input
-                    type="checkbox"
-                    checked={!!r.CHECK}
-                    onChange={(e) => toggle(i, e.target.checked)}
-                  />
-                </td>
-                <td className="p-1 text-center">
-                  <input
-                    className="h-8 border rounded px-2 w-full bg-muted"
-                    value={r.REQ_YMD ?? ''}
-                    readOnly
-                  />
-                </td>
-                <td className="p-1 text-left">
-                  <input
-                    className="h-8 border rounded px-2 w-full"
-                    value={r.LINE_NM ?? ''}
-                    onChange={(e) => onChange(i, { LINE_NM: e.target.value })}
-                  />
-                </td>
-                <td className="p-1 text-left">
-                  <input
-                    className="h-8 border rounded px-2 w-full bg-muted"
-                    value={r.ITEM_NM ?? ''}
-                    readOnly
-                  />
-                </td>
-                <td className="p-1 text-left">
-                  <input
-                    className="h-8 border rounded px-2 w-full bg-muted"
-                    value={r.CST_NM ?? ''}
-                    readOnly
-                  />
-                </td>
-                <td className="p-1 text-right">
-                  <input
-                    className="h-8 border rounded px-2 w-full text-right bg-muted"
-                    value={r.PRD_QTY ?? ''}
-                    readOnly
-                  />
-                </td>
-                <td className="p-1 text-right">
-                  <input
-                    className="h-8 border rounded px-2 w-full text-right"
-                    value={r.QTY ?? ''}
-                    onChange={(e) => onChange(i, { QTY: e.target.value })}
-                  />
-                </td>
-                <td className="p-1 text-center">
-                  <button className="h-8 px-2 border rounded" onClick={() => openProcPicker(i)}>
-                    ...
-                  </button>
-                </td>
-              </tr>
-            ))}
-            {rows.length === 0 && (
-              <tr>
-                <td colSpan={8} className="p-3 text-center text-muted-foreground">
-                  데이터가 없습니다. 조건을 선택하고 조회하세요.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {/* 공정 선택 모달 */}
-      {procModal.open && (
-        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
-          <div className="bg-background border rounded p-3 w-[480px] space-y-2 shadow-lg">
-            <div className="font-semibold">공정 선택</div>
-            <div className="grid grid-cols-2 gap-2">
-              <label className="flex flex-col text-sm">
-                <span className="mb-1">공정코드</span>
-                <input
-                  className="h-8 border rounded px-2"
-                  value={procModal.code}
-                  onChange={(e) => setProcModal((s) => ({ ...s, code: e.target.value }))}
-                />
-              </label>
-              <label className="flex flex-col text-sm">
-                <span className="mb-1">공정명</span>
-                <input
-                  className="h-8 border rounded px-2"
-                  value={procModal.name}
-                  onChange={(e) => setProcModal((s) => ({ ...s, name: e.target.value }))}
-                />
-              </label>
-            </div>
-            <div className="flex justify-end gap-2 pt-1">
-              <button
-                className="h-8 px-3 border rounded"
-                onClick={() => setProcModal({ open: false, index: null, code: '', name: '' })}
+    <div className={pageShellClass} ref={containerRef}>
+      <div className={pageContentClass}>
+        <SectionCard span="full" padding="md">
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-[650px_546px_1fr]">
+            <div className="flex flex-wrap items-end gap-2">
+              <span className={`${searchLabelClass} flex h-10 w-[96px] items-center text-sm`}>
+                검색일자
+              </span>
+              <select
+                className={`${searchControlClass} w-[150px]`}
+                value={form.dateType}
+                onChange={(event) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    dateType: event.target.value,
+                  }))
+                }
               >
-                취소
+                {dateTypeCodes.map((code) => (
+                  <option key={code.code} value={code.code}>
+                    {code.name}
+                  </option>
+                ))}
+              </select>
+              <input
+                type="date"
+                className={`${searchControlClass} w-[150px]`}
+                value={form.dateFrom}
+                max={form.dateTo || undefined}
+                onChange={(event) =>
+                  setForm((prev) => ({ ...prev, dateFrom: event.target.value }))
+                }
+              />
+              <span className="flex h-10 items-center text-sm text-slate-500">~</span>
+              <input
+                type="date"
+                className={`${searchControlClass} w-[150px]`}
+                value={form.dateTo}
+                min={form.dateFrom || undefined}
+                onChange={(event) => setForm((prev) => ({ ...prev, dateTo: event.target.value }))}
+              />
+            </div>
+            <CodeNameField
+              label="거래처"
+              id="cust"
+              code={form.cstCd}
+              name={form.cstNm}
+              codePlaceholder="코드"
+              namePlaceholder="거래처명"
+              onSearch={() => undefined}
+              onClear={() => setForm((prev) => ({ ...prev, cstCd: '', cstNm: '' }))}
+            />
+            <div className={statusActionGroupClass}>
+              <button
+                className={searchButtonClass}
+                disabled={loading}
+                onClick={() => void onSearch()}
+              >
+                {loading ? '조회중...' : '조회'}
+              </button>
+              <button className={searchButtonClass} onClick={onExportCsv}>
+                엑셀
               </button>
               <button
-                className="h-8 px-3 border rounded bg-primary text-primary-foreground"
-                onClick={applyProcPicker}
+                className={saveButtonClass}
+                disabled={!selectedPlan || saving || detailLoading}
+                onClick={() => void onSaveWorkOrder()}
               >
-                선택
+                {saving ? '등록중...' : '작업지시 등록'}
               </button>
             </div>
           </div>
+
+          <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-[546px_230px_300px_1fr]">
+            <CodeNameField
+              label="제품"
+              id="item"
+              code={form.itemCd}
+              name={form.itemNm}
+              codePlaceholder="코드"
+              namePlaceholder="제품명"
+              onSearch={() => undefined}
+              onClear={() => setForm((prev) => ({ ...prev, itemCd: '', itemNm: '' }))}
+            />
+            <label className="flex h-10 items-center gap-2 text-sm">
+              <span className={`${searchLabelClass} w-[96px] shrink-0`}>계획상태</span>
+              <select
+                className={`${searchControlClass} w-[110px]`}
+                value={form.planStatus}
+                onChange={(event) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    planStatus: event.target.value as Mmsm02002PlanStatus,
+                  }))
+                }
+              >
+                <option value="">전체</option>
+                {planStatusCodes.map((code) => (
+                  <option key={code.code} value={code.code}>
+                    {code.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex h-10 items-center gap-2 text-sm">
+              <span className={`${searchLabelClass} w-[96px] shrink-0`}>공정</span>
+              <input
+                className={`${searchControlClass} w-[170px]`}
+                placeholder="공정코드"
+                value={form.procCd}
+                onChange={(event) => setForm((prev) => ({ ...prev, procCd: event.target.value }))}
+              />
+            </label>
+          </div>
+        </SectionCard>
+
+        {error && <AlertBox tone="error">{error}</AlertBox>}
+
+        <SectionCard span="full" width="full">
+          <SectionHeader
+            title="작업 지시 대상"
+            right={<span className={countBadgeClass}>{plans.length}건</span>}
+          />
+          <div className={gridScrollClass} style={{ height: tableHeight }}>
+            <DataGrid
+              dataSource={plans}
+              showBorders={true}
+              loading={loading}
+              rowKey={(row, index) =>
+                `${row.planYmd ?? 'plan'}-${row.planNo ?? 'no'}-${row.itemCd ?? 'item'}-${index}`
+              }
+              emptyText="작업 지시 대상 데이터가 없습니다. 조회기간을 넓히거나 생산계획을 먼저 생성하세요."
+              classNames={{
+                table: 'min-w-[1580px] w-full text-sm',
+              }}
+            >
+              <Paging enabled={true} defaultPageSize={PAGE_SIZE} />
+              <Pager visible={true} showPageSizeSelector={false} />
+              <CheckColumn
+                checked={(row) => !!row.CHECK}
+                onChange={(_row, rowIndex, checked) => togglePlan(rowIndex, checked)}
+              />
+              <Column dataField="planYmd" caption="계획일자" width={120} alignment="center" />
+              <Column dataField="planNo" caption="계획번호" width={110} alignment="center" />
+              <Column dataField="soYmd" caption="수주일자" width={120} alignment="center" />
+              <Column dataField="soNo" caption="수주번호" width={110} alignment="center" />
+              <Column dataField="cstNm" caption="거래처" width={170} />
+              <Column dataField="itemCd" caption="제품코드" width={120} alignment="center" />
+              <Column dataField="itemNm" caption="제품명" width={200} />
+              <Column dataField="unitCd" caption="단위" width={80} alignment="center" />
+              <Column
+                dataField="planQty"
+                caption="지시수량"
+                width={110}
+                alignment="right"
+                cellRender={(row) => formatNumber(row.planQty ?? 0)}
+              />
+              <Column dataField="reqYmd" caption="납기요청일" width={120} alignment="center" />
+              <Column dataField="prdPlanYmd" caption="생산예정일" width={120} alignment="center" />
+              <Column dataField="procNm" caption="공정" width={130} />
+              <Column dataField="planStatusNm" caption="계획상태" width={100} alignment="center" />
+            </DataGrid>
+          </div>
+        </SectionCard>
+
+        <SectionCard span="full" width="full">
+          <SectionHeader
+            title="작업 지시서"
+            right={
+              <div className="flex items-center gap-2">
+                <span className={countBadgeClass}>
+                  {detailLoading ? '조회중...' : selectedPlan ? '1건 선택' : '미선택'}
+                </span>
+                <button
+                  className={saveButtonClass}
+                  disabled={!selectedPlan || saving || detailLoading}
+                  onClick={() => void onSaveWorkOrder()}
+                >
+                  {saving ? '등록중...' : '작업지시 등록'}
+                </button>
+              </div>
+            }
+          />
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.1fr_0.9fr]">
+            <div className="rounded border border-slate-200 bg-white">
+              <div className="grid grid-cols-1 border-b border-slate-200 text-sm md:grid-cols-2">
+                <div className="flex min-h-10 border-b border-slate-200 md:border-r">
+                  <div className={detailLabelClass}>계획번호</div>
+                  <div className="flex flex-1 items-center px-3">
+                    {selectedPlan
+                      ? `${selectedPlan.planYmd ?? ''}-${selectedPlan.planNo ?? ''}`
+                      : ''}
+                  </div>
+                </div>
+                <div className="flex min-h-10 border-b border-slate-200">
+                  <div className={detailLabelClass}>생산예정일</div>
+                  <div className="flex flex-1 items-center px-3">{selectedPlan?.prdPlanYmd}</div>
+                </div>
+                <div className="flex min-h-10 border-b border-slate-200 md:border-r">
+                  <div className={detailLabelClass}>제품</div>
+                  <div className="flex flex-1 items-center px-3">
+                    {selectedPlan
+                      ? `${selectedPlan.itemCd ?? ''} ${selectedPlan.itemNm ?? ''}`.trim()
+                      : ''}
+                  </div>
+                </div>
+                <div className="flex min-h-10 border-b border-slate-200">
+                  <div className={detailLabelClass}>지시수량</div>
+                  <div className="flex flex-1 items-center px-3">
+                    <input
+                      className={detailNumberInputClass}
+                      value={orderQty}
+                      disabled={!selectedPlan || saving}
+                      onChange={(event) => setOrderQty(event.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="flex min-h-10 border-b border-slate-200 md:border-r">
+                  <div className={detailLabelClass}>거래처</div>
+                  <div className="flex flex-1 items-center px-3">{selectedPlan?.cstNm}</div>
+                </div>
+                <div className="flex min-h-10 border-b border-slate-200">
+                  <div className={detailLabelClass}>공정</div>
+                  <div className="flex flex-1 items-center px-3">{selectedPlan?.procNm}</div>
+                </div>
+                <div className="flex min-h-10 border-b border-slate-200 md:border-r">
+                  <div className={detailLabelClass}>지시일자</div>
+                  <div className="flex flex-1 items-center px-3">
+                    <input
+                      type="date"
+                      className={detailInputClass}
+                      value={workOrderYmd}
+                      disabled={!selectedPlan || saving}
+                      onChange={(event) => setWorkOrderYmd(event.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="flex min-h-10 border-b border-slate-200">
+                  <div className={detailLabelClass}>상태</div>
+                  <div className="flex flex-1 items-center px-3">지시</div>
+                </div>
+                <div className="flex min-h-10 md:col-span-2">
+                  <div className={detailLabelClass}>비고</div>
+                  <div className="flex flex-1 items-center gap-2 px-3 py-2">
+                    <input
+                      className={detailInputClass}
+                      value={remark}
+                      disabled={!selectedPlan || saving}
+                      onChange={(event) => setRemark(event.target.value)}
+                    />
+                    <button
+                      className={saveButtonClass}
+                      disabled={!selectedPlan || saving || detailLoading}
+                      onClick={() => void onSaveWorkOrder()}
+                    >
+                      {saving ? '등록중...' : '작업지시 등록'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded border border-slate-200 bg-white">
+              <DataGrid
+                dataSource={salesLinks}
+                showBorders={false}
+                loading={detailLoading}
+                rowKey={(_row, index) => `sales-${index}`}
+                emptyText="수주 연결 정보가 없습니다."
+                classNames={{ table: 'min-w-[620px] w-full text-sm' }}
+              >
+                <Paging enabled={false} />
+                <Column dataField="originSoNo" caption="원 수주번호" width={130} alignment="center" />
+                <Column dataField="custDueYmd" caption="고객 납기" width={120} alignment="center" />
+                <Column dataField="cstNm" caption="거래처" width={150} />
+                <Column
+                  dataField="soQty"
+                  caption="수주수량"
+                  width={100}
+                  alignment="right"
+                  cellRender={(row) => formatNumber(row.soQty ?? 0)}
+                />
+                <Column dataField="unitCd" caption="단위" width={80} alignment="center" />
+              </DataGrid>
+            </div>
+          </div>
+        </SectionCard>
+
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+          <SectionCard span="full" width="full">
+            <SectionHeader
+              title="투입 자재"
+              right={
+                <span className={countBadgeClass}>
+                  {detailLoading ? '조회중...' : `${bomMaterials.length}건`}
+                </span>
+              }
+            />
+            <div className={gridScrollClass}>
+              <DataGrid
+                dataSource={bomMaterials}
+                showBorders={true}
+                loading={detailLoading}
+                rowKey={(_row, index) => `bom-${index}`}
+                emptyText="투입 자재 데이터가 없습니다."
+                classNames={{ table: 'min-w-[640px] w-full text-sm' }}
+              >
+                <Paging enabled={false} />
+                <Column dataField="matCd" caption="원자재코드" width={120} alignment="center" />
+                <Column dataField="matNm" caption="원자재명" width={180} />
+                <Column
+                  dataField="reqQty"
+                  caption="소요량"
+                  width={100}
+                  alignment="right"
+                  cellRender={(row) => formatNumber(row.reqQty ?? 0)}
+                />
+                <Column
+                  dataField="stockQty"
+                  caption="재고"
+                  width={100}
+                  alignment="right"
+                  cellRender={(row) => formatNumber(row.stockQty ?? 0)}
+                />
+                <Column
+                  dataField="shortageQty"
+                  caption="부족수량"
+                  width={110}
+                  alignment="right"
+                  cellRender={(row) => formatNumber(row.shortageQty ?? 0)}
+                />
+              </DataGrid>
+            </div>
+          </SectionCard>
+
+          <SectionCard span="full" width="full">
+            <SectionHeader
+              title="공정 순서"
+              right={
+                <span className={countBadgeClass}>
+                  {detailLoading ? '조회중...' : `${processRows.length}건`}
+                </span>
+              }
+            />
+            <div className={gridScrollClass}>
+              <DataGrid
+                dataSource={processRows}
+                showBorders={true}
+                loading={detailLoading}
+                rowKey={(_row, index) => `proc-${index}`}
+                emptyText="공정 순서 데이터가 없습니다."
+                classNames={{ table: 'min-w-[520px] w-full text-sm' }}
+              >
+                <Paging enabled={false} />
+                <Column dataField="procSeq" caption="순서" width={90} alignment="right" />
+                <Column dataField="procCd" caption="공정코드" width={120} alignment="center" />
+                <Column dataField="procNm" caption="공정명" width={180} />
+                <Column dataField="unitCd" caption="기준단위" width={120} alignment="center" />
+              </DataGrid>
+            </div>
+          </SectionCard>
         </div>
-      )}
+      </div>
     </div>
   );
 }
