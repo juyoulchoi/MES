@@ -131,7 +131,7 @@ export default function MMSM04005E() {
   }
 
   function onExportCsv() {
-    const headers = ['순번', '품목코드', '품목명', '거래처코드', '거래처명'];
+    const headers = ['순번', '원자재코드', '원자재명', '거래처코드', '거래처명'];
     const lines = detail.map((r, i) =>
       [i + 1, r.ITEM_CD ?? '', r.ITEM_NM ?? '', cstCd, cstNm]
         .map((v) => (v ?? '').toString().replace(/"/g, '""'))
@@ -188,7 +188,7 @@ export default function MMSM04005E() {
           </div>
         </label>
         <label className="flex flex-col text-sm">
-          <span className="mb-1">제품코드</span>
+          <span className="mb-1">원자재코드</span>
           <input
             className="h-8 border rounded px-2"
             value={itemCd}
@@ -196,7 +196,7 @@ export default function MMSM04005E() {
           />
         </label>
         <label className="flex flex-col text-sm">
-          <span className="mb-1">제품명</span>
+          <span className="mb-1">원자재명</span>
           <input
             className="h-8 border rounded px-2"
             value={itemNm}
@@ -231,8 +231,8 @@ export default function MMSM04005E() {
             <thead className="sticky top-0 bg-background">
               <tr className="border-b">
                 <th className="w-12 p-2 text-center">선택</th>
-                <th className="w-28 p-2 text-center">품목코드</th>
-                <th className="p-2 text-left">품목명</th>
+                <th className="w-28 p-2 text-center">원자재코드</th>
+                <th className="p-2 text-left">원자재명</th>
               </tr>
             </thead>
             <tbody>
@@ -280,8 +280,8 @@ export default function MMSM04005E() {
             <thead className="sticky top-0 bg-background">
               <tr className="border-b">
                 <th className="w-12 p-2 text-center">선택</th>
-                <th className="w-28 p-2 text-center">품목코드</th>
-                <th className="p-2 text-left">품목명</th>
+                <th className="w-28 p-2 text-center">원자재코드</th>
+                <th className="p-2 text-left">원자재명</th>
                 <th className="w-28 p-2 text-center">거래처코드</th>
                 <th className="p-2 text-left">거래처명</th>
               </tr>
