@@ -4,6 +4,7 @@ import AlertBox from '@/components/AlertBox';
 import CodeNameField from '@/components/CodeNameField';
 import SectionCard from '@/components/SectionCard';
 import SectionHeader from '@/components/SectionHeader';
+import StatusActionButtons from '@/components/StatusActionButtons';
 import { CheckColumn, Column, DataGrid, Pager, Paging } from '@/components/table/DataGrid';
 import { useAutoTableHeight } from '@/lib/hooks/useAutoTableHeight';
 import { useCodes } from '@/lib/hooks/useCodes';
@@ -16,8 +17,6 @@ import {
   pageContentClass,
   pageShellClass,
   saveButtonClass,
-  searchButtonClass,
-  statusActionGroupClass,
 } from '@/lib/pageStyles';
 import { getTodayYmd } from '@/lib/registerDetailUtils';
 import { formatNumber } from '@/lib/utils';
@@ -31,6 +30,12 @@ import {
   type Mmsm02002SalesLinkRow,
   type Mmsm02002SearchForm,
 } from '@/services/m02/mmsm02002';
+import {
+  exportHeaders,
+  getFirstDayOfMonthYmd,
+  mapExportRow,
+  type WorkOrderCreateResponse,
+} from '@/services/m02/mmsm02004';
 
 const searchLabelClass = 'font-medium text-slate-700';
 const searchControlClass = 'h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm';
@@ -38,36 +43,6 @@ const detailLabelClass =
   'flex w-28 shrink-0 items-center bg-slate-50 px-3 font-medium text-slate-700';
 const detailInputClass = 'h-9 w-full rounded border border-slate-200 bg-white px-2 text-sm';
 const detailNumberInputClass = `${detailInputClass} text-right`;
-
-type WorkOrderCreateResponse = {
-  workOrderYmd?: string;
-  workOrderSeq?: number;
-};
-
-function escapeCsvValue(value: unknown) {
-  return `"${String(value ?? '').replace(/"/g, '""')}"`;
-}
-
-function downloadCsv(filename: string, headers: string[], rows: unknown[][]) {
-  const csv = [
-    headers.map(escapeCsvValue).join(','),
-    ...rows.map((row) => row.map(escapeCsvValue).join(',')),
-  ].join('\n');
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement('a');
-  anchor.href = url;
-  anchor.download = filename;
-  document.body.appendChild(anchor);
-  anchor.click();
-  document.body.removeChild(anchor);
-  URL.revokeObjectURL(url);
-}
-
-function getFirstDayOfMonthYmd() {
-  const today = new Date();
-  return new Date(today.getFullYear(), today.getMonth(), 1).toISOString().slice(0, 10);
-}
 
 export default function MMSM02004E() {
   const [form, setForm] = useState<Mmsm02002SearchForm>(() => {
@@ -192,41 +167,6 @@ export default function MMSM02004E() {
     );
   }
 
-  function onExportCsv() {
-    const headers = [
-      '계획일자',
-      '계획번호',
-      '수주일자',
-      '수주번호',
-      '거래처',
-      '제품코드',
-      '제품명',
-      '단위',
-      '계획수량',
-      '납기요청일',
-      '생산예정일',
-      '공정',
-      '계획상태',
-    ];
-    const rows = plans.map((row) => [
-      row.planYmd,
-      row.planNo,
-      row.soYmd,
-      row.soNo,
-      row.cstNm,
-      row.itemCd,
-      row.itemNm,
-      row.unitCd,
-      row.planQty,
-      row.reqYmd,
-      row.prdPlanYmd,
-      row.procNm,
-      row.planStatusNm,
-    ]);
-
-    downloadCsv(`작업지시서_${toYmd(form.dateFrom)}_${toYmd(form.dateTo)}.csv`, headers, rows);
-  }
-
   async function onSaveWorkOrder() {
     const prdPlnYmd = selectedPlan?.prdPlnYmd ?? selectedPlan?.planYmd;
     const prdPlnSeq = Number(selectedPlan?.prdPlnSeq ?? selectedPlan?.planNo);
@@ -267,6 +207,7 @@ export default function MMSM02004E() {
       window.alert(
         `작업지시가 등록되었습니다. (${response.workOrderYmd ?? toYmd(workOrderYmd)}-${response.workOrderSeq ?? ''})`
       );
+      await onSearch();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -327,25 +268,16 @@ export default function MMSM02004E() {
               onSearch={() => undefined}
               onClear={() => setForm((prev) => ({ ...prev, cstCd: '', cstNm: '' }))}
             />
-            <div className={statusActionGroupClass}>
-              <button
-                className={searchButtonClass}
-                disabled={loading}
-                onClick={() => void onSearch()}
-              >
-                {loading ? '조회중...' : '조회'}
-              </button>
-              <button className={searchButtonClass} onClick={onExportCsv}>
-                엑셀
-              </button>
-              <button
-                className={saveButtonClass}
-                disabled={!selectedPlan || saving || detailLoading}
-                onClick={() => void onSaveWorkOrder()}
-              >
-                {saving ? '등록중...' : '작업지시 등록'}
-              </button>
-            </div>
+            <StatusActionButtons
+              loading={loading}
+              onSearch={() => void onSearch()}
+              exportProps={{
+                rows: plans,
+                headers: exportHeaders,
+                mapRow: mapExportRow,
+                filename: () => `작업지시서_${toYmd(form.dateFrom)}_${toYmd(form.dateTo)}.csv`,
+              }}
+            />
           </div>
 
           <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-[546px_230px_300px_1fr]">
@@ -417,7 +349,7 @@ export default function MMSM02004E() {
                 checked={(row) => !!row.CHECK}
                 onChange={(_row, rowIndex, checked) => togglePlan(rowIndex, checked)}
               />
-              <Column dataField="planYmd" caption="계획일자" width={120} alignment="center" />
+              <Column dataField="planYmd" caption="생산계획일자" width={130} alignment="center" />
               <Column dataField="planNo" caption="계획번호" width={110} alignment="center" />
               <Column dataField="soYmd" caption="수주일자" width={120} alignment="center" />
               <Column dataField="soNo" caption="수주번호" width={110} alignment="center" />
@@ -433,7 +365,7 @@ export default function MMSM02004E() {
                 cellRender={(row) => formatNumber(row.planQty ?? 0)}
               />
               <Column dataField="reqYmd" caption="납기요청일" width={120} alignment="center" />
-              <Column dataField="prdPlanYmd" caption="생산예정일" width={120} alignment="center" />
+              <Column dataField="prdSchdYmd" caption="생산예정일" width={120} alignment="center" />
               <Column dataField="procNm" caption="공정" width={130} />
               <Column dataField="planStatusNm" caption="계획상태" width={100} alignment="center" />
             </DataGrid>
@@ -462,7 +394,7 @@ export default function MMSM02004E() {
             <div className="rounded border border-slate-200 bg-white">
               <div className="grid grid-cols-1 border-b border-slate-200 text-sm md:grid-cols-2">
                 <div className="flex min-h-10 border-b border-slate-200 md:border-r">
-                  <div className={detailLabelClass}>계획번호</div>
+                  <div className={detailLabelClass}>생산계획번호</div>
                   <div className="flex flex-1 items-center px-3">
                     {selectedPlan
                       ? `${selectedPlan.planYmd ?? ''}-${selectedPlan.planNo ?? ''}`
@@ -471,7 +403,7 @@ export default function MMSM02004E() {
                 </div>
                 <div className="flex min-h-10 border-b border-slate-200">
                   <div className={detailLabelClass}>생산예정일</div>
-                  <div className="flex flex-1 items-center px-3">{selectedPlan?.prdPlanYmd}</div>
+                  <div className="flex flex-1 items-center px-3">{selectedPlan?.prdSchdYmd}</div>
                 </div>
                 <div className="flex min-h-10 border-b border-slate-200 md:border-r">
                   <div className={detailLabelClass}>제품</div>
@@ -518,20 +450,13 @@ export default function MMSM02004E() {
                 </div>
                 <div className="flex min-h-10 md:col-span-2">
                   <div className={detailLabelClass}>비고</div>
-                  <div className="flex flex-1 items-center gap-2 px-3 py-2">
+                  <div className="flex flex-1 items-center px-3 py-2">
                     <input
                       className={detailInputClass}
                       value={remark}
                       disabled={!selectedPlan || saving}
                       onChange={(event) => setRemark(event.target.value)}
                     />
-                    <button
-                      className={saveButtonClass}
-                      disabled={!selectedPlan || saving || detailLoading}
-                      onClick={() => void onSaveWorkOrder()}
-                    >
-                      {saving ? '등록중...' : '작업지시 등록'}
-                    </button>
                   </div>
                 </div>
               </div>

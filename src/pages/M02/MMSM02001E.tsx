@@ -54,6 +54,8 @@ export default function MMSM02001E() {
   const [detailError, setDetailError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [deletedDetailRows, setDeletedDetailRows] = useState<DetailRow[]>([]);
+  const [planYmd, setPlanYmd] = useState(getTodayYmd());
+  const [prdSchdYmd, setPrdSchdYmd] = useState(getTodayYmd());
 
   const [form, setForm] = useState<SearchForm>(() => ({
     soYmd: getTodayYmd(),
@@ -280,6 +282,14 @@ export default function MMSM02001E() {
       setSaveError('선택한 수주 상세의 품목, 단위, 수량을 확인하세요.');
       return;
     }
+    if (!planYmd) {
+      setSaveError('생산계획일자를 입력하세요.');
+      return;
+    }
+    if (!prdSchdYmd) {
+      setSaveError('생산예정일을 입력하세요.');
+      return;
+    }
 
     if (!window.confirm('선택된 수주로 생산계획을 생성하시겠습니까?')) return;
 
@@ -290,7 +300,8 @@ export default function MMSM02001E() {
       const requests = buildMmsm02001PlanRequests({
         form,
         detailRows: selectedRows,
-        planYmd: getTodayYmd(),
+        planYmd,
+        prdSchdYmd,
       });
 
       for (const request of requests) {
@@ -359,6 +370,24 @@ export default function MMSM02001E() {
               }}
             />
             <div className="flex flex-wrap items-end justify-end gap-2">
+              <label className="flex h-10 items-center gap-2 text-sm">
+                <span className="font-medium text-slate-700">생산계획일자</span>
+                <input
+                  type="date"
+                  className="h-10 w-[150px] rounded-lg border border-slate-200 bg-white px-3 text-sm"
+                  value={planYmd}
+                  onChange={(event) => setPlanYmd(event.target.value)}
+                />
+              </label>
+              <label className="flex h-10 items-center gap-2 text-sm">
+                <span className="font-medium text-slate-700">생산예정일</span>
+                <input
+                  type="date"
+                  className="h-10 w-[150px] rounded-lg border border-slate-200 bg-white px-3 text-sm"
+                  value={prdSchdYmd}
+                  onChange={(event) => setPrdSchdYmd(event.target.value)}
+                />
+              </label>
               <button
                 onClick={() => void onCreatePlan()}
                 disabled={isSave}

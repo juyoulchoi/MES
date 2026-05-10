@@ -279,7 +279,7 @@ export default function MMSM02002E() {
                 checked={(row) => !!row.CHECK}
                 onChange={(_row, rowIndex, checked) => toggleMaster(rowIndex, checked)}
               />
-              <Column dataField="planYmd" caption="계획일자" width={120} alignment="center" />
+              <Column dataField="planYmd" caption="생산계획일자" width={130} alignment="center" />
               <Column dataField="planNo" caption="계획번호" width={110} alignment="center" />
               <Column dataField="soYmd" caption="수주일자" width={120} alignment="center" />
               <Column dataField="soNo" caption="수주번호" width={110} alignment="center" />
@@ -290,7 +290,7 @@ export default function MMSM02002E() {
               <Column dataField="soQty" caption="수주수량" width={110} alignment="right" />
               <Column dataField="planQty" caption="계획수량" width={110} alignment="right" />
               <Column dataField="reqYmd" caption="납기요청일" width={120} alignment="center" />
-              <Column dataField="prdPlanYmd" caption="생산예정일" width={120} alignment="center" />
+              <Column dataField="prdSchdYmd" caption="생산예정일" width={120} alignment="center" />
               <Column dataField="procNm" caption="공정" width={130} />
               <Column dataField="planStatusNm" caption="계획상태" width={100} alignment="center" />
             </DataGrid>

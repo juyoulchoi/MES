@@ -86,6 +86,7 @@ export interface CreatePlanRequest {
   method: 'I';
   isNew: 'I';
   prdPlnYmd: string;
+  prdSchdYmd: string;
   itemCd: string;
   planQty: string | number;
   unitCd: string;
@@ -314,15 +315,18 @@ export function buildMmsm02001PlanRequests({
   form,
   detailRows,
   planYmd,
+  prdSchdYmd,
 }: {
   form: SearchForm;
   detailRows: DetailRow[];
   planYmd: string;
+  prdSchdYmd: string;
 }): CreatePlanRequest[] {
   return detailRows.map((row) => ({
     method: 'I',
     isNew: 'I',
     prdPlnYmd: toApiYmd(planYmd),
+    prdSchdYmd: toApiYmd(prdSchdYmd || row.reqYmd || planYmd),
     itemCd: row.itemCd ?? '',
     planQty: row.qty ?? 0,
     unitCd: row.unitCd ?? '',

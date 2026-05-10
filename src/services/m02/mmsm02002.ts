@@ -27,7 +27,7 @@ export interface Mmsm02002MasterRow {
   soQty?: string | number;
   planQty?: string | number;
   reqYmd?: string;
-  prdPlanYmd?: string;
+  prdSchdYmd?: string;
   procNm?: string;
   planStatusNm?: string;
   planStatus?: string;
@@ -86,7 +86,7 @@ export function normalizeMmsm02002MasterRow(
     soQty: row.soQty ?? '',
     planQty: row.planQty ?? '',
     reqYmd: row.reqYmd ?? '',
-    prdPlanYmd: row.prdPlanYmd ?? row.prdPlnYmd ?? '',
+    prdSchdYmd: row.prdSchdYmd ?? '',
     planStatusNm: row.planStatusNm ?? row.planStatus ?? '',
     CHECK: false,
     ISNEW: false,
@@ -99,7 +99,7 @@ function escapeCsvValue(value: unknown) {
 
 export function exportMmsm02002PlanCsv(rows: Mmsm02002MasterRow[]) {
   const headers = [
-    '계획일자',
+    '생산계획일자',
     '계획번호',
     '수주일자',
     '수주번호',
@@ -127,7 +127,7 @@ export function exportMmsm02002PlanCsv(rows: Mmsm02002MasterRow[]) {
       row.soQty,
       row.planQty,
       row.reqYmd,
-      row.prdPlanYmd,
+      row.prdSchdYmd,
       row.procNm,
       row.planStatusNm,
     ]
