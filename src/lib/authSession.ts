@@ -9,6 +9,7 @@ export function shouldRedirectForUnauthorized() {
 export function clearAuthStorage() {
   localStorage.removeItem('token');
   localStorage.removeItem('token_expiry');
+  localStorage.removeItem('refreshToken');
 }
 
 export function handleInvalidToken() {

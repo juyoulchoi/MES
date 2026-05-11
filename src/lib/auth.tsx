@@ -7,9 +7,11 @@ type LoginApiResponse = {
   message?: string;
   data?: {
     accessToken?: string;
+    refreshToken?: string;
     token?: string;
   };
   accessToken?: string;
+  refreshToken?: string;
   token?: string;
 };
 
@@ -67,6 +69,8 @@ export async function login({
         payload.data?.accessToken || payload.data?.token || payload.accessToken || payload.token;
       if (!token) return { ok: false, error: '토큰이 응답에 없습니다.' };
       localStorage.setItem('token', token);
+      const refreshToken = payload.data?.refreshToken || payload.refreshToken;
+      if (refreshToken) localStorage.setItem('refreshToken', refreshToken);
       localStorage.setItem('token_expiry', String(Date.now() + 60 * 60 * 1000));
       return { ok: true, token };
     }
