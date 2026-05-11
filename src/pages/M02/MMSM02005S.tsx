@@ -1,23 +1,18 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { http } from '@/lib/http';
 
 // 모니터링 (MMSM02005S)
 // 필터 없음. 기능: 조회, 엑셀(CSV)
-// 그리드 컬럼: 생산계획일자, 생산계획순번, 제품명, 공정 단계(P01~P13)
+// 그리드 컬럼: 생산예정일, 생산계획순번, 제품명, 공정 단계(P01~P13)
 
-type Row = Record<string, any>;
+type Row = Record<string, string | number | null | undefined>;
 
 export default function MMSM02005S() {
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    void onSearch();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  async function onSearch() {
+  const onSearch = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -28,11 +23,15 @@ export default function MMSM02005S() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    void onSearch();
+  }, [onSearch]);
 
   function onExportCsv() {
     const headers = [
-      '생산계획일자',
+      '생산예정일',
       '생산계획순번',
       '제품명',
       '제판',
@@ -51,7 +50,7 @@ export default function MMSM02005S() {
     ];
     const lines = rows.map((r) =>
       [
-        r.PRD_PLAN_YMD ?? '',
+        r.PRD_SCHD_YMD ?? '',
         r.PRD_PLAN_SEQ ?? '',
         r.ITEM_NM ?? '',
         r.P01 ?? '',
@@ -112,7 +111,7 @@ export default function MMSM02005S() {
         <table className="w-full text-sm">
           <thead className="sticky top-0 bg-background">
             <tr className="border-b">
-              <th className="w-28 p-2 text-center">생산계획일자</th>
+              <th className="w-28 p-2 text-center">생산예정일</th>
               <th className="w-24 p-2 text-center">생산계획순번</th>
               <th className="w-40 p-2 text-left">제품명</th>
               <th className="w-20 p-2 text-center">제판</th>
@@ -133,7 +132,7 @@ export default function MMSM02005S() {
           <tbody>
             {rows.map((r, i) => (
               <tr key={i} className="border-b hover:bg-muted/30">
-                <td className="p-2 text-center">{r.PRD_PLAN_YMD ?? ''}</td>
+                <td className="p-2 text-center">{r.PRD_SCHD_YMD ?? ''}</td>
                 <td className="p-2 text-center">{r.PRD_PLAN_SEQ ?? ''}</td>
                 <td className="p-2 text-left">{r.ITEM_NM ?? ''}</td>
                 <td className="p-2 text-center">{r.P01 ?? ''}</td>

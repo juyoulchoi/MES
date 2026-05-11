@@ -8,10 +8,12 @@ import SectionHeader from '@/components/SectionHeader';
 import SearchCodePickers from '@/components/SearchCodePickers';
 import { CheckColumn, Column, DataGrid } from '@/components/table/DataGrid';
 import { patchCheckedRow, removeCheckedRows, updateCheckedRows } from '@/lib/gridRows';
+import { resolveApiUrl } from '@/lib/config';
 import { http } from '@/lib/http';
 import { EmptyPageResult, PAGE_SIZE } from '@/lib/pagination';
 import {
   addTransferButtonClass,
+  countBadgeClass,
   deleteTransferButtonClass,
   editableNumberInputClass,
   editableSelectClass,
@@ -20,6 +22,7 @@ import {
   pageShellClass,
   registerSearchGridClass,
   registerSplitGridClass,
+  saveButtonClass,
   transferButtonGroupClass,
   transferColumnClass,
 } from '@/lib/pageStyles';
@@ -39,6 +42,75 @@ import {
 import { useEffect, useState } from 'react';
 
 const DEFAULT_EM_GB = 'N';
+const planDateInputClass =
+  'h-10 w-[150px] rounded-lg border border-slate-200 bg-white px-3 text-sm';
+const planDateLabelClass = 'flex h-10 items-center gap-2 text-sm';
+const planDateTextClass = 'w-[92px] shrink-0 font-medium text-slate-700';
+
+type TokenRefreshResponse = {
+  success?: boolean;
+  accessToken?: string;
+  token?: string;
+  data?: {
+    accessToken?: string;
+    token?: string;
+  };
+};
+
+function getTokenExpiresAt(token: string) {
+  const parts = token.split('.');
+  if (parts.length !== 3) return 0;
+
+  try {
+    const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, '=');
+    const payload = JSON.parse(atob(padded)) as { exp?: number };
+    return payload.exp ? payload.exp * 1000 : Number.MAX_SAFE_INTEGER;
+  } catch {
+    return 0;
+  }
+}
+
+function getValidAccessToken() {
+  const token = localStorage.getItem('token') ?? '';
+  if (!token) return '';
+  return getTokenExpiresAt(token) > Date.now() ? token : '';
+}
+
+async function refreshAccessToken() {
+  const refreshToken = localStorage.getItem('refreshToken') ?? '';
+  if (!refreshToken) return '';
+
+  const res = await fetch(resolveApiUrl('/api/v1/auth/iam/token/refresh'), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    },
+    credentials: 'same-origin',
+    body: JSON.stringify({ refreshToken }),
+  });
+
+  if (!res.ok) return '';
+
+  const payload = (await res.json()) as TokenRefreshResponse;
+  if (payload.success === false) return '';
+
+  const token = payload.data?.accessToken || payload.data?.token || payload.accessToken || payload.token || '';
+  if (!token || getTokenExpiresAt(token) <= Date.now()) return '';
+
+  localStorage.setItem('token', token);
+  localStorage.setItem('token_expiry', String(getTokenExpiresAt(token)));
+  return token;
+}
+
+async function resolveAccessToken() {
+  return getValidAccessToken() || (await refreshAccessToken());
+}
+
+function isDuplicatePlanError(error: unknown) {
+  return error instanceof Error && /409|생산계획이 생성|Production Plan Already Exists/.test(error.message);
+}
 
 export default function MMSM02001E() {
   const [customerOpen, setCustomerOpen] = useState(false);
@@ -66,6 +138,7 @@ export default function MMSM02001E() {
   const { codes: emCodes } = useCodes('1100', []);
   const isSearch = masterLoading || detailLoading || saving;
   const isSave = masterLoading || detailLoading || saving;
+  const selectedDetailCount = detailRows.filter((row) => row.CHECK).length;
 
   async function fetchMasterList(nextPage = 0) {
     setMasterLoading(true);
@@ -215,6 +288,12 @@ export default function MMSM02001E() {
     setSaveError(null);
 
     try {
+      const token = await resolveAccessToken();
+      if (!token) {
+        setSaveError('인증 정보가 만료되었습니다. 다시 로그인 후 시도하세요.');
+        return;
+      }
+
       const me = await http<AuthMeResponse>('/api/v1/auth/me');
       const userId = (
         me.user?.userid ??
@@ -297,6 +376,26 @@ export default function MMSM02001E() {
     setSaveError(null);
 
     try {
+      const token = await resolveAccessToken();
+      if (!token) {
+        setSaveError('인증 정보가 만료되었습니다. 다시 로그인 후 시도하세요.');
+        return;
+      }
+
+      const me = await http<AuthMeResponse>('/api/v1/auth/me');
+      const userId = (
+        me.user?.userid ??
+        me.user?.userId ??
+        me.data?.user?.userid ??
+        me.data?.user?.userId ??
+        ''
+      ).trim();
+
+      if (!userId) {
+        setSaveError('사용자 정보를 확인할 수 없습니다. 다시 로그인 후 시도하세요.');
+        return;
+      }
+
       const requests = buildMmsm02001PlanRequests({
         form,
         detailRows: selectedRows,
@@ -304,11 +403,38 @@ export default function MMSM02001E() {
         prdSchdYmd,
       });
 
-      for (const request of requests) {
-        await http('/api/v1/planning/prdplnmst', { method: 'POST', body: request });
+      let createdCount = 0;
+      const duplicateRows: string[] = [];
+
+      for (let index = 0; index < requests.length; index += 1) {
+        const request = requests[index];
+        try {
+          await http('/api/v1/planning/prdplnmst', {
+            method: 'POST',
+            authToken: token,
+            body: request,
+          });
+          createdCount += 1;
+        } catch (error) {
+          if (!isDuplicatePlanError(error)) {
+            throw error;
+          }
+
+          const row = selectedRows[index];
+          duplicateRows.push(`${row.itemNm || row.itemCd || index + 1} (${request.soYmd}-${request.soSeq}-${request.soSubSeq})`);
+        }
       }
 
-      window.alert('생산계획을 생성했습니다.');
+      if (createdCount === 0) {
+        setSaveError(`선택한 수주 상세는 이미 생산계획이 생성되었습니다. ${duplicateRows.join(', ')}`);
+        return;
+      }
+
+      window.alert(
+        duplicateRows.length > 0
+          ? `생산계획 ${createdCount}건을 생성했습니다. 이미 생성된 ${duplicateRows.length}건은 제외했습니다.`
+          : '생산계획을 생성했습니다.'
+      );
       await fetchDetailList(0);
     } catch (e) {
       setSaveError(e instanceof Error ? e.message : String(e));
@@ -370,31 +496,6 @@ export default function MMSM02001E() {
               }}
             />
             <div className="flex flex-wrap items-end justify-end gap-2">
-              <label className="flex h-10 items-center gap-2 text-sm">
-                <span className="font-medium text-slate-700">생산계획일자</span>
-                <input
-                  type="date"
-                  className="h-10 w-[150px] rounded-lg border border-slate-200 bg-white px-3 text-sm"
-                  value={planYmd}
-                  onChange={(event) => setPlanYmd(event.target.value)}
-                />
-              </label>
-              <label className="flex h-10 items-center gap-2 text-sm">
-                <span className="font-medium text-slate-700">생산예정일</span>
-                <input
-                  type="date"
-                  className="h-10 w-[150px] rounded-lg border border-slate-200 bg-white px-3 text-sm"
-                  value={prdSchdYmd}
-                  onChange={(event) => setPrdSchdYmd(event.target.value)}
-                />
-              </label>
-              <button
-                onClick={() => void onCreatePlan()}
-                disabled={isSave}
-                className="h-10 rounded-lg border border-sky-200 bg-sky-50 px-4 text-sm font-medium text-sky-700 transition hover:bg-sky-100 disabled:opacity-50"
-              >
-                생산계획생성
-              </button>
               <ActionButtonGroup
                 onSearch={() => void onSearch()}
                 onSave={() => void onSave()}
@@ -405,6 +506,40 @@ export default function MMSM02001E() {
                 showUpload={false}
                 className="flex flex-wrap items-end justify-end gap-2"
               />
+            </div>
+          </div>
+
+          <div className="mt-4 flex flex-col gap-3 border-t border-slate-200 pt-4 xl:flex-row xl:items-center xl:justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold text-slate-800">생산계획 생성</span>
+              <span className={countBadgeClass}>{selectedDetailCount}건 선택</span>
+            </div>
+            <div className="flex flex-wrap items-end justify-end gap-2">
+              <label className={planDateLabelClass}>
+                <span className={planDateTextClass}>생산계획일자</span>
+                <input
+                  type="date"
+                  className={planDateInputClass}
+                  value={planYmd}
+                  onChange={(event) => setPlanYmd(event.target.value)}
+                />
+              </label>
+              <label className={planDateLabelClass}>
+                <span className={planDateTextClass}>생산예정일</span>
+                <input
+                  type="date"
+                  className={planDateInputClass}
+                  value={prdSchdYmd}
+                  onChange={(event) => setPrdSchdYmd(event.target.value)}
+                />
+              </label>
+              <button
+                onClick={() => void onCreatePlan()}
+                disabled={isSave || selectedDetailCount === 0}
+                className={saveButtonClass}
+              >
+                생산계획생성
+              </button>
             </div>
           </div>
         </SectionCard>
