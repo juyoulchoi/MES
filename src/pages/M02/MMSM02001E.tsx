@@ -112,6 +112,10 @@ function isDuplicatePlanError(error: unknown) {
   return error instanceof Error && /409|생산계획이 생성|Production Plan Already Exists/.test(error.message);
 }
 
+function isMissingPlanProcessError(error: unknown) {
+  return error instanceof Error && /Production Plan Process Not Found/.test(error.message);
+}
+
 export default function MMSM02001E() {
   const [customerOpen, setCustomerOpen] = useState(false);
   const [cstNm, setCstNm] = useState('');
@@ -405,6 +409,7 @@ export default function MMSM02001E() {
 
       let createdCount = 0;
       const duplicateRows: string[] = [];
+      const missingProcessRows: string[] = [];
 
       for (let index = 0; index < requests.length; index += 1) {
         const request = requests[index];
@@ -416,23 +421,43 @@ export default function MMSM02001E() {
           });
           createdCount += 1;
         } catch (error) {
-          if (!isDuplicatePlanError(error)) {
-            throw error;
+          const row = selectedRows[index];
+          const rowLabel = `${row.itemNm || row.itemCd || index + 1} (${request.soYmd}-${request.soSeq}-${request.soSubSeq})`;
+
+          if (isDuplicatePlanError(error)) {
+            duplicateRows.push(rowLabel);
+            continue;
           }
 
-          const row = selectedRows[index];
-          duplicateRows.push(`${row.itemNm || row.itemCd || index + 1} (${request.soYmd}-${request.soSeq}-${request.soSubSeq})`);
+          if (isMissingPlanProcessError(error)) {
+            missingProcessRows.push(rowLabel);
+            continue;
+          }
+
+          throw error;
         }
       }
 
       if (createdCount === 0) {
-        setSaveError(`선택한 수주 상세는 이미 생산계획이 생성되었습니다. ${duplicateRows.join(', ')}`);
+        const reasons = [
+          duplicateRows.length > 0
+            ? `이미 생산계획이 생성된 ${duplicateRows.length}건: ${duplicateRows.join(', ')}`
+            : '',
+          missingProcessRows.length > 0
+            ? `공정정보가 없어 생성하지 못한 ${missingProcessRows.length}건: ${missingProcessRows.join(', ')}`
+            : '',
+        ].filter(Boolean);
+        setSaveError(`생산계획을 생성하지 못했습니다. ${reasons.join(' / ')}`);
         return;
       }
 
+      const skippedMessages = [
+        duplicateRows.length > 0 ? `이미 생성된 ${duplicateRows.length}건` : '',
+        missingProcessRows.length > 0 ? `공정정보가 없는 ${missingProcessRows.length}건` : '',
+      ].filter(Boolean);
       window.alert(
-        duplicateRows.length > 0
-          ? `생산계획 ${createdCount}건을 생성했습니다. 이미 생성된 ${duplicateRows.length}건은 제외했습니다.`
+        skippedMessages.length > 0
+          ? `생산계획 ${createdCount}건을 생성했습니다. ${skippedMessages.join(', ')}은 제외했습니다.`
           : '생산계획을 생성했습니다.'
       );
       await fetchDetailList(0);
