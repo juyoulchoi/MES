@@ -1,39 +1,51 @@
 import { useEffect, useState } from 'react';
-import { http } from '@/lib/http';
+import AlertBox from '@/components/AlertBox';
+import SectionCard from '@/components/SectionCard';
+import SectionHeader from '@/components/SectionHeader';
+import { CheckColumn, Column, DataGrid, Paging } from '@/components/table/DataGrid';
+import {
+  countBadgeClass,
+  editableInputClass,
+  editableNumberInputClass,
+  editableSelectClass,
+  gridScrollClass,
+  pageContentClass,
+  pageShellClass,
+  registerSearchGridClass,
+  registerSplitGridClass,
+  saveButtonClass,
+  searchButtonClass,
+} from '@/lib/pageStyles';
+import {
+  deleteMmsm06001Detail,
+  deleteMmsm06001Master,
+  fetchMmsm06001Detail,
+  fetchMmsm06001Master,
+  saveMmsm06001Detail,
+  saveMmsm06001Master,
+  type DetailRow,
+  type MasterRow,
+} from '@/services/m06/mmsm06001';
 
 // 기초코드 관리 (MMSM06001E)
 // 좌: 그룹 마스터 | 우: 그룹별 기초코드 상세
 // 상단: 그룹코드/그룹명 필터 + 조회
 // 좌/우 각각: 추가, 저장(체크 또는 신규), 삭제
 
-type Row = Record<string, any>;
+const searchLabelClass = 'font-medium text-slate-700';
+const searchFieldClass = 'flex flex-col gap-2 sm:flex-row sm:items-center';
+const searchLabelTextClass = `${searchLabelClass} flex h-10 w-[96px] shrink-0 items-center text-sm`;
+const searchInputClass = 'h-10 w-full rounded-lg border border-slate-200 px-3 text-sm';
+const panelActionClass =
+  'h-9 rounded-lg border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50';
+const deleteButtonClass =
+  'h-9 rounded-lg border border-rose-200 bg-rose-50 px-3 text-sm font-medium text-rose-700 transition hover:bg-rose-100 disabled:opacity-50';
+const readonlyInputClass = `${editableInputClass} bg-slate-100 text-slate-500`;
+const readOnlyCellClass = 'block min-h-8 px-2 py-1.5 text-sm text-slate-700';
 
-type MasterRow = {
-  CHECK?: boolean;
-  ISNEW?: boolean;
-  SERL?: number | string;
-  BSC_GRP_CD?: string;
-  BSC_GRP_NM?: string;
-  USE_YN?: string; // 'Y' | 'N'
-  MOD_USR?: string;
-  MOD_DT?: string;
-  [k: string]: any;
-};
-
-type DetailRow = {
-  CHECK?: boolean;
-  ISNEW?: boolean;
-  SERL?: number | string;
-  DSP_SEQ?: number | string;
-  BSC_CD?: string;
-  BSC_NM?: string;
-  BSC_NM2?: string;
-  DESC?: string;
-  USE_YN?: string; // 'Y' | 'N'
-  MOD_USR?: string;
-  MOD_DT?: string;
-  [k: string]: any;
-};
+function onlyDigits(value: string) {
+  return value.replace(/\D/g, '');
+}
 
 export default function MMSM06001E() {
   // Filters
@@ -44,9 +56,14 @@ export default function MMSM06001E() {
   const [master, setMaster] = useState<MasterRow[]>([]);
   const [detail, setDetail] = useState<DetailRow[]>([]);
   const [selectedGrp, setSelectedGrp] = useState<string>('');
+  const [masterEditIndex, setMasterEditIndex] = useState<number | null>(null);
+  const [detailEditIndex, setDetailEditIndex] = useState<number | null>(null);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const selectedMaster = master.find((row) => row.bscGrpCd === selectedGrp);
+  const isSelectedGroupNew = !!selectedMaster?.isNew;
+  const canEditDetail = !!selectedGrp && !isSelectedGroupNew;
 
   // 최초 로드 시 조회 X, 사용자가 조건으로 조회
   useEffect(() => {
@@ -54,15 +71,10 @@ export default function MMSM06001E() {
   }, []);
 
   async function fetchMaster() {
-    const qs = new URLSearchParams({ grp_cd: grpCd || '', grp_nm: grpNm || '' }).toString();
-    const data = await http<MasterRow[]>(`/api/m06/mmsm06001/master?${qs}`);
-    return (Array.isArray(data) ? data : []).map((r) => ({ ...r, CHECK: false, ISNEW: !!r.ISNEW }));
+    return fetchMmsm06001Master({ grpCd, grpNm });
   }
   async function fetchDetail(grp: string) {
-    if (!grp) return [] as DetailRow[];
-    const qs = new URLSearchParams({ grp_cd: grp }).toString();
-    const data = await http<DetailRow[]>(`/api/m06/mmsm06001/detail?${qs}`);
-    return (Array.isArray(data) ? data : []).map((r) => ({ ...r, CHECK: false, ISNEW: !!r.ISNEW }));
+    return fetchMmsm06001Detail(grp);
   }
 
   async function onSearch() {
@@ -71,11 +83,15 @@ export default function MMSM06001E() {
     try {
       const m = await fetchMaster();
       setMaster(m);
-      // 선택 그룹 유지/재설정
-      const nextGrp = m.find((x) => x.BSC_GRP_CD)?.BSC_GRP_CD || '';
+      setMasterEditIndex(null);
+      const nextGrp =
+        m.find((row) => row.bscGrpCd && row.bscGrpCd === selectedGrp)?.bscGrpCd ||
+        m.find((row) => row.bscGrpCd)?.bscGrpCd ||
+        '';
       setSelectedGrp(nextGrp);
       const d = await fetchDetail(nextGrp);
       setDetail(d);
+      setDetailEditIndex(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -84,13 +100,28 @@ export default function MMSM06001E() {
   }
 
   async function onSelectMaster(i: number) {
-    const grp = master[i]?.BSC_GRP_CD || '';
+    const row = master[i];
+    if (!row) return;
+
+    if (masterEditIndex !== null && masterEditIndex !== i && !master[masterEditIndex]?.isNew) {
+      setMasterEditIndex(null);
+    }
+
+    const grp = row.bscGrpCd || '';
     setSelectedGrp(grp);
-    setLoading(true);
     setError(null);
+
+    if (row.isNew) {
+      setDetail([]);
+      setDetailEditIndex(null);
+      return;
+    }
+
+    setLoading(true);
     try {
       const d = await fetchDetail(grp);
       setDetail(d);
+      setDetailEditIndex(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -106,6 +137,19 @@ export default function MMSM06001E() {
       return next;
     });
   }
+  function markMasterEditing(i: number) {
+    const shouldClose = masterEditIndex === i && !master[i]?.isNew;
+    setMaster((prev) => {
+      const next = [...prev];
+      if (!next[i]) return prev;
+      next[i] = { ...next[i], CHECK: !shouldClose };
+      return next;
+    });
+    setMasterEditIndex((prev) => {
+      if (prev === i && !master[i]?.isNew) return null;
+      return i;
+    });
+  }
   function patchMaster(i: number, patch: Partial<MasterRow>) {
     setMaster((prev) => {
       const next = [...prev];
@@ -114,48 +158,72 @@ export default function MMSM06001E() {
     });
   }
   function onMasterAdd() {
-    setMaster((prev) => [
-      ...prev,
-      { CHECK: true, ISNEW: true, SERL: '', BSC_GRP_CD: '', BSC_GRP_NM: '', USE_YN: 'Y' },
-    ]);
+    setMaster((prev) => {
+      setMasterEditIndex(prev.length);
+      return [
+        ...prev,
+        { CHECK: true, isNew: true, dspSeq: '', bscGrpCd: '', bscGrpNm: '', useYn: 'Y' },
+      ];
+    });
+    setSelectedGrp('');
+    setDetail([]);
+    setDetailEditIndex(null);
+    setError(null);
   }
   async function onMasterDelete() {
-    const targets = master
-      .filter((r) => r.CHECK && !r.ISNEW)
-      .map((r) => r.BSC_GRP_CD)
+    const checkedRows = master.filter((r) => r.CHECK);
+    const targets = checkedRows
+      .filter((r) => !r.isNew)
+      .map((r) => r.bscGrpCd)
       .filter(Boolean) as string[];
-    const hasNewOnly =
-      master.every((r) => (r.ISNEW ? (r.CHECK ? true : true) : true)) && targets.length === 0;
-    setError(null);
-    if (targets.length > 0) {
-      setLoading(true);
-      try {
-        await http(`/api/m06/mmsm06001/master/delete`, {
-          method: 'POST',
-          body: targets.map((cd) => ({ BSC_GRP_CD: cd })),
-        });
-      } catch (e) {
-        setError(e instanceof Error ? e.message : String(e));
-      } finally {
-        setLoading(false);
-      }
+
+    if (checkedRows.length === 0) {
+      setError('삭제할 그룹을 선택하세요.');
+      return;
     }
-    // UI에서 제거 (신규 포함)
-    setMaster((prev) => prev.filter((r) => !r.CHECK));
-    // 현재 선택그룹이 삭제되면 디테일 초기화
-    setTimeout(() => {
-      if (!master.some((r) => r.BSC_GRP_CD === selectedGrp)) {
+
+    if (
+      targets.length > 0 &&
+      !window.confirm('선택한 그룹을 삭제하시겠습니까? 하위 상세 코드가 있으면 함께 삭제되거나 삭제가 제한될 수 있습니다.')
+    ) {
+      return;
+    }
+
+    setError(null);
+    setLoading(true);
+
+    try {
+      for (const cd of targets) {
+        await deleteMmsm06001Master(cd);
+      }
+
+      const nextMaster =
+        targets.length > 0 ? await fetchMaster() : master.filter((row) => !row.CHECK);
+      const deletedSelected = checkedRows.some((row) => row.bscGrpCd === selectedGrp);
+      const nextGrp = deletedSelected
+        ? nextMaster.find((row) => row.bscGrpCd)?.bscGrpCd || ''
+        : selectedGrp;
+
+      setMaster(nextMaster);
+      setMasterEditIndex(null);
+      setSelectedGrp(nextGrp);
+
+      if (nextGrp) {
+        setDetail(await fetchDetail(nextGrp));
+        setDetailEditIndex(null);
+      } else {
         setSelectedGrp('');
         setDetail([]);
+        setDetailEditIndex(null);
       }
-    }, 0);
-    if (!hasNewOnly) {
-      // 서버 반영 후 재조회 권장
-      onSearch();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setLoading(false);
     }
   }
   async function onMasterSave() {
-    const targets = master.filter((r) => r.CHECK || r.ISNEW);
+    const targets = master.filter((r) => r.CHECK || r.isNew);
     if (targets.length === 0) {
       setError('저장할 마스터 대상이 없습니다.');
       return;
@@ -164,14 +232,25 @@ export default function MMSM06001E() {
     setLoading(true);
     setError(null);
     try {
-      const payload = targets.map((r) => ({
-        BSC_GRP_CD: r.BSC_GRP_CD ?? '',
-        BSC_GRP_NM: r.BSC_GRP_NM ?? '',
-        USE_YN: r.USE_YN ?? 'Y',
-        ISNEW: !!r.ISNEW,
-      }));
-      await http(`/api/m06/mmsm06001/master/save`, { method: 'POST', body: payload });
-      await onSearch();
+      const nextSelectedGrp =
+        targets.find((row) => row.bscGrpCd)?.bscGrpCd ||
+        selectedGrp ||
+        master.find((row) => row.bscGrpCd)?.bscGrpCd ||
+        '';
+      for (const row of targets) {
+        await saveMmsm06001Master(row);
+      }
+      const nextMaster = await fetchMaster();
+      const resolvedSelectedGrp =
+        nextMaster.find((row) => row.bscGrpCd === nextSelectedGrp)?.bscGrpCd ||
+        nextMaster.find((row) => row.bscGrpCd)?.bscGrpCd ||
+        '';
+
+      setMaster(nextMaster);
+      setMasterEditIndex(null);
+      setSelectedGrp(resolvedSelectedGrp);
+      setDetail(await fetchDetail(resolvedSelectedGrp));
+      setDetailEditIndex(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -187,6 +266,24 @@ export default function MMSM06001E() {
       return next;
     });
   }
+  function markDetailEditing(i: number) {
+    const shouldClose = detailEditIndex === i && !detail[i]?.isNew;
+    setDetail((prev) => {
+      const next = [...prev];
+      if (!next[i]) return prev;
+      next[i] = { ...next[i], CHECK: !shouldClose };
+      return next;
+    });
+    setDetailEditIndex((prev) => {
+      if (prev === i && !detail[i]?.isNew) return null;
+      return i;
+    });
+  }
+  function onSelectDetail(i: number) {
+    if (detailEditIndex !== null && detailEditIndex !== i && !detail[detailEditIndex]?.isNew) {
+      setDetailEditIndex(null);
+    }
+  }
   function patchDetail(i: number, patch: Partial<DetailRow>) {
     setDetail((prev) => {
       const next = [...prev];
@@ -195,44 +292,53 @@ export default function MMSM06001E() {
     });
   }
   function onDetailAdd() {
-    if (!selectedGrp) {
-      setError('좌측에서 그룹을 먼저 선택하세요.');
+    if (!canEditDetail) {
+      setError(
+        isSelectedGroupNew
+          ? '신규 그룹은 먼저 저장한 뒤 상세 코드를 등록하세요.'
+          : '좌측에서 그룹을 먼저 선택하세요.'
+      );
       return;
     }
-    setDetail((prev) => [
-      ...prev,
-      {
-        CHECK: true,
-        ISNEW: true,
-        SERL: '',
-        DSP_SEQ: '',
-        BSC_CD: '',
-        BSC_NM: '',
-        BSC_NM2: '',
-        DESC: '',
-        USE_YN: 'Y',
-      },
-    ]);
+    setDetail((prev) => {
+      setDetailEditIndex(prev.length);
+      return [
+        ...prev,
+        {
+          CHECK: true,
+          isNew: true,
+          dspSeq: '',
+          bscCd: '',
+          bscNm: '',
+          bscNm2: '',
+          desc: '',
+          useYn: 'Y',
+        },
+      ];
+    });
   }
   async function onDetailDelete() {
-    if (!selectedGrp) {
-      setError('그룹을 먼저 선택하세요.');
+    if (!canEditDetail) {
+      setError(
+        isSelectedGroupNew
+          ? '신규 그룹은 먼저 저장한 뒤 상세 코드를 삭제하세요.'
+          : '그룹을 먼저 선택하세요.'
+      );
       return;
     }
     const targets = detail
-      .filter((r) => r.CHECK && !r.ISNEW)
-      .map((r) => r.BSC_CD)
+      .filter((r) => r.CHECK && !r.isNew)
+      .map((r) => r.bscCd)
       .filter(Boolean) as string[];
     const hasNewOnly =
-      detail.every((r) => (r.ISNEW ? (r.CHECK ? true : true) : true)) && targets.length === 0;
+      detail.every((r) => (r.isNew ? (r.CHECK ? true : true) : true)) && targets.length === 0;
     setError(null);
     if (targets.length > 0) {
       setLoading(true);
       try {
-        await http(`/api/m06/mmsm06001/detail/delete`, {
-          method: 'POST',
-          body: targets.map((cd) => ({ BSC_GRP_CD: selectedGrp, BSC_CD: cd })),
-        });
+        for (const cd of targets) {
+          await deleteMmsm06001Detail(selectedGrp, cd);
+        }
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
       } finally {
@@ -240,16 +346,21 @@ export default function MMSM06001E() {
       }
     }
     setDetail((prev) => prev.filter((r) => !r.CHECK));
+    setDetailEditIndex(null);
     if (!hasNewOnly) {
-      onSelectMaster(master.findIndex((m) => m.BSC_GRP_CD === selectedGrp));
+      onSelectMaster(master.findIndex((m) => m.bscGrpCd === selectedGrp));
     }
   }
   async function onDetailSave() {
-    if (!selectedGrp) {
-      setError('그룹을 먼저 선택하세요.');
+    if (!canEditDetail) {
+      setError(
+        isSelectedGroupNew
+          ? '신규 그룹은 먼저 저장한 뒤 상세 코드를 저장하세요.'
+          : '그룹을 먼저 선택하세요.'
+      );
       return;
     }
-    const targets = detail.filter((r) => r.CHECK || r.ISNEW);
+    const targets = detail.filter((r) => r.CHECK || r.isNew);
     if (targets.length === 0) {
       setError('저장할 상세 대상이 없습니다.');
       return;
@@ -258,19 +369,12 @@ export default function MMSM06001E() {
     setLoading(true);
     setError(null);
     try {
-      const payload = targets.map((r) => ({
-        BSC_GRP_CD: selectedGrp,
-        DSP_SEQ: r.DSP_SEQ ?? '',
-        BSC_CD: r.BSC_CD ?? '',
-        BSC_NM: r.BSC_NM ?? '',
-        BSC_NM2: r.BSC_NM2 ?? '',
-        DESC: r.DESC ?? '',
-        USE_YN: r.USE_YN ?? 'Y',
-        ISNEW: !!r.ISNEW,
-      }));
-      await http(`/api/m06/mmsm06001/detail/save`, { method: 'POST', body: payload });
+      for (const row of targets) {
+        await saveMmsm06001Detail(selectedGrp, row);
+      }
       const d = await fetchDetail(selectedGrp);
       setDetail(d);
+      setDetailEditIndex(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -279,240 +383,360 @@ export default function MMSM06001E() {
   }
 
   return (
-    <div className="p-3 space-y-3">
-      <div className="text-base font-semibold">기초코드 관리</div>
-
-      {/* Filters & Search */}
-      <div className="flex flex-wrap items-end gap-3">
-        <label className="flex flex-col text-sm">
-          <span className="mb-1">그룹코드</span>
-          <input
-            className="h-8 border rounded px-2 w-40"
-            value={grpCd}
-            onChange={(e) => setGrpCd(e.target.value)}
-          />
-        </label>
-        <label className="flex flex-col text-sm">
-          <span className="mb-1">그룹명</span>
-          <input
-            className="h-8 border rounded px-2 w-60"
-            value={grpNm}
-            onChange={(e) => setGrpNm(e.target.value)}
-          />
-        </label>
-        <div className="ml-auto flex gap-2">
-          <button
-            onClick={onSearch}
-            disabled={loading}
-            className="h-8 px-3 border rounded bg-primary text-primary-foreground disabled:opacity-50"
-          >
-            조회
-          </button>
-        </div>
-      </div>
-
-      {error && (
-        <div className="text-sm text-destructive border border-destructive/30 rounded p-2">
-          {error}
-        </div>
-      )}
-
-      {/* Layout: Master | Detail */}
-      <div className="grid grid-cols-12 gap-3">
-        {/* Master Panel */}
-        <div className="col-span-12 md:col-span-6 space-y-2">
-          <div className="flex justify-end gap-2">
-            <button onClick={onMasterAdd} disabled={loading} className="h-8 px-3 border rounded">
-              추가
-            </button>
-            <button onClick={onMasterSave} disabled={loading} className="h-8 px-3 border rounded">
-              저장
-            </button>
-            <button onClick={onMasterDelete} disabled={loading} className="h-8 px-3 border rounded">
-              삭제
-            </button>
+    <div className={pageShellClass}>
+      <div className={pageContentClass}>
+        <SectionCard span="full" padding="md">
+          <div className={registerSearchGridClass}>
+            <div className={searchFieldClass}>
+              <span className={searchLabelTextClass}>그룹코드</span>
+              <input
+                className={searchInputClass}
+                value={grpCd}
+                onChange={(e) => setGrpCd(e.target.value)}
+              />
+            </div>
+            <div className={searchFieldClass}>
+              <span className={searchLabelTextClass}>그룹명</span>
+              <input
+                className={searchInputClass}
+                value={grpNm}
+                onChange={(e) => setGrpNm(e.target.value)}
+              />
+            </div>
+            <div className="flex flex-wrap items-end justify-end gap-2">
+              <button onClick={onSearch} disabled={loading} className={searchButtonClass}>
+                조회
+              </button>
+            </div>
           </div>
-          <div className="border rounded overflow-auto max-h-[65vh]">
-            <table className="w-full text-sm">
-              <thead className="sticky top-0 bg-background">
-                <tr className="border-b">
-                  <th className="w-12 p-2 text-center">선택</th>
-                  <th className="w-12 p-2 text-center">No.</th>
-                  <th className="w-28 p-2 text-center">그룹코드</th>
-                  <th className="p-2 text-left">그룹코드명</th>
-                  <th className="w-20 p-2 text-center">사용여부</th>
-                  <th className="w-20 p-2 text-center">작성자</th>
-                  <th className="w-28 p-2 text-center">작성일자</th>
-                </tr>
-              </thead>
-              <tbody>
-                {master.map((r, i) => (
-                  <tr
-                    key={i}
-                    className="border-b hover:bg-muted/30 cursor-pointer"
-                    onClick={() => onSelectMaster(i)}
-                  >
-                    <td className="p-2 text-center" onClick={(e) => e.stopPropagation()}>
+        </SectionCard>
+
+        {error ? <AlertBox>{error}</AlertBox> : null}
+
+        <div className={registerSplitGridClass}>
+          <SectionCard span="wideLeft" width="full">
+            <SectionHeader
+              title="기초코드 그룹"
+              right={<span className={countBadgeClass}>{loading ? '조회중...' : `${master.length}건`}</span>}
+            />
+            <div className="flex justify-end gap-2 px-4 py-3">
+              <button onClick={onMasterAdd} disabled={loading} className={panelActionClass}>
+                추가
+              </button>
+              <button onClick={onMasterSave} disabled={loading} className={saveButtonClass}>
+                저장
+              </button>
+              <button onClick={onMasterDelete} disabled={loading} className={deleteButtonClass}>
+                삭제
+              </button>
+            </div>
+            <div className={gridScrollClass}>
+              <DataGrid<MasterRow>
+                dataSource={master}
+                rowKey={(row, index) => `${row.bscGrpCd ?? 'new'}-${index}`}
+                showBorders
+                emptyText="그룹 목록이 없습니다. 조건을 입력하고 조회하세요."
+                getRowProps={(row, index) => ({
+                  onClick: () => onSelectMaster(index),
+                  onDoubleClick: () => markMasterEditing(index),
+                  className: `cursor-pointer ${
+                    row.bscGrpCd && row.bscGrpCd === selectedGrp ? 'bg-sky-50' : ''
+                  }`,
+                })}
+              >
+                <Paging enabled={false} />
+                <Column<MasterRow>
+                  dataField="CHECK"
+                  caption="선택"
+                  width={48}
+                  alignment="center"
+                  cellRender={(row, index) => (
+                    <input
+                      type="checkbox"
+                      checked={!!row.CHECK}
+                      onClick={(event) => event.stopPropagation()}
+                      onChange={(event) => toggleMaster(index, event.target.checked)}
+                    />
+                  )}
+                />
+                <Column<MasterRow>
+                  dataField="dspSeq"
+                  caption="표시순서"
+                  width={90}
+                  alignment="center"
+                  cellRender={(row, index) => {
+                    const isEditing = row.isNew || masterEditIndex === index;
+                    if (!isEditing) {
+                      return <span className={readOnlyCellClass}>{row.dspSeq ?? ''}</span>;
+                    }
+
+                    return (
                       <input
-                        type="checkbox"
-                        checked={!!r.CHECK}
-                        onChange={(e) => toggleMaster(i, e.target.checked)}
+                        className={editableNumberInputClass}
+                        inputMode="numeric"
+                        value={row.dspSeq ?? ''}
+                        onClick={(event) => event.stopPropagation()}
+                        onChange={(event) =>
+                          patchMaster(index, { dspSeq: onlyDigits(event.target.value) })
+                        }
                       />
-                    </td>
-                    <td className="p-2 text-center">{r.SERL ?? i + 1}</td>
-                    <td className="p-1 text-center" onClick={(e) => e.stopPropagation()}>
+                    );
+                  }}
+                />
+                <Column<MasterRow>
+                  dataField="bscGrpCd"
+                  caption="그룹코드"
+                  width={130}
+                  alignment="center"
+                  cellRender={(row, index) => {
+                    const isEditing = row.isNew || masterEditIndex === index;
+                    if (!isEditing) {
+                      return <span className={readOnlyCellClass}>{row.bscGrpCd ?? ''}</span>;
+                    }
+
+                    return (
                       <input
-                        className={`h-8 border rounded px-2 w-full ${r.ISNEW ? '' : 'bg-muted'}`}
-                        value={r.BSC_GRP_CD ?? ''}
-                        readOnly={!r.ISNEW}
-                        onChange={(e) => patchMaster(i, { BSC_GRP_CD: e.target.value })}
+                        className={row.isNew ? editableInputClass : readonlyInputClass}
+                        value={row.bscGrpCd ?? ''}
+                        readOnly={!row.isNew}
+                        onClick={(event) => event.stopPropagation()}
+                        onChange={(event) => patchMaster(index, { bscGrpCd: event.target.value })}
                       />
-                    </td>
-                    <td className="p-1" onClick={(e) => e.stopPropagation()}>
+                    );
+                  }}
+                />
+                <Column<MasterRow>
+                  dataField="bscGrpNm"
+                  caption="그룹코드명"
+                  width={180}
+                  cellRender={(row, index) => {
+                    const isEditing = row.isNew || masterEditIndex === index;
+                    if (!isEditing) {
+                      return <span className={readOnlyCellClass}>{row.bscGrpNm ?? ''}</span>;
+                    }
+
+                    return (
                       <input
-                        className="h-8 border rounded px-2 w-full"
-                        value={r.BSC_GRP_NM ?? ''}
-                        onChange={(e) => patchMaster(i, { BSC_GRP_NM: e.target.value })}
+                        className={editableInputClass}
+                        value={row.bscGrpNm ?? ''}
+                        onClick={(event) => event.stopPropagation()}
+                        onChange={(event) => patchMaster(index, { bscGrpNm: event.target.value })}
                       />
-                    </td>
-                    <td className="p-1 text-center" onClick={(e) => e.stopPropagation()}>
+                    );
+                  }}
+                />
+                <Column<MasterRow>
+                  dataField="useYn"
+                  caption="사용여부"
+                  width={90}
+                  alignment="center"
+                  cellRender={(row, index) => {
+                    const isEditing = row.isNew || masterEditIndex === index;
+                    if (!isEditing) {
+                      return <span className={readOnlyCellClass}>{row.useYn ?? 'Y'}</span>;
+                    }
+
+                    return (
                       <select
-                        className="h-8 border rounded px-2 w-full"
-                        value={r.USE_YN ?? 'Y'}
-                        onChange={(e) => patchMaster(i, { USE_YN: e.target.value })}
+                        className={editableSelectClass}
+                        value={row.useYn ?? 'Y'}
+                        onClick={(event) => event.stopPropagation()}
+                        onChange={(event) => patchMaster(index, { useYn: event.target.value })}
                       >
                         <option value="Y">Y</option>
                         <option value="N">N</option>
                       </select>
-                    </td>
-                    <td className="p-2 text-center">{r.MOD_USR ?? ''}</td>
-                    <td className="p-2 text-center">{r.MOD_DT ?? ''}</td>
-                  </tr>
-                ))}
-                {master.length === 0 && (
-                  <tr>
-                    <td colSpan={7} className="p-3 text-center text-muted-foreground">
-                      그룹 목록이 없습니다. 조건을 입력하고 조회하세요.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+                    );
+                  }}
+                />
+              </DataGrid>
+            </div>
+          </SectionCard>
 
-        {/* Detail Panel */}
-        <div className="col-span-12 md:col-span-6 space-y-2">
-          <div className="flex justify-end gap-2">
-            <button
-              onClick={onDetailAdd}
-              disabled={loading || !selectedGrp}
-              className="h-8 px-3 border rounded"
-            >
-              추가
-            </button>
-            <button
-              onClick={onDetailSave}
-              disabled={loading || !selectedGrp}
-              className="h-8 px-3 border rounded"
-            >
-              저장
-            </button>
-            <button
-              onClick={onDetailDelete}
-              disabled={loading || !selectedGrp}
-              className="h-8 px-3 border rounded"
-            >
-              삭제
-            </button>
-          </div>
-          <div className="border rounded overflow-auto max-h-[65vh]">
-            <table className="w-full text-sm">
-              <thead className="sticky top-0 bg-background">
-                <tr className="border-b">
-                  <th className="w-12 p-2 text-center">선택</th>
-                  <th className="w-12 p-2 text-center">No.</th>
-                  <th className="w-16 p-2 text-center">표시순서</th>
-                  <th className="w-24 p-2 text-center">기초코드</th>
-                  <th className="p-2 text-left">기초코드명</th>
-                  <th className="w-28 p-2 text-left">기초코드명약어</th>
-                  <th className="w-40 p-2 text-left">설명</th>
-                  <th className="w-20 p-2 text-center">사용여부</th>
-                  <th className="w-20 p-2 text-center">작성자</th>
-                  <th className="w-28 p-2 text-center">작성일자</th>
-                </tr>
-              </thead>
-              <tbody>
-                {detail.map((r, i) => (
-                  <tr key={i} className="border-b hover:bg-muted/30">
-                    <td className="p-2 text-center">
+          <SectionCard span="wideRight" width="full">
+            <SectionHeader
+              title="기초코드 상세"
+              right={<span className={countBadgeClass}>{loading ? '조회중...' : `${detail.length}건`}</span>}
+            />
+            <div className="flex items-center justify-between gap-2 px-4 py-3">
+              <div className="flex flex-col gap-1">
+                <span className="text-sm font-medium text-slate-600">
+                  선택그룹: {selectedGrp || '-'}
+                </span>
+                {isSelectedGroupNew ? (
+                  <span className="text-xs text-amber-700">
+                    신규 그룹은 저장 후 상세 코드를 등록할 수 있습니다.
+                  </span>
+                ) : null}
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={onDetailAdd}
+                  disabled={loading || !canEditDetail}
+                  className={panelActionClass}
+                >
+                  추가
+                </button>
+                <button
+                  onClick={onDetailSave}
+                  disabled={loading || !canEditDetail}
+                  className={saveButtonClass}
+                >
+                  저장
+                </button>
+                <button
+                  onClick={onDetailDelete}
+                  disabled={loading || !canEditDetail}
+                  className={deleteButtonClass}
+                >
+                  삭제
+                </button>
+              </div>
+            </div>
+            <div className={gridScrollClass}>
+              <DataGrid<DetailRow>
+                dataSource={detail}
+                rowKey={(row, index) => `${selectedGrp}-${row.bscCd ?? 'new'}-${index}`}
+                showBorders
+                emptyText="상세 목록이 없습니다. 좌측 그룹을 선택하고 추가 또는 조회하세요."
+                getRowProps={(_, index) => ({
+                  onClick: () => onSelectDetail(index),
+                  onDoubleClick: () => markDetailEditing(index),
+                  className: 'cursor-pointer',
+                })}
+              >
+                <Paging enabled={false} />
+                <CheckColumn
+                  checked={(row) => !!row.CHECK}
+                  onChange={(_, index, checked) => toggleDetail(index, checked)}
+                />
+                <Column<DetailRow>
+                  dataField="dspSeq"
+                  caption="표시순서"
+                  width={90}
+                  alignment="center"
+                  cellRender={(row, index) => {
+                    const isEditing = row.isNew || detailEditIndex === index;
+                    if (!isEditing) {
+                      return <span className={readOnlyCellClass}>{row.dspSeq ?? ''}</span>;
+                    }
+
+                    return (
                       <input
-                        type="checkbox"
-                        checked={!!r.CHECK}
-                        onChange={(e) => toggleDetail(i, e.target.checked)}
+                        className={editableNumberInputClass}
+                        inputMode="numeric"
+                        value={row.dspSeq ?? ''}
+                        onChange={(event) =>
+                          patchDetail(index, { dspSeq: onlyDigits(event.target.value) })
+                        }
                       />
-                    </td>
-                    <td className="p-2 text-center">{r.SERL ?? i + 1}</td>
-                    <td className="p-1 text-center">
+                    );
+                  }}
+                />
+                <Column<DetailRow>
+                  dataField="bscCd"
+                  caption="기초코드"
+                  width={120}
+                  alignment="center"
+                  cellRender={(row, index) => {
+                    const isEditing = row.isNew || detailEditIndex === index;
+                    if (!isEditing) {
+                      return <span className={readOnlyCellClass}>{row.bscCd ?? ''}</span>;
+                    }
+
+                    return (
                       <input
-                        className="h-8 border rounded px-2 w-full text-center"
-                        value={r.DSP_SEQ ?? ''}
-                        onChange={(e) => patchDetail(i, { DSP_SEQ: e.target.value })}
+                        className={row.isNew ? editableInputClass : readonlyInputClass}
+                        value={row.bscCd ?? ''}
+                        readOnly={!row.isNew}
+                        onChange={(event) => patchDetail(index, { bscCd: event.target.value })}
                       />
-                    </td>
-                    <td className="p-1 text-center">
+                    );
+                  }}
+                />
+                <Column<DetailRow>
+                  dataField="bscNm"
+                  caption="기초코드명"
+                  width={160}
+                  cellRender={(row, index) => {
+                    const isEditing = row.isNew || detailEditIndex === index;
+                    if (!isEditing) {
+                      return <span className={readOnlyCellClass}>{row.bscNm ?? ''}</span>;
+                    }
+
+                    return (
                       <input
-                        className={`h-8 border rounded px-2 w-full ${r.ISNEW ? '' : 'bg-muted'}`}
-                        value={r.BSC_CD ?? ''}
-                        readOnly={!r.ISNEW}
-                        onChange={(e) => patchDetail(i, { BSC_CD: e.target.value })}
+                        className={editableInputClass}
+                        value={row.bscNm ?? ''}
+                        onChange={(event) => patchDetail(index, { bscNm: event.target.value })}
                       />
-                    </td>
-                    <td className="p-1">
+                    );
+                  }}
+                />
+                <Column<DetailRow>
+                  dataField="bscNm2"
+                  caption="기초코드명약어"
+                  width={150}
+                  cellRender={(row, index) => {
+                    const isEditing = row.isNew || detailEditIndex === index;
+                    if (!isEditing) {
+                      return <span className={readOnlyCellClass}>{row.bscNm2 ?? ''}</span>;
+                    }
+
+                    return (
                       <input
-                        className="h-8 border rounded px-2 w-full"
-                        value={r.BSC_NM ?? ''}
-                        onChange={(e) => patchDetail(i, { BSC_NM: e.target.value })}
+                        className={editableInputClass}
+                        value={row.bscNm2 ?? ''}
+                        onChange={(event) => patchDetail(index, { bscNm2: event.target.value })}
                       />
-                    </td>
-                    <td className="p-1">
+                    );
+                  }}
+                />
+                <Column<DetailRow>
+                  dataField="desc"
+                  caption="설명"
+                  width={190}
+                  cellRender={(row, index) => {
+                    const isEditing = row.isNew || detailEditIndex === index;
+                    if (!isEditing) {
+                      return <span className={readOnlyCellClass}>{row.desc ?? ''}</span>;
+                    }
+
+                    return (
                       <input
-                        className="h-8 border rounded px-2 w-full"
-                        value={r.BSC_NM2 ?? ''}
-                        onChange={(e) => patchDetail(i, { BSC_NM2: e.target.value })}
+                        className={editableInputClass}
+                        value={row.desc ?? ''}
+                        onChange={(event) => patchDetail(index, { desc: event.target.value })}
                       />
-                    </td>
-                    <td className="p-1">
-                      <input
-                        className="h-8 border rounded px-2 w-full"
-                        value={r.DESC ?? ''}
-                        onChange={(e) => patchDetail(i, { DESC: e.target.value })}
-                      />
-                    </td>
-                    <td className="p-1 text-center">
+                    );
+                  }}
+                />
+                <Column<DetailRow>
+                  dataField="useYn"
+                  caption="사용여부"
+                  width={90}
+                  alignment="center"
+                  cellRender={(row, index) => {
+                    const isEditing = row.isNew || detailEditIndex === index;
+                    if (!isEditing) {
+                      return <span className={readOnlyCellClass}>{row.useYn ?? 'Y'}</span>;
+                    }
+
+                    return (
                       <select
-                        className="h-8 border rounded px-2 w-full"
-                        value={r.USE_YN ?? 'Y'}
-                        onChange={(e) => patchDetail(i, { USE_YN: e.target.value })}
+                        className={editableSelectClass}
+                        value={row.useYn ?? 'Y'}
+                        onChange={(event) => patchDetail(index, { useYn: event.target.value })}
                       >
                         <option value="Y">Y</option>
                         <option value="N">N</option>
                       </select>
-                    </td>
-                    <td className="p-2 text-center">{r.MOD_USR ?? ''}</td>
-                    <td className="p-2 text-center">{r.MOD_DT ?? ''}</td>
-                  </tr>
-                ))}
-                {detail.length === 0 && (
-                  <tr>
-                    <td colSpan={10} className="p-3 text-center text-muted-foreground">
-                      상세 목록이 없습니다. 좌측 그룹을 선택하고 추가 또는 조회하세요.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                    );
+                  }}
+                />
+              </DataGrid>
+            </div>
+          </SectionCard>
         </div>
       </div>
     </div>
