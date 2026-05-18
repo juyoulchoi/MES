@@ -383,7 +383,7 @@ export default function MMSM06003E() {
                   cellRender={(row, index) => {
                     const isEditing = row.isNew || masterEditIndex === index;
                     if (!isEditing) {
-                      return <span className={readOnlyCellClass}>{row.itemSpec ?? ''}</span>;
+                      return <span className={readOnlyCellClass}>{row.itemSpec || '미등록'}</span>;
                     }
 
                     return (
@@ -404,7 +404,7 @@ export default function MMSM06003E() {
                   cellRender={(row, index) => {
                     const isEditing = row.isNew || masterEditIndex === index;
                     if (!isEditing) {
-                      return <span className={readOnlyCellClass}>{row.unitCd ?? ''}</span>;
+                      return <span className={readOnlyCellClass}>{row.unitCd || '-'}</span>;
                     }
 
                     return (
