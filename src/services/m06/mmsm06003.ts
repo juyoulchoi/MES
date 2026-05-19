@@ -57,6 +57,8 @@ export type FetchProductMasterParams = {
   itemNm?: string;
 };
 
+const ALL_ITEM_GB = 'FG,SFG,RAW,SUB';
+
 function statusToString(status: unknown) {
   if (!status) return 'ACTIVE';
   if (typeof status === 'object' && status !== null && 'code' in status) {
@@ -90,11 +92,9 @@ function mapDetailRow(row: ProductDetailResponse): DetailRow {
 }
 
 export async function fetchMmsm06003Master({ itemNm = '' }: FetchProductMasterParams) {
-  const qs = new URLSearchParams({ size: '1000' });
+  const qs = new URLSearchParams({ itemGb: ALL_ITEM_GB, size: '1000' });
   if (itemNm.trim()) qs.set('itemNm', itemNm.trim());
-  const data = await http<ApiPage<ProductMasterResponse>>(
-    `/api/v1/mdm/item/searchProductMstList?${qs}`
-  );
+  const data = await http<ApiPage<ProductMasterResponse>>(`/api/v1/mdm/item/search?${qs}`);
   return (Array.isArray(data.content) ? data.content : []).map(mapMasterRow);
 }
 

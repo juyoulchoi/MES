@@ -276,7 +276,7 @@ export default function MMSM06003E() {
             <div className={gridScrollClass}>
               <DataGrid<MasterRow>
                 dataSource={master}
-                rowKey={(row, index) => `${row.itemCd ?? 'new'}-${index}`}
+                rowKey={(row, index) => (row.isNew ? `new-${index}` : `${row.itemCd}-${index}`)}
                 showBorders
                 emptyText="제품 목록이 없습니다. 조건을 입력하고 조회하세요."
                 getRowProps={(row, index) => ({
