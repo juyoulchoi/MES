@@ -35,6 +35,10 @@ const deleteButtonClass =
   'h-9 rounded-lg border border-rose-200 bg-rose-50 px-3 text-sm font-medium text-rose-700 transition hover:bg-rose-100 disabled:opacity-50';
 const readonlyInputClass = `${editableInputClass} bg-slate-100 text-slate-500`;
 const readOnlyCellClass = 'block min-h-8 px-2 py-1.5 text-sm text-slate-700';
+const custGbOptions = [
+  { value: 'CUSTOMER', label: '고객' },
+  { value: 'SUPPLIER', label: '공급처' },
+];
 
 export default function MMSM06004E() {
   const [cstGb, setCstGb] = useState('');
@@ -280,7 +284,7 @@ export default function MMSM06004E() {
                 showBorders
                 emptyText="거래처 목록이 없습니다. 조건을 입력하고 조회하세요."
                 classNames={{
-                  table: 'min-w-[1720px] w-full text-sm',
+                  table: 'min-w-[960px] w-full text-sm',
                 }}
                 getRowProps={(row, index) => ({
                   onClick: () => onSelectRow(index),
@@ -347,43 +351,34 @@ export default function MMSM06004E() {
                   }}
                 />
                 <Column<Row>
-                  dataField="REG_NO"
-                  caption="사업장등록번호"
-                  width={150}
-                  cellRender={(row, index) => {
-                    const isEditing = row.ISNEW || editIndex === index;
-                    if (!isEditing) {
-                      return <span className={readOnlyCellClass}>{row.REG_NO ?? ''}</span>;
-                    }
-
-                    return (
-                      <input
-                        className={editableInputClass}
-                        value={row.REG_NO ?? ''}
-                        onClick={(event) => event.stopPropagation()}
-                        onChange={(event) => patch(index, { REG_NO: event.target.value })}
-                      />
-                    );
-                  }}
-                />
-                <Column<Row>
                   dataField="CST_GB"
                   caption="거래처구분"
                   width={120}
                   alignment="center"
                   cellRender={(row, index) => {
                     const isEditing = row.ISNEW || editIndex === index;
+                    const value = row.CST_GB || 'CUSTOMER';
                     if (!isEditing) {
-                      return <span className={readOnlyCellClass}>{row.CST_GB ?? ''}</span>;
+                      return (
+                        <span className={readOnlyCellClass}>
+                          {custGbOptions.find((option) => option.value === value)?.label || value}
+                        </span>
+                      );
                     }
 
                     return (
-                      <input
-                        className={editableInputClass}
-                        value={row.CST_GB ?? ''}
+                      <select
+                        className={editableSelectClass}
+                        value={value}
                         onClick={(event) => event.stopPropagation()}
                         onChange={(event) => patch(index, { CST_GB: event.target.value })}
-                      />
+                      >
+                        {custGbOptions.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
                     );
                   }}
                 />
@@ -463,86 +458,6 @@ export default function MMSM06004E() {
                         value={row.TEL_NO ?? ''}
                         onClick={(event) => event.stopPropagation()}
                         onChange={(event) => patch(index, { TEL_NO: event.target.value })}
-                      />
-                    );
-                  }}
-                />
-                <Column<Row>
-                  dataField="FAX_NO"
-                  caption="팩스번호"
-                  width={140}
-                  cellRender={(row, index) => {
-                    const isEditing = row.ISNEW || editIndex === index;
-                    if (!isEditing) {
-                      return <span className={readOnlyCellClass}>{row.FAX_NO ?? ''}</span>;
-                    }
-
-                    return (
-                      <input
-                        className={editableInputClass}
-                        value={row.FAX_NO ?? ''}
-                        onClick={(event) => event.stopPropagation()}
-                        onChange={(event) => patch(index, { FAX_NO: event.target.value })}
-                      />
-                    );
-                  }}
-                />
-                <Column<Row>
-                  dataField="EMAIL"
-                  caption="이메일"
-                  width={190}
-                  cellRender={(row, index) => {
-                    const isEditing = row.ISNEW || editIndex === index;
-                    if (!isEditing) {
-                      return <span className={readOnlyCellClass}>{row.EMAIL ?? ''}</span>;
-                    }
-
-                    return (
-                      <input
-                        className={editableInputClass}
-                        value={row.EMAIL ?? ''}
-                        onClick={(event) => event.stopPropagation()}
-                        onChange={(event) => patch(index, { EMAIL: event.target.value })}
-                      />
-                    );
-                  }}
-                />
-                <Column<Row>
-                  dataField="POST_NO"
-                  caption="우편번호"
-                  width={110}
-                  cellRender={(row, index) => {
-                    const isEditing = row.ISNEW || editIndex === index;
-                    if (!isEditing) {
-                      return <span className={readOnlyCellClass}>{row.POST_NO ?? ''}</span>;
-                    }
-
-                    return (
-                      <input
-                        className={editableInputClass}
-                        value={row.POST_NO ?? ''}
-                        onClick={(event) => event.stopPropagation()}
-                        onChange={(event) => patch(index, { POST_NO: event.target.value })}
-                      />
-                    );
-                  }}
-                />
-                <Column<Row>
-                  dataField="ADDR"
-                  caption="주소"
-                  width={260}
-                  cellRender={(row, index) => {
-                    const isEditing = row.ISNEW || editIndex === index;
-                    if (!isEditing) {
-                      return <span className={readOnlyCellClass}>{row.ADDR ?? ''}</span>;
-                    }
-
-                    return (
-                      <input
-                        className={editableInputClass}
-                        value={row.ADDR ?? ''}
-                        onClick={(event) => event.stopPropagation()}
-                        onChange={(event) => patch(index, { ADDR: event.target.value })}
                       />
                     );
                   }}
