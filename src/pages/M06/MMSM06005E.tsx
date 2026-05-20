@@ -1,67 +1,72 @@
-import { useEffect, useState } from 'react';
-import { http } from '@/lib/http';
+import { useState } from 'react';
+import AlertBox from '@/components/AlertBox';
+import SectionCard from '@/components/SectionCard';
+import SectionHeader from '@/components/SectionHeader';
+import { CheckColumn, Column, DataGrid, Paging } from '@/components/table/DataGrid';
+import {
+  addTransferButtonClass,
+  countBadgeClass,
+  deleteTransferButtonClass,
+  exportCsvButtonClass,
+  gridScrollClass,
+  pageContentClass,
+  pageShellClass,
+  registerSearchGridClass,
+  registerSplitGridClass,
+  searchButtonClass,
+  transferButtonGroupClass,
+  transferColumnClass,
+} from '@/lib/pageStyles';
+import {
+  addMmsm06005GroupProcs,
+  buildMmsm06005Csv,
+  deleteMmsm06005GroupProcs,
+  fetchMmsm06005GroupProcs,
+  fetchMmsm06005Groups,
+  fetchMmsm06005Procs,
+  type GroupRow,
+  type ProcRow,
+} from '@/services/m06/mmsm06005';
 
-// 라우팅 관리 (MMSM06005E)
-// 좌: 공정그룹 목록 | 중간 버튼(추가/삭제) | 우: 상단 전체 공정 목록, 하단 그룹 공정 목록
-// 기능: 그룹 선택 시 우측 두 목록 로드, 선택 후 추가/삭제, CSV 내보내기
+// 공정그룹 라우팅 관리 (MMSM06005E)
+// 좌: 공정그룹 목록 | 중간 버튼(등록/해제) | 우: 상단 전체공정 목록, 하단 등록공정 목록
+// 기능: 그룹 선택 시 우측 두 목록 로드, 선택 후 등록/해제, CSV 내보내기
 
-type Row = Record<string, any>;
-
-type GroupRow = {
-  CHECK?: boolean;
-  PROC_GRP_CD?: string;
-  PROC_GRP_NM?: string;
-  [k: string]: any;
-};
-
-type ProcRow = {
-  CHECK?: boolean;
-  PROC_CD?: string;
-  PROC_NM?: string;
-  [k: string]: any;
-};
+const searchLabelClass = 'font-medium text-slate-700';
+const searchFieldClass = 'flex flex-col gap-2 sm:flex-row sm:items-center';
+const searchLabelTextClass = `${searchLabelClass} flex h-10 w-[96px] shrink-0 items-center text-sm`;
+const readOnlyCellClass = 'block min-h-8 px-2 py-1.5 text-sm text-slate-700';
 
 export default function MMSM06005E() {
-  // Data
   const [groups, setGroups] = useState<GroupRow[]>([]);
-  const [procs, setProcs] = useState<ProcRow[]>([]); // 전체 공정
-  const [grpProcs, setGrpProcs] = useState<ProcRow[]>([]); // 그룹 공정
+  const [procs, setProcs] = useState<ProcRow[]>([]);
+  const [grpProcs, setGrpProcs] = useState<ProcRow[]>([]);
   const [selectedGrp, setSelectedGrp] = useState<string>('');
+  const [selectedGrpName, setSelectedGrpName] = useState<string>('');
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    onSearch();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  async function fetchGroups() {
-    const data = await http<GroupRow[]>(`/api/m06/mmsm06005/groups`);
-    return (Array.isArray(data) ? data : []).map((r) => ({ ...r, CHECK: false }));
-  }
-  async function fetchProcs() {
-    const data = await http<ProcRow[]>(`/api/m06/mmsm06005/procs`);
-    return (Array.isArray(data) ? data : []).map((r) => ({ ...r, CHECK: false }));
-  }
-  async function fetchGroupProcs(grp: string) {
-    if (!grp) return [] as ProcRow[];
-    const qs = new URLSearchParams({ grp_cd: grp }).toString();
-    const data = await http<ProcRow[]>(`/api/m06/mmsm06005/group-procs?${qs}`);
-    return (Array.isArray(data) ? data : []).map((r) => ({ ...r, CHECK: false }));
-  }
-
   async function onSearch() {
     setLoading(true);
     setError(null);
+
     try {
-      const [g, p] = await Promise.all([fetchGroups(), fetchProcs()]);
-      setGroups(g);
-      setProcs(p);
-      const grp = g[0]?.PROC_GRP_CD || '';
-      setSelectedGrp(grp);
-      const gp = await fetchGroupProcs(grp);
-      setGrpProcs(gp);
+      const nextGroups = await fetchMmsm06005Groups();
+      const nextSelected =
+        nextGroups.find((row) => row.PROC_GRP_CD && row.PROC_GRP_CD === selectedGrp) ||
+        nextGroups.find((row) => row.PROC_GRP_CD);
+      const nextGrp = nextSelected?.PROC_GRP_CD || '';
+      const [nextProcs, nextGrpProcs] = await Promise.all([
+        fetchMmsm06005Procs(nextGrp),
+        fetchMmsm06005GroupProcs(nextGrp),
+      ]);
+
+      setGroups(nextGroups);
+      setProcs(nextProcs);
+      setSelectedGrp(nextGrp);
+      setSelectedGrpName(nextSelected?.PROC_GRP_NM || '');
+      setGrpProcs(nextGrpProcs);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -69,15 +74,23 @@ export default function MMSM06005E() {
     }
   }
 
-  async function onSelectGroup(i: number) {
-    const grp = groups[i]?.PROC_GRP_CD || '';
+  async function onSelectGroup(index: number) {
+    const row = groups[index];
+    if (!row) return;
+
+    const grp = row.PROC_GRP_CD || '';
     setSelectedGrp(grp);
+    setSelectedGrpName(row.PROC_GRP_NM || '');
     setLoading(true);
     setError(null);
+
     try {
-      const [p, gp] = await Promise.all([fetchProcs(), fetchGroupProcs(grp)]);
-      setProcs(p);
-      setGrpProcs(gp);
+      const [nextProcs, nextGrpProcs] = await Promise.all([
+        fetchMmsm06005Procs(grp),
+        fetchMmsm06005GroupProcs(grp),
+      ]);
+      setProcs(nextProcs);
+      setGrpProcs(nextGrpProcs);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -85,21 +98,22 @@ export default function MMSM06005E() {
     }
   }
 
-  function toggleGroup(i: number, checked: boolean) {
+  function toggleGroup(index: number, checked: boolean) {
     setGroups((prev) => {
       const next = [...prev];
-      next[i] = { ...next[i], CHECK: checked };
+      next[index] = { ...next[index], CHECK: checked };
       return next;
     });
   }
+
   function toggleProcs(
     listSetter: (updater: (prev: ProcRow[]) => ProcRow[]) => void,
-    i: number,
+    index: number,
     checked: boolean
   ) {
     listSetter((prev) => {
       const next = [...prev];
-      next[i] = { ...next[i], CHECK: checked };
+      next[index] = { ...next[index], CHECK: checked };
       return next;
     });
   }
@@ -109,22 +123,28 @@ export default function MMSM06005E() {
       setError('좌측에서 공정그룹을 선택하세요.');
       return;
     }
+
     const targets = procs
-      .filter((r) => r.CHECK)
-      .map((r) => r.PROC_CD)
+      .filter((row) => row.CHECK)
+      .map((row) => row.PROC_CD)
       .filter(Boolean) as string[];
+
     if (targets.length === 0) {
-      setError('추가할 공정을 선택하세요.');
+      setError('등록할 공정을 선택하세요.');
       return;
     }
+
     setLoading(true);
     setError(null);
+
     try {
-      const payload = targets.map((cd) => ({ PROC_GRP_CD: selectedGrp, PROC_CD: cd }));
-      await http(`/api/m06/mmsm06005/add`, { method: 'POST', body: payload });
-      const gp = await fetchGroupProcs(selectedGrp);
-      setGrpProcs(gp);
-      setProcs((prev) => prev.map((r) => ({ ...r, CHECK: false })));
+      await addMmsm06005GroupProcs(selectedGrp, targets);
+      const [nextProcs, nextGrpProcs] = await Promise.all([
+        fetchMmsm06005Procs(selectedGrp),
+        fetchMmsm06005GroupProcs(selectedGrp),
+      ]);
+      setProcs(nextProcs);
+      setGrpProcs(nextGrpProcs);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -137,21 +157,28 @@ export default function MMSM06005E() {
       setError('좌측에서 공정그룹을 선택하세요.');
       return;
     }
+
     const targets = grpProcs
-      .filter((r) => r.CHECK)
-      .map((r) => r.PROC_CD)
+      .filter((row) => row.CHECK)
+      .map((row) => row.PROC_CD)
       .filter(Boolean) as string[];
+
     if (targets.length === 0) {
-      setError('삭제할 공정을 선택하세요.');
+      setError('해제할 공정을 선택하세요.');
       return;
     }
+
     setLoading(true);
     setError(null);
+
     try {
-      const payload = targets.map((cd) => ({ PROC_GRP_CD: selectedGrp, PROC_CD: cd }));
-      await http(`/api/m06/mmsm06005/delete`, { method: 'POST', body: payload });
-      const gp = await fetchGroupProcs(selectedGrp);
-      setGrpProcs(gp);
+      await deleteMmsm06005GroupProcs(selectedGrp, targets);
+      const [nextProcs, nextGrpProcs] = await Promise.all([
+        fetchMmsm06005Procs(selectedGrp),
+        fetchMmsm06005GroupProcs(selectedGrp),
+      ]);
+      setProcs(nextProcs);
+      setGrpProcs(nextGrpProcs);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -160,19 +187,12 @@ export default function MMSM06005E() {
   }
 
   function onExportCsv() {
-    const headers = ['공정그룹', '공정코드', '공정명'];
-    const lines = grpProcs.map((r) =>
-      [selectedGrp, r.PROC_CD ?? '', r.PROC_NM ?? '']
-        .map((v) => (v ?? '').toString().replace(/"/g, '""'))
-        .map((v) => `"${v}"`)
-        .join(',')
-    );
-    const csv = [headers.join(','), ...lines].join('\n');
+    const csv = buildMmsm06005Csv(selectedGrp, grpProcs);
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'MMSM06005E_group_procs.csv';
+    a.download = 'MMSM06005E_routing_procs.csv';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -180,161 +200,205 @@ export default function MMSM06005E() {
   }
 
   return (
-    <div className="p-3 space-y-3">
-      <div className="text-base font-semibold">라우팅 관리</div>
+    <div className={pageShellClass}>
+      <div className={pageContentClass}>
+        <SectionCard span="full" padding="md">
+          <div className={registerSearchGridClass}>
+            <div className={searchFieldClass}>
+              <span className={searchLabelTextClass}>조회대상</span>
+              <span className="flex h-10 items-center text-sm text-slate-600">
+                공정그룹 및 라우팅공정
+              </span>
+            </div>
+            <div />
+            <div className="flex flex-wrap items-end justify-end gap-2">
+              <button onClick={onSearch} disabled={loading} className={searchButtonClass}>
+                조회
+              </button>
+              <button onClick={onExportCsv} disabled={loading} className={exportCsvButtonClass}>
+                엑셀
+              </button>
+            </div>
+          </div>
+        </SectionCard>
 
-      {/* Top Buttons */}
-      <div className="flex gap-2 justify-end">
-        <button
-          onClick={onSearch}
-          disabled={loading}
-          className="h-8 px-3 border rounded bg-primary text-primary-foreground disabled:opacity-50"
-        >
-          조회
-        </button>
-        <button onClick={onExportCsv} className="h-8 px-3 border rounded">
-          엑셀
-        </button>
-      </div>
+        {error ? <AlertBox>{error}</AlertBox> : null}
 
-      {error && (
-        <div className="text-sm text-destructive border border-destructive/30 rounded p-2">
-          {error}
-        </div>
-      )}
-
-      {/* Layout: Groups | Buttons | Right (Procs | Group Procs) */}
-      <div className="grid grid-cols-12 gap-3">
-        {/* Groups */}
-        <div className="col-span-12 md:col-span-3 border rounded overflow-auto max-h-[70vh]">
-          <table className="w-full text-sm">
-            <thead className="sticky top-0 bg-background">
-              <tr className="border-b">
-                <th className="w-12 p-2 text-center">선택</th>
-                <th className="w-28 p-2 text-center">공정그룹코드</th>
-                <th className="p-2 text-left">공정그룹명</th>
-              </tr>
-            </thead>
-            <tbody>
-              {groups.map((r, i) => (
-                <tr
-                  key={i}
-                  className={`border-b hover:bg-muted/30 cursor-pointer ${selectedGrp === r.PROC_GRP_CD ? 'bg-muted/30' : ''}`}
-                  onClick={() => onSelectGroup(i)}
-                >
-                  <td className="p-2 text-center" onClick={(e) => e.stopPropagation()}>
+        <div className={registerSplitGridClass}>
+          <SectionCard span="left" width="full">
+            <SectionHeader
+              title="공정그룹"
+              right={
+                <span className={countBadgeClass}>
+                  {loading ? '조회중...' : `${groups.length}건`}
+                </span>
+              }
+            />
+            <div className={gridScrollClass}>
+              <DataGrid<GroupRow>
+                dataSource={groups}
+                rowKey={(row, index) => `${row.PROC_GRP_CD ?? 'group'}-${index}`}
+                showBorders
+                emptyText="공정그룹이 없습니다. 조회를 눌러 로드하세요."
+                getRowProps={(row, index) => ({
+                  onClick: () => onSelectGroup(index),
+                  className: `cursor-pointer ${
+                    row.PROC_GRP_CD && row.PROC_GRP_CD === selectedGrp ? 'bg-sky-50' : ''
+                  }`,
+                })}
+              >
+                <Paging enabled={false} />
+                <Column<GroupRow>
+                  dataField="CHECK"
+                  caption="선택"
+                  width={48}
+                  alignment="center"
+                  cellRender={(row, index) => (
                     <input
                       type="checkbox"
-                      checked={!!r.CHECK}
-                      onChange={(e) => toggleGroup(i, e.target.checked)}
+                      checked={!!row.CHECK}
+                      onClick={(event) => event.stopPropagation()}
+                      onChange={(event) => toggleGroup(index, event.target.checked)}
                     />
-                  </td>
-                  <td className="p-2 text-center">{r.PROC_GRP_CD ?? ''}</td>
-                  <td className="p-2 text-left">{r.PROC_GRP_NM ?? ''}</td>
-                </tr>
-              ))}
-              {groups.length === 0 && (
-                <tr>
-                  <td colSpan={3} className="p-3 text-center text-muted-foreground">
-                    공정그룹이 없습니다. 조회를 눌러 로드하세요.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+                  )}
+                />
+                <Column<GroupRow>
+                  dataField="PROC_GRP_CD"
+                  caption="공정그룹코드"
+                  width={130}
+                  alignment="center"
+                  cellRender={(row) => (
+                    <span className={readOnlyCellClass}>{row.PROC_GRP_CD ?? ''}</span>
+                  )}
+                />
+                <Column<GroupRow>
+                  dataField="PROC_GRP_NM"
+                  caption="공정그룹명"
+                  width={180}
+                  cellRender={(row) => (
+                    <span className={readOnlyCellClass}>{row.PROC_GRP_NM ?? ''}</span>
+                  )}
+                />
+              </DataGrid>
+            </div>
+          </SectionCard>
 
-        {/* Middle Buttons */}
-        <div className="col-span-12 md:col-span-1 flex md:flex-col gap-2 items-center justify-center">
-          <button
-            onClick={onRemoveProcsFromGroup}
-            disabled={loading || !selectedGrp}
-            className="h-8 px-3 border rounded"
-          >
-            삭제
-          </button>
-          <button
-            onClick={onAddProcsToGroup}
-            disabled={loading || !selectedGrp}
-            className="h-8 px-3 border rounded"
-          >
-            추가
-          </button>
-        </div>
-
-        {/* Right side: Procs | Group Procs */}
-        <div className="col-span-12 md:col-span-8 grid grid-rows-2 gap-3">
-          {/* All Procs */}
-          <div className="border rounded overflow-auto">
-            <div className="p-2 text-sm font-medium">전체 공정</div>
-            <table className="w-full text-sm">
-              <thead className="sticky top-0 bg-background">
-                <tr className="border-b">
-                  <th className="w-12 p-2 text-center">선택</th>
-                  <th className="w-28 p-2 text-center">공정코드</th>
-                  <th className="p-2 text-left">공정명</th>
-                </tr>
-              </thead>
-              <tbody>
-                {procs.map((r, i) => (
-                  <tr key={i} className="border-b hover:bg-muted/30">
-                    <td className="p-2 text-center">
-                      <input
-                        type="checkbox"
-                        checked={!!r.CHECK}
-                        onChange={(e) => toggleProcs(setProcs, i, e.target.checked)}
-                      />
-                    </td>
-                    <td className="p-2 text-center">{r.PROC_CD ?? ''}</td>
-                    <td className="p-2 text-left">{r.PROC_NM ?? ''}</td>
-                  </tr>
-                ))}
-                {procs.length === 0 && (
-                  <tr>
-                    <td colSpan={3} className="p-3 text-center text-muted-foreground">
-                      전체 공정 목록이 없습니다.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+          <div className={transferColumnClass}>
+            <div className={transferButtonGroupClass}>
+              <button
+                onClick={onRemoveProcsFromGroup}
+                disabled={loading || !selectedGrp}
+                className={deleteTransferButtonClass}
+              >
+                해제
+              </button>
+              <button
+                onClick={onAddProcsToGroup}
+                disabled={loading || !selectedGrp}
+                className={addTransferButtonClass}
+              >
+                등록
+              </button>
+            </div>
           </div>
 
-          {/* Group Procs */}
-          <div className="border rounded overflow-auto">
-            <div className="p-2 text-sm font-medium">그룹 공정</div>
-            <table className="w-full text-sm">
-              <thead className="sticky top-0 bg-background">
-                <tr className="border-b">
-                  <th className="w-12 p-2 text-center">선택</th>
-                  <th className="w-28 p-2 text-center">공정코드</th>
-                  <th className="p-2 text-left">공정명</th>
-                </tr>
-              </thead>
-              <tbody>
-                {grpProcs.map((r, i) => (
-                  <tr key={i} className="border-b hover:bg-muted/30">
-                    <td className="p-2 text-center">
-                      <input
-                        type="checkbox"
-                        checked={!!r.CHECK}
-                        onChange={(e) => toggleProcs(setGrpProcs, i, e.target.checked)}
-                      />
-                    </td>
-                    <td className="p-2 text-center">{r.PROC_CD ?? ''}</td>
-                    <td className="p-2 text-left">{r.PROC_NM ?? ''}</td>
-                  </tr>
-                ))}
-                {grpProcs.length === 0 && (
-                  <tr>
-                    <td colSpan={3} className="p-3 text-center text-muted-foreground">
-                      그룹에 등록된 공정이 없습니다.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+          <SectionCard span="wideRight" width="full">
+            <SectionHeader
+              title="공정그룹 라우팅"
+              right={
+                <span className={countBadgeClass}>
+                  {loading ? '조회중...' : `등록가능공정 ${procs.length}건 / 등록공정 ${grpProcs.length}건`}
+                </span>
+              }
+            />
+            <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
+              <div className="flex flex-col gap-1">
+                <span className="text-sm font-medium text-slate-600">
+                  선택그룹: {selectedGrp || '-'}
+                </span>
+                <span className="text-xs text-slate-500">
+                  라우팅명: {selectedGrpName || '-'}
+                </span>
+              </div>
+            </div>
+            <div className="grid gap-4 p-4 xl:grid-cols-2">
+              <div className="min-w-0">
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="text-sm font-semibold text-slate-700">등록가능공정</span>
+                  <span className={countBadgeClass}>{procs.length}건</span>
+                </div>
+                <div className="max-h-[64vh] overflow-auto">
+                  <DataGrid<ProcRow>
+                    dataSource={procs}
+                    rowKey={(row, index) => `all-${row.PROC_CD ?? 'proc'}-${index}`}
+                    showBorders
+                    emptyText="등록 가능한 공정 목록이 없습니다."
+                  >
+                    <Paging enabled={false} />
+                    <CheckColumn
+                      checked={(row) => !!row.CHECK}
+                      onChange={(_, index, checked) => toggleProcs(setProcs, index, checked)}
+                    />
+                    <Column<ProcRow>
+                      dataField="PROC_CD"
+                      caption="공정코드"
+                      width={120}
+                      alignment="center"
+                      cellRender={(row) => (
+                        <span className={readOnlyCellClass}>{row.PROC_CD ?? ''}</span>
+                      )}
+                    />
+                    <Column<ProcRow>
+                      dataField="PROC_NM"
+                      caption="공정명"
+                      width={200}
+                      cellRender={(row) => (
+                        <span className={readOnlyCellClass}>{row.PROC_NM ?? ''}</span>
+                      )}
+                    />
+                  </DataGrid>
+                </div>
+              </div>
+
+              <div className="min-w-0">
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="text-sm font-semibold text-slate-700">등록공정</span>
+                  <span className={countBadgeClass}>{grpProcs.length}건</span>
+                </div>
+                <div className="max-h-[64vh] overflow-auto">
+                  <DataGrid<ProcRow>
+                    dataSource={grpProcs}
+                    rowKey={(row, index) => `group-${row.PROC_CD ?? 'proc'}-${index}`}
+                    showBorders
+                    emptyText="공정그룹에 등록된 라우팅공정이 없습니다."
+                  >
+                    <Paging enabled={false} />
+                    <CheckColumn
+                      checked={(row) => !!row.CHECK}
+                      onChange={(_, index, checked) => toggleProcs(setGrpProcs, index, checked)}
+                    />
+                    <Column<ProcRow>
+                      dataField="PROC_CD"
+                      caption="공정코드"
+                      width={120}
+                      alignment="center"
+                      cellRender={(row) => (
+                        <span className={readOnlyCellClass}>{row.PROC_CD ?? ''}</span>
+                      )}
+                    />
+                    <Column<ProcRow>
+                      dataField="PROC_NM"
+                      caption="공정명"
+                      width={200}
+                      cellRender={(row) => (
+                        <span className={readOnlyCellClass}>{row.PROC_NM ?? ''}</span>
+                      )}
+                    />
+                  </DataGrid>
+                </div>
+              </div>
+            </div>
+          </SectionCard>
         </div>
       </div>
     </div>
