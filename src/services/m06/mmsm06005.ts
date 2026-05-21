@@ -1,16 +1,16 @@
 import { http } from '@/lib/http';
 
 export type GroupRow = {
-  CHECK?: boolean;
-  PROC_GRP_CD?: string;
-  PROC_GRP_NM?: string;
+  check?: boolean;
+  procGrpCd?: string;
+  procGrpNm?: string;
   [k: string]: unknown;
 };
 
 export type ProcRow = {
-  CHECK?: boolean;
-  PROC_CD?: string;
-  PROC_NM?: string;
+  check?: boolean;
+  procCd?: string;
+  procNm?: string;
   [k: string]: unknown;
 };
 
@@ -19,36 +19,52 @@ type ProcGrpInfoResponse = {
   procGrpNm?: string;
   dspSeq?: number | string;
   status?: unknown;
-  PROC_GRP_CD?: string;
-  PROC_GRP_NM?: string;
+  grpCd?: string;
+  grpNm?: string;
 };
 
 type ProcCodeResponse = {
   procCd?: string;
   procNm?: string;
-  PROC_CD?: string;
-  PROC_NM?: string;
 };
+
+const PROC_ROUTING_GROUP_CODES = new Set(['PROC', 'PROC_GB', 'ROUTING', 'ROUTING_GB', 'RT']);
+const PROC_ROUTING_GROUP_PREFIXES = ['PROC_', 'ROUTING_', 'RT_'];
+
+function resolveGroupCode(row: ProcGrpInfoResponse) {
+  return row.procGb ?? row.grpCd ?? '';
+}
+
+function isProcRoutingGroup(row: ProcGrpInfoResponse) {
+  const grpCd = resolveGroupCode(row).toUpperCase();
+  return (
+    PROC_ROUTING_GROUP_CODES.has(grpCd) ||
+    PROC_ROUTING_GROUP_PREFIXES.some((prefix) => grpCd.startsWith(prefix))
+  );
+}
 
 function mapGroupRow(row: ProcGrpInfoResponse): GroupRow {
   return {
-    CHECK: false,
-    PROC_GRP_CD: row.procGb ?? row.PROC_GRP_CD ?? '',
-    PROC_GRP_NM: row.procGrpNm ?? row.PROC_GRP_NM ?? '',
+    check: false,
+    procGrpCd: resolveGroupCode(row),
+    procGrpNm: row.procGrpNm ?? row.grpNm ?? '',
   };
 }
 
 function mapProcRow(row: ProcCodeResponse): ProcRow {
   return {
-    CHECK: false,
-    PROC_CD: row.procCd ?? row.PROC_CD ?? '',
-    PROC_NM: row.procNm ?? row.PROC_NM ?? '',
+    check: false,
+    procCd: row.procCd ?? '',
+    procNm: row.procNm ?? '',
   };
 }
 
 export async function fetchMmsm06005Groups() {
-  const data = await http<ProcGrpInfoResponse[]>(`/api/v1/mdm/procGrpInfo/search`);
-  return (Array.isArray(data) ? data : []).map(mapGroupRow);
+  const qs = new URLSearchParams({ size: '1000' }).toString();
+  const data = await http<{ content?: ProcGrpInfoResponse[] }>(`/api/v1/mdm/grp/search?${qs}`);
+  return (Array.isArray(data.content) ? data.content : [])
+    .filter(isProcRoutingGroup)
+    .map(mapGroupRow);
 }
 
 export async function fetchMmsm06005Procs(procGb = '') {
@@ -99,7 +115,7 @@ export async function deleteMmsm06005GroupProcs(grpCd: string, procCds: string[]
 export function buildMmsm06005Csv(grpCd: string, rows: ProcRow[]) {
   const headers = ['공정그룹', '라우팅공정코드', '라우팅공정명'];
   const lines = rows.map((row) =>
-    [grpCd, row.PROC_CD ?? '', row.PROC_NM ?? '']
+    [grpCd, row.procCd ?? '', row.procNm ?? '']
       .map((value) => (value ?? '').toString().replace(/"/g, '""'))
       .map((value) => `"${value}"`)
       .join(',')

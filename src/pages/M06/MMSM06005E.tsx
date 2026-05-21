@@ -54,9 +54,9 @@ export default function MMSM06005E() {
     try {
       const nextGroups = await fetchMmsm06005Groups();
       const nextSelected =
-        nextGroups.find((row) => row.PROC_GRP_CD && row.PROC_GRP_CD === selectedGrp) ||
-        nextGroups.find((row) => row.PROC_GRP_CD);
-      const nextGrp = nextSelected?.PROC_GRP_CD || '';
+        nextGroups.find((row) => row.procGrpCd && row.procGrpCd === selectedGrp) ||
+        nextGroups.find((row) => row.procGrpCd);
+      const nextGrp = nextSelected?.procGrpCd || '';
       const [nextProcs, nextGrpProcs] = await Promise.all([
         fetchMmsm06005Procs(nextGrp),
         fetchMmsm06005GroupProcs(nextGrp),
@@ -65,7 +65,7 @@ export default function MMSM06005E() {
       setGroups(nextGroups);
       setProcs(nextProcs);
       setSelectedGrp(nextGrp);
-      setSelectedGrpName(nextSelected?.PROC_GRP_NM || '');
+      setSelectedGrpName(nextSelected?.procGrpNm || '');
       setGrpProcs(nextGrpProcs);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -78,9 +78,9 @@ export default function MMSM06005E() {
     const row = groups[index];
     if (!row) return;
 
-    const grp = row.PROC_GRP_CD || '';
+    const grp = row.procGrpCd || '';
     setSelectedGrp(grp);
-    setSelectedGrpName(row.PROC_GRP_NM || '');
+    setSelectedGrpName(row.procGrpNm || '');
     setLoading(true);
     setError(null);
 
@@ -101,7 +101,7 @@ export default function MMSM06005E() {
   function toggleGroup(index: number, checked: boolean) {
     setGroups((prev) => {
       const next = [...prev];
-      next[index] = { ...next[index], CHECK: checked };
+      next[index] = { ...next[index], check: checked };
       return next;
     });
   }
@@ -113,7 +113,7 @@ export default function MMSM06005E() {
   ) {
     listSetter((prev) => {
       const next = [...prev];
-      next[index] = { ...next[index], CHECK: checked };
+      next[index] = { ...next[index], check: checked };
       return next;
     });
   }
@@ -125,8 +125,8 @@ export default function MMSM06005E() {
     }
 
     const targets = procs
-      .filter((row) => row.CHECK)
-      .map((row) => row.PROC_CD)
+      .filter((row) => row.check)
+      .map((row) => row.procCd)
       .filter(Boolean) as string[];
 
     if (targets.length === 0) {
@@ -159,8 +159,8 @@ export default function MMSM06005E() {
     }
 
     const targets = grpProcs
-      .filter((row) => row.CHECK)
-      .map((row) => row.PROC_CD)
+      .filter((row) => row.check)
+      .map((row) => row.procCd)
       .filter(Boolean) as string[];
 
     if (targets.length === 0) {
@@ -237,46 +237,46 @@ export default function MMSM06005E() {
             <div className={gridScrollClass}>
               <DataGrid<GroupRow>
                 dataSource={groups}
-                rowKey={(row, index) => `${row.PROC_GRP_CD ?? 'group'}-${index}`}
+                rowKey={(row, index) => `${row.procGrpCd ?? 'group'}-${index}`}
                 showBorders
                 emptyText="공정그룹이 없습니다. 조회를 눌러 로드하세요."
                 getRowProps={(row, index) => ({
                   onClick: () => onSelectGroup(index),
                   className: `cursor-pointer ${
-                    row.PROC_GRP_CD && row.PROC_GRP_CD === selectedGrp ? 'bg-sky-50' : ''
+                    row.procGrpCd && row.procGrpCd === selectedGrp ? 'bg-sky-50' : ''
                   }`,
                 })}
               >
                 <Paging enabled={false} />
                 <Column<GroupRow>
-                  dataField="CHECK"
+                  dataField="check"
                   caption="선택"
                   width={48}
                   alignment="center"
                   cellRender={(row, index) => (
                     <input
                       type="checkbox"
-                      checked={!!row.CHECK}
+                      checked={!!row.check}
                       onClick={(event) => event.stopPropagation()}
                       onChange={(event) => toggleGroup(index, event.target.checked)}
                     />
                   )}
                 />
                 <Column<GroupRow>
-                  dataField="PROC_GRP_CD"
+                  dataField="procGrpCd"
                   caption="공정그룹코드"
                   width={130}
                   alignment="center"
                   cellRender={(row) => (
-                    <span className={readOnlyCellClass}>{row.PROC_GRP_CD ?? ''}</span>
+                    <span className={readOnlyCellClass}>{row.procGrpCd ?? ''}</span>
                   )}
                 />
                 <Column<GroupRow>
-                  dataField="PROC_GRP_NM"
+                  dataField="procGrpNm"
                   caption="공정그룹명"
                   width={180}
                   cellRender={(row) => (
-                    <span className={readOnlyCellClass}>{row.PROC_GRP_NM ?? ''}</span>
+                    <span className={readOnlyCellClass}>{row.procGrpNm ?? ''}</span>
                   )}
                 />
               </DataGrid>
@@ -330,30 +330,30 @@ export default function MMSM06005E() {
                 <div className="max-h-[64vh] overflow-auto">
                   <DataGrid<ProcRow>
                     dataSource={procs}
-                    rowKey={(row, index) => `all-${row.PROC_CD ?? 'proc'}-${index}`}
+                    rowKey={(row, index) => `all-${row.procCd ?? 'proc'}-${index}`}
                     showBorders
                     emptyText="등록 가능한 공정 목록이 없습니다."
                   >
                     <Paging enabled={false} />
                     <CheckColumn
-                      checked={(row) => !!row.CHECK}
+                      checked={(row) => !!row.check}
                       onChange={(_, index, checked) => toggleProcs(setProcs, index, checked)}
                     />
                     <Column<ProcRow>
-                      dataField="PROC_CD"
+                      dataField="procCd"
                       caption="공정코드"
                       width={120}
                       alignment="center"
                       cellRender={(row) => (
-                        <span className={readOnlyCellClass}>{row.PROC_CD ?? ''}</span>
+                        <span className={readOnlyCellClass}>{row.procCd ?? ''}</span>
                       )}
                     />
                     <Column<ProcRow>
-                      dataField="PROC_NM"
+                      dataField="procNm"
                       caption="공정명"
                       width={200}
                       cellRender={(row) => (
-                        <span className={readOnlyCellClass}>{row.PROC_NM ?? ''}</span>
+                        <span className={readOnlyCellClass}>{row.procNm ?? ''}</span>
                       )}
                     />
                   </DataGrid>
@@ -368,30 +368,30 @@ export default function MMSM06005E() {
                 <div className="max-h-[64vh] overflow-auto">
                   <DataGrid<ProcRow>
                     dataSource={grpProcs}
-                    rowKey={(row, index) => `group-${row.PROC_CD ?? 'proc'}-${index}`}
+                    rowKey={(row, index) => `group-${row.procCd ?? 'proc'}-${index}`}
                     showBorders
                     emptyText="공정그룹에 등록된 라우팅공정이 없습니다."
                   >
                     <Paging enabled={false} />
                     <CheckColumn
-                      checked={(row) => !!row.CHECK}
+                      checked={(row) => !!row.check}
                       onChange={(_, index, checked) => toggleProcs(setGrpProcs, index, checked)}
                     />
                     <Column<ProcRow>
-                      dataField="PROC_CD"
+                      dataField="procCd"
                       caption="공정코드"
                       width={120}
                       alignment="center"
                       cellRender={(row) => (
-                        <span className={readOnlyCellClass}>{row.PROC_CD ?? ''}</span>
+                        <span className={readOnlyCellClass}>{row.procCd ?? ''}</span>
                       )}
                     />
                     <Column<ProcRow>
-                      dataField="PROC_NM"
+                      dataField="procNm"
                       caption="공정명"
                       width={200}
                       cellRender={(row) => (
-                        <span className={readOnlyCellClass}>{row.PROC_NM ?? ''}</span>
+                        <span className={readOnlyCellClass}>{row.procNm ?? ''}</span>
                       )}
                     />
                   </DataGrid>
